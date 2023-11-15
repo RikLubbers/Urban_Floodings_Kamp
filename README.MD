@@ -1,5 +1,3 @@
-Sure, here's a README file template for the second study in your PhD research, "Equity in Healthcare Accessibility: A Case Study on Undernutrition, Vulnerability, and Mobility During Floodings in Kampala, Uganda":
-
 <div align="center">
     <h1>Equity in Healthcare Accessibility: A Case Study on Undernutrition, Vulnerability, and Mobility During Floodings in Kampala, Uganda</h1>
 </div>

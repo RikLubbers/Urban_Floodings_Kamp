@@ -1,0 +1,170 @@
+---
+title: "Data Analysis Plan: Assessing the Impact of Flooding on Healthcare Accessibility in Kampala"
+format: html
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, fig.show='hide', eval=FALSE)
+
+#fig.show='hide', eval=FALSE
+```
+
+# Loading packages
+
+```{r package loading}
+# List of required packages
+required_packages <- c(
+  "NCmisc", "tidyverse", "haven", "lattice", "data.table", "knitr", "survey",
+  "expss", "labelled", "table1", "readxl", "GGally", "kableExtra", "xtable",
+  "modelsummary", "performance", "finalfit", "naniar", "rms", "openxlsx",
+  "rcompanion", "questionr", "flextable", "MASS", "car", "cowplot", "heatmaply",
+  "esquisse", "visreg", "forcats", "mosaic", "DT", "mice", "gtsummary", "styler",
+  "languageserver", "httpgd"
+)
+
+## Function to check and install missing packages
+install_missing_packages <- function(packages) {
+  missing_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+  if (length(missing_packages) > 0) {
+    install.packages(missing_packages, dependencies = TRUE)
+  }
+}
+
+##Check and install missing packages
+install_missing_packages(required_packages)
+
+
+# Load the installed packages
+library(tidyverse)
+library(haven)
+library(lattice)
+library(data.table)
+library(knitr)
+library(survey)
+  options(survey.lonely.psu = "adjust")
+library(expss)
+library(labelled)
+library(table1)
+library(readxl)
+library(GGally)
+library(kableExtra)
+library(xtable)
+library(modelsummary)
+library(performance)
+library(finalfit)
+library(naniar)
+library(rms)
+library(openxlsx)
+library(rcompanion)
+library(questionr)
+library(flextable)
+library(MASS)
+library(car)
+library(cowplot)
+library(heatmaply)
+library(esquisse)
+library(visreg)
+library(forcats)
+library(mosaic)
+library(DT)
+library(mice)
+library(gtsummary)
+library(languageserver)
+library(httpgd)
+```
+
+
+# Data handling
+## Loading data and creating subset
+
+```{r Data load and subsetting}
+
+```
+
+## Removing unnecessary SPSS metadata
+
+```{r removing metadata}
+# Remove unnecessary SPSS metadata from the children dataset
+
+```
+
+## Defining missing data
+```{r missing data}
+# Replace specific values with NA (missing data) in various columns
+
+```
+
+## Recoding variables
+
+```{r recoding}
+# Transforming variables into more interpretable formats
+
+```
+
+## Providing labels
+
+```{r providing labels}
+# Assigning variable labels to the dataset
+
+```
+
+## Removing invalid data
+
+```{r removing invalid data}
+# Removing invalid data
+
+```
+
+
+# Descriptive Analysis
+
+```{r}
+# Summarize key variables
+summary(DHS_data)
+summary(GIS_data)
+
+# Initial data exploration and visualization
+ggplot(DHS_data, aes(x = variable, fill = factor)) +
+  geom_bar() +
+  theme_minimal()
+# Replace 'variable' and 'factor' with relevant column names
+```
+
+# Bivariate Analysis
+
+```{r}
+# Assess relationships between variables
+cor.test(DHS_data$variable1, DHS_data$variable2)
+# Replace 'variable1' and 'variable2' with relevant column names
+
+# Compare mobility levels and undernutrition
+# Add your code here
+```
+
+# Multinomial Regression
+
+```{r}
+# Fit a multinomial regression model
+multinom_model <- multinom(response ~ predictor1 + predictor2, data = DHS_data)
+summary(multinom_model)
+# Replace 'response', 'predictor1', 'predictor2' with relevant column names
+```
+
+# Spatial Analysis
+
+```{r}
+# Analyze spatial data
+# Plot flooding extents and healthcare facilities
+ggplot() +
+  geom_sf(data = GIS_data) +
+  theme_minimal()
+# Add other spatial analysis code
+```
+
+# Equity Assessment
+
+```{r}
+# Analyze equity implications of findings
+# Add code for equity assessment, possibly involving comparisons of different groups
+```
+

@@ -78,43 +78,301 @@ library(httpgd)
 ## Loading data and creating subset
 
 ```{r Data load and subsetting}
+# Load the children dataset from a .SAV file 
+## depending on computer  "C:/Users/Rik/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/DHS Clusters/Uganda Full/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV"
+##                        D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV"
 
+DHS_children_kamp <- read_sav("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV"
+)  %>%
+  dplyr::filter(V024 == 0)  %>% #only households in Kampala 
+  dplyr::select( 
+    CASEID,
+    V001, V005, V002,
+    V023, V024,
+    V149, V729,
+    V191, V212,
+    V445, V714,
+    BIDX, B0, B4,
+    B5,   BORD,
+    HW5,  HW8,
+    HW11, M19,
+    B11,  H11,
+    V113, M5,
+    V136,
+    V481, H22,
+    V505, H7
+  ) # only select relevant variables
+
+nrow(DHS_children_kamp)
+
+summary(DHS_children_kamp$V001)
+summary(DHS_children_kamp$V002)
+
+length(unique(DHS_children_kamp$V001))
 ```
 
 ## Removing unnecessary SPSS metadata
 
 ```{r removing metadata}
 # Remove unnecessary SPSS metadata from the children dataset
+## Remove variable formats
+DHS_children_kamp <- zap_formats(DHS_children_kamp)
 
+## Remove variable widths
+DHS_children_kamp <- zap_widths(DHS_children_kamp)
+
+## Remove variable labels
+DHS_children_kamp <- zap_labels(DHS_children_kamp)
+
+## Remove variable label
+DHS_children_kamp <- zap_label(DHS_children_kamp)
 ```
 
 ## Defining missing data
 ```{r missing data}
 # Replace specific values with NA (missing data) in various columns
+## For column HW5, replace 9998 and 9999 with NA
+DHS_children_kamp$HW5[DHS_children_kamp$HW5 == 9998] = NA
+DHS_children_kamp$HW5[DHS_children_kamp$HW5 == 9999] = NA
 
+## For column HW8, replace 9998 and 9999 with NA
+DHS_children_kamp$HW8[DHS_children_kamp$HW8 == 9998] = NA
+DHS_children_kamp$HW8[DHS_children_kamp$HW8 == 9999] = NA
+
+## For column HW11, replace 9998 and 9999 with NA
+DHS_children_kamp$HW11[DHS_children_kamp$HW11 == 9998] = NA
+DHS_children_kamp$HW11[DHS_children_kamp$HW11 == 9999] = NA
+
+## For column V149, replace 9 with NA
+DHS_children_kamp$V149[DHS_children_kamp$V149 == 9] = NA
+
+## For column V729, replace 9 with NA
+DHS_children_kamp$V729[DHS_children_kamp$V729 == 9] = NA
+
+## For column V445, replace 9998 and 9999 with NA
+DHS_children_kamp$V445[DHS_children_kamp$V445 == 9998] = NA
+DHS_children_kamp$V445[DHS_children_kamp$V445 == 9999] = NA
+
+## For column V714, replace 9 with NA
+DHS_children_kamp$V714[DHS_children_kamp$V714 == 9] = NA
+
+## For column M19, replace 9996, 9998, and 9999 with NA
+DHS_children_kamp$M19[DHS_children_kamp$M19 == 9996] = NA
+DHS_children_kamp$M19[DHS_children_kamp$M19 == 9998] = NA
+DHS_children_kamp$M19[DHS_children_kamp$M19 == 9999] = NA
+
+## For column H11, replace 8 and 9 with NA
+DHS_children_kamp$H11[DHS_children_kamp$H11 == 8] = NA
+DHS_children_kamp$H11[DHS_children_kamp$H11 == 9] = NA
+
+## For column M5, replace 93, 94, 97, 98, and 99 with NA
+DHS_children_kamp$M5[DHS_children_kamp$M5 == 93] = NA
+DHS_children_kamp$M5[DHS_children_kamp$M5 == 94] = NA
+DHS_children_kamp$M5[DHS_children_kamp$M5 == 97] = NA
+DHS_children_kamp$M5[DHS_children_kamp$M5 == 98] = NA
+DHS_children_kamp$M5[DHS_children_kamp$M5 == 99] = NA
+
+## For column V113, replace 99, 97, and 96 with NA
+DHS_children_kamp$V113[DHS_children_kamp$V113 == 99] = NA
+DHS_children_kamp$V113[DHS_children_kamp$V113 == 97] = NA
+DHS_children_kamp$V113[DHS_children_kamp$V113 == 96] = NA
+
+## For column H7, replace 8 and 9 with NA
+DHS_children_kamp$H7[DHS_children_kamp$H7 == 8] = NA
+DHS_children_kamp$H7[DHS_children_kamp$H7 == 9] = NA
+
+## For column V481, replace 9 with NA
+DHS_children_kamp$V481[DHS_children_kamp$V481 == 9] = NA
+
+## For column H22, replace 8 and 9 with NA
+DHS_children_kamp$H22[DHS_children_kamp$H22 == 8] = NA
+DHS_children_kamp$H22[DHS_children_kamp$H22 == 9] = NA
+
+## For column V505, replace 98 and 99 with NA
+DHS_children_kamp$V505[DHS_children_kamp$V505 == 98] = NA
+DHS_children_kamp$V505[DHS_children_kamp$V505 == 99] = NA
 ```
 
 ## Recoding variables
 
 ```{r recoding}
 # Transforming variables into more interpretable formats
+## Birth interval: Dichotomize into more or less than 24 months
+DHS_children_kamp$B11 = ifelse(DHS_children_kamp$B11 >= 24, 0, 1)
 
+## Combined diarrhea in the last 24 hours and 2 weeks into one category
+DHS_children_kamp$H11 = ifelse(DHS_children_kamp$H11 == 0, 0, 1)
+
+## Recode source of drinking water into simplified categories
+DHS_children_kamp$V113 = expss::recode(DHS_children_kamp$V113, 
+  11 %thru% 14 ~ 1, 21 ~ 2, 31 %thru% 32 ~ 3, 41 %thru% 43 ~ 4, 51 ~ 5, 63 ~ 6, 71 ~ 6)
+
+## Convert the variables into factors
+DHS_children_kamp$B11 = factor(DHS_children_kamp$B11,
+  levels = c(0, 1),
+  labels = c("Birth interval more than 24 months", "Birth interval less than 24 months")
+)
+
+DHS_children_kamp$H11 = factor(DHS_children_kamp$H11,
+  levels = c(0, 1),
+  labels = c("No diarrhea in the last 2 weeks", "Had diarrhea in the last 2 weeks")
+)
+
+## Recode the sex of the child
+DHS_children_kamp$B4 = ifelse(DHS_children_kamp$B4 == 1, 0, 1) %>% factor(levels = c(0, 1), labels = c("Male","Female"))
+
+## Create a factor for twin births
+DHS_children_kamp$B0 = factor(DHS_children_kamp$B0, levels = c(0:3),
+  labels = c("Single Birth", "1st of multiple", "2nd of multiple", "3rd of multiple"))
+
+## Recode DPT 3 into yes and no answers and make it a factor
+DHS_children_kamp$H7 = ifelse(DHS_children_kamp$H7 == 0, 0, 1)
+DHS_children_kamp$H7 = factor(DHS_children_kamp$H7, 
+  levels = c(0, 1), 
+  labels = c("No have not received", "Yes, received DPT 3")
+)
+
+## Set other variables as factors
+DHS_children_kamp$V149 = factor(DHS_children_kamp$V149, 
+  levels = c(0, 1, 2, 3, 4, 5), 
+  labels = c("No education", "Incomplete Primary", "Complete primary", "Incomplete secondary", "Complete secondary", "Higher")
+)
+
+DHS_children_kamp$V729 = factor(DHS_children_kamp$V729, 
+  levels = c(0, 1, 2, 3, 4, 5), 
+  labels = c("No education", "Incomplete Primary", "Complete primary", "Incomplete secondary", "Complete secondary", "Higher")
+)
+
+DHS_children_kamp$V714 = factor(DHS_children_kamp$V714, 
+  levels = c(0, 1), 
+  labels = c("Not working", "Currently working")
+)
+
+DHS_children_kamp$V113 = factor(DHS_children_kamp$V113, 
+  levels = c(1, 2, 3, 4, 5, 6), 
+  labels = c("Piped Water", "Tube Well Water", "Dug Well (Open/Protected", "Surface from Spring", "Rainwater", "Other")
+)
+
+DHS_children_kamp$V481 = factor(DHS_children_kamp$V481, 
+  levels = c(0, 1), 
+  labels = c("No", "Yes")
+)
+
+DHS_children_kamp$H22 = factor(DHS_children_kamp$H22, 
+  levels = c(0, 1), 
+  labels = c("No", "Yes")
+)
+
+## Scaling certain variables for better interpretation
+DHS_children_kamp$HW5 = DHS_children_kamp$HW5 / 100
+DHS_children_kamp$HW8 = DHS_children_kamp$HW8 / 100
+DHS_children_kamp$HW11 = DHS_children_kamp$HW11 / 100
+DHS_children_kamp$V445 = DHS_children_kamp$V445 / 100
+DHS_children_kamp$V191 = DHS_children_kamp$V191 / 1000
 ```
 
 ## Providing labels
 
 ```{r providing labels}
 # Assigning variable labels to the dataset
-
+var_lab(DHS_children_kamp$V001) = "Cluster number"
+var_lab(DHS_children_kamp$V005) = "Women's individual sample weight"
+var_lab(DHS_children_kamp$V023) = "Stratification used in sample design"
+var_lab(DHS_children_kamp$BORD) = "Birth order"
+var_lab(DHS_children_kamp$V149) = "Educational attainment of the mother"
+var_lab(DHS_children_kamp$V729) = "Educational attainment of the father"  
+var_lab(DHS_children_kamp$V191) = "Wealth index"
+var_lab(DHS_children_kamp$V212) = "Age of respondent at first birth"
+var_lab(DHS_children_kamp$V445) = "BMI of mother (kg/m^2)"
+var_lab(DHS_children_kamp$V714) = "Work status of mother"
+var_lab(DHS_children_kamp$B4)   = "Sex of child"
+var_lab(DHS_children_kamp$HW5)  = "Stunting (continious)"
+var_lab(DHS_children_kamp$HW8)  = "Underweight (continious)"  
+var_lab(DHS_children_kamp$HW11) = "Wasting (continious)"
+var_lab(DHS_children_kamp$V024) = "Region"
+var_lab(DHS_children_kamp$M19)  = "Birth weight in grams"
+var_lab(DHS_children_kamp$M5)   = "Duration of breastfeeding"
+var_lab(DHS_children_kamp$V113) = "Source of drinking water"
+var_lab(DHS_children_kamp$V136) = "Number of household members"
+var_lab(DHS_children_kamp$V481) = "Covered by health insurance"
+var_lab(DHS_children_kamp$H22)  = "Fever last two weeks"
+var_lab(DHS_children_kamp$V505) = "Number of other wives"
+var_lab(DHS_children_kamp$V714) = "Mother is currently working"
+var_lab(DHS_children_kamp$V729) = "Education of father/partner"
+var_lab(DHS_children_kamp$V024) = "Region of residence"
+var_lab(DHS_children_kamp$V149) = "Education of mother"
+var_lab(DHS_children_kamp$B4)   = "Sex"
+var_lab(DHS_children_kamp$H11)  = "Had diarrhea in the last two weeks"
+var_lab(DHS_children_kamp$B11)  = "Preceding birth interval <=24"
+var_lab(DHS_children_kamp$B0)   = "Child is twin"
+var_lab(DHS_children_kamp$H7)  = "Child has received DPT3 vaccination"
 ```
 
 ## Removing invalid data
 
 ```{r removing invalid data}
 # Removing invalid data
+## Filter out rows with children who are no longer alive (B5 == 1)
+DHS_children_kamp = subset(DHS_children_kamp, B5 == 1)
+
+## Keep only children with anthropometric measurements (non-missing HW5 values)
+DHS_children_kamp = DHS_children_kamp %>% drop_na(HW5)
 
 ```
 
+## Exploring Missing Data
+
+```{r exploring missing data}
+# Investigating missing data
+## Calculate the proportion of missing values for each variable
+prop_miss(DHS_children_kamp)
+
+## Count the number of missing values for each variable
+n_miss(DHS_children_kamp)
+
+## Summary of missing values by variable
+miss_var_summary(DHS_children_kamp)
+
+## Summary of missing values by case
+miss_case_summary(DHS_children_kamp)
+
+## Create a table showing patterns of missing data
+miss_case_table(DHS_children_kamp)
+
+## Visualize missing data
+vis_miss(DHS_children_kamp) + theme(axis.text.x = element_text(angle=80))
+
+gg_miss_upset(DHS_children_kamp)
+
+## Define dependent and explanatory variables for missing data analysis
+dependent1 = "HW5"
+dependent2 = "HW8"
+dependent3 = "HW11"
+explanatory = c("V149", "V729", "V191", "V212", "V445", "V714", "B4", "BORD", "M19", "B11", "H11", "V113", "V136", "H7", "V481", "H22", "V505")
+
+## Create missing data plots for dependent1, dependent2, and dependent3
+missing_plot(DHS_children_kamp, dependent1, explanatory)
+missing_plot(DHS_children_kamp, dependent2, explanatory)
+missing_plot(DHS_children_kamp, dependent3, explanatory)
+
+## Generate summary tables for missing data
+missing1 = ff_glimpse(DHS_children_kamp, dependent1, explanatory)
+flextable(missing1$Continuous) #%>%
+  save_as_image("missing_cont.png")
+
+ff_glimpse(DHS_children_kamp, dependent2, explanatory)
+ff_glimpse(DHS_children_kamp, dependent3, explanatory)
+
+## Create missing data pair plots for dependent1, dependent2, and dependent3
+DHS_children_kamp %>%
+  missing_pairs(dependent1, explanatory, position = "fill")
+
+DHS_children_kamp %>%
+  missing_pairs(dependent2, explanatory, position = "fill")
+
+DHS_children_kamp %>%
+  missing_pairs(dependent3, explanatory, position = "fill")
+```
 
 # Descriptive Analysis
 

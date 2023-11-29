@@ -102,13 +102,6 @@ DHS_children_kamp <- read_sav("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Ac
     V481, H22,
     V505, H7
   ) # only select relevant variables
-
-nrow(DHS_children_kamp)
-
-summary(DHS_children_kamp$V001)
-summary(DHS_children_kamp$V002)
-
-length(unique(DHS_children_kamp$V001))
 ```
 
 ## Removing unnecessary SPSS metadata
@@ -131,66 +124,26 @@ DHS_children_kamp <- zap_label(DHS_children_kamp)
 ## Defining missing data
 ```{r missing data}
 # Replace specific values with NA (missing data) in various columns
-## For column HW5, replace 9998 and 9999 with NA
-DHS_children_kamp$HW5[DHS_children_kamp$HW5 == 9998] = NA
-DHS_children_kamp$HW5[DHS_children_kamp$HW5 == 9999] = NA
+replace_values_with_na <- function(column, values) {
+  DHS_children_kamp[[column]][DHS_children_kamp[[column]] %in% values] <- NA
+}
 
-## For column HW8, replace 9998 and 9999 with NA
-DHS_children_kamp$HW8[DHS_children_kamp$HW8 == 9998] = NA
-DHS_children_kamp$HW8[DHS_children_kamp$HW8 == 9999] = NA
+replace_values_with_na("HW5", c(9998, 9999))
+replace_values_with_na("HW8", c(9998, 9999))
+replace_values_with_na("HW11", c(9998, 9999))
+replace_values_with_na("V149", 9)
+replace_values_with_na("V729", 9)
+replace_values_with_na("V445", c(9998, 9999))
+replace_values_with_na("V714", 9)
+replace_values_with_na("M19", c(9996, 9998, 9999))
+replace_values_with_na("H11", c(8, 9))
+replace_values_with_na("M5", c(93, 94, 97, 98, 99))
+replace_values_with_na("V113", c(99, 97, 96))
+replace_values_with_na("H7", c(8, 9))
+replace_values_with_na("V481", 9)
+replace_values_with_na("H22", c(8, 9))
+replace_values_with_na("V505", c(98, 99))
 
-## For column HW11, replace 9998 and 9999 with NA
-DHS_children_kamp$HW11[DHS_children_kamp$HW11 == 9998] = NA
-DHS_children_kamp$HW11[DHS_children_kamp$HW11 == 9999] = NA
-
-## For column V149, replace 9 with NA
-DHS_children_kamp$V149[DHS_children_kamp$V149 == 9] = NA
-
-## For column V729, replace 9 with NA
-DHS_children_kamp$V729[DHS_children_kamp$V729 == 9] = NA
-
-## For column V445, replace 9998 and 9999 with NA
-DHS_children_kamp$V445[DHS_children_kamp$V445 == 9998] = NA
-DHS_children_kamp$V445[DHS_children_kamp$V445 == 9999] = NA
-
-## For column V714, replace 9 with NA
-DHS_children_kamp$V714[DHS_children_kamp$V714 == 9] = NA
-
-## For column M19, replace 9996, 9998, and 9999 with NA
-DHS_children_kamp$M19[DHS_children_kamp$M19 == 9996] = NA
-DHS_children_kamp$M19[DHS_children_kamp$M19 == 9998] = NA
-DHS_children_kamp$M19[DHS_children_kamp$M19 == 9999] = NA
-
-## For column H11, replace 8 and 9 with NA
-DHS_children_kamp$H11[DHS_children_kamp$H11 == 8] = NA
-DHS_children_kamp$H11[DHS_children_kamp$H11 == 9] = NA
-
-## For column M5, replace 93, 94, 97, 98, and 99 with NA
-DHS_children_kamp$M5[DHS_children_kamp$M5 == 93] = NA
-DHS_children_kamp$M5[DHS_children_kamp$M5 == 94] = NA
-DHS_children_kamp$M5[DHS_children_kamp$M5 == 97] = NA
-DHS_children_kamp$M5[DHS_children_kamp$M5 == 98] = NA
-DHS_children_kamp$M5[DHS_children_kamp$M5 == 99] = NA
-
-## For column V113, replace 99, 97, and 96 with NA
-DHS_children_kamp$V113[DHS_children_kamp$V113 == 99] = NA
-DHS_children_kamp$V113[DHS_children_kamp$V113 == 97] = NA
-DHS_children_kamp$V113[DHS_children_kamp$V113 == 96] = NA
-
-## For column H7, replace 8 and 9 with NA
-DHS_children_kamp$H7[DHS_children_kamp$H7 == 8] = NA
-DHS_children_kamp$H7[DHS_children_kamp$H7 == 9] = NA
-
-## For column V481, replace 9 with NA
-DHS_children_kamp$V481[DHS_children_kamp$V481 == 9] = NA
-
-## For column H22, replace 8 and 9 with NA
-DHS_children_kamp$H22[DHS_children_kamp$H22 == 8] = NA
-DHS_children_kamp$H22[DHS_children_kamp$H22 == 9] = NA
-
-## For column V505, replace 98 and 99 with NA
-DHS_children_kamp$V505[DHS_children_kamp$V505 == 98] = NA
-DHS_children_kamp$V505[DHS_children_kamp$V505 == 99] = NA
 ```
 
 ## Recoding variables

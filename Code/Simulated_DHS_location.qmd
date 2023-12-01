@@ -1,14 +1,13 @@
+---
+title: "Simulated DHS Location"
+author: "Rik Lubbers"
+---
 
+``` {r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 ``` {r}
-# pts: The points to be offset.
-# admin: The administrative boundary of the region of interest. Points will not be offset outside of these boundaries.
-# samp_num: The number of times the points should be offset.
-# other_num: The number of buffer filling points, should be as large as possible (considering time constraints). We recommend 100,000 or larger.
-
-# The function returns a list of length "samp_num". Each entry is a matrix (n x 2) of offset locations, where n is the number of pts.
-
-
 ## Function to check and load packages
 check_and_load_packages <- function() {
     required_packages <- c("sf", "spatstat", "splancs", "fields")
@@ -20,6 +19,15 @@ check_and_load_packages <- function() {
         library(package, character.only = TRUE)
     }
 }
+```
+
+``` {r}
+# pts: The points to be offset.
+# admin: The administrative boundary of the region of interest. Points will not be offset outside of these boundaries.
+# samp_num: The number of times the points should be offset.
+# other_num: The number of buffer filling points, should be as large as possible (considering time constraints). We recommend 100,000 or larger.
+
+# The function returns a list of length "samp_num". Each entry is a matrix (n x 2) of offset locations, where n is the number of pts.
 
 ## Function to generate random points in a polygon 
 displace <- function(pts, admin, samp_num, other_num) {
@@ -86,9 +94,23 @@ displace <- function(pts, admin, samp_num, other_num) {
     }
     return(r.pts)
 }
-
-displace(pts, admin, 1, 100000)
-
-
 ```
 
+```{r Data load and subsetting}
+# Load the children dataset from a .SAV file 
+## depending on computer  "C:/Users/Rik/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/DHS Clusters/Uganda Full/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV"
+##                        D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV"
+
+DHS_household <- st_read("C:/Users/Rik/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/DHS Clusters/UGGE7AFL/UGGE7AFL.shp")
+```
+
+```{r}
+# apply the function to the data
+# pts: The points to be offset.
+# admin: The administrative boundary of the region of interest. Points will not be offset outside of these boundaries.
+# samp_num: The number of times the points should be offset.
+# other_num: The number of buffer filling points, should be as large as possible (considering time constraints). We recommend 100,000 or larger.
+
+displace(pts = DHS_household, admin = "KAMPALA", samp_num = 100, other_num = 100000)
+
+```

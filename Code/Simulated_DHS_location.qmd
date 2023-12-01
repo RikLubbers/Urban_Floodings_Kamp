@@ -10,8 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ``` {r}
 ## Function to check and load packages
 check_and_load_packages <- function() {
-    required_packages <- c("sf", "spatstat", "splancs", "fields")
-    
+    required_packages <- c("sf", "spatstat", "splancs", "fields", "ggplot2", "ggmap")
+
     for (package in required_packages) {
         if (!requireNamespace(package, quietly = TRUE)) {
             install.packages(package)
@@ -19,6 +19,9 @@ check_and_load_packages <- function() {
         library(package, character.only = TRUE)
     }
 }
+
+check_and_load_packages()
+
 ```
 
 ``` {r}
@@ -102,6 +105,10 @@ displace <- function(pts, admin, samp_num, other_num) {
 ##                        D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV"
 
 DHS_household <- st_read("C:/Users/Rik/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/DHS Clusters/UGGE7AFL/UGGE7AFL.shp")
+
+ggplot() +
+    geom_point(data = DHS_household, aes(x = LONGNUM, y = LATNUM), color = "red", size = 3)
+
 ```
 
 ```{r}

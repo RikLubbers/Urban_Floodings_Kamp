@@ -1,0 +1,94 @@
+
+
+``` {r}
+# pts: The points to be offset.
+# admin: The administrative boundary of the region of interest. Points will not be offset outside of these boundaries.
+# samp_num: The number of times the points should be offset.
+# other_num: The number of buffer filling points, should be as large as possible (considering time constraints). We recommend 100,000 or larger.
+
+# The function returns a list of length "samp_num". Each entry is a matrix (n x 2) of offset locations, where n is the number of pts.
+
+
+## Function to check and load packages
+check_and_load_packages <- function() {
+    required_packages <- c("sf", "spatstat", "splancs", "fields")
+    
+    for (package in required_packages) {
+        if (!requireNamespace(package, quietly = TRUE)) {
+            install.packages(package)
+        }
+        library(package, character.only = TRUE)
+    }
+}
+
+## Function to generate random points in a polygon 
+displace <- function(pts, admin, samp_num, other_num) {
+    # Required Packages
+    require(sf)
+    require(spatstat)
+    require(splancs)
+    require(fields)
+
+    n <- length(pts)
+    offset.dist <- ifelse(pts$URBAN_RURA == "U", 2000, 5000)
+    rural <- which(pts$URBAN_RURA == "R")
+    rur.n <- floor(0.01 * length(rural))
+    offset.dist[sample(rural, rur.n, replace = FALSE)] <- 10000
+
+    r.pts0 <- list(0)
+    for (i in 1:nrow(pts)) {
+        r.pts0[[i]] <- matrix(0, nrow = samp_num, ncol = 2)
+
+        # -- Buffer around point -- #
+        pdsc <- disc(radius = offset.dist[i], centre = c(coordinates(pts)[i, 1], coordinates(pts)[i, 2]))
+        pdsc <- as(pdsc, "SpatialPolygons")
+        proj4string(pdsc) <- CRS("+proj=utm +zone=36 +datum=WGS84")
+
+        # -- Intersection with admin -- #
+        ov <- over(admin, pts[i, ])
+        ov <- c(1:length(ov[[1]]))[is.na(ov[[1]]) == 0]
+        poly <- admin[which(admin@data$OBJECTID == ov), ]
+        int <- gIntersection(pdsc, poly)
+
+        # -- Generating random point
+        if (!is.null(int)) {
+            rpt <- csr(int@polygons[[1]]@Polygons[[1]]@coords, other_num)
+            probs <- 1 / rdist(coordinates(pts[i, ]), rpt)
+            rpt <- rpt[sample(c(1:other_num), size = samp_num, prob = (probs / sum(probs))), ]
+            r.pts0[[i]] <- rpt
+        }
+        if (is.null(int)) {
+            rpt <- csr(pdsc@polygons[[1]]@Polygons[[1]]@coords, other_num)
+            probs <- 1 / rdist(coordinates(pts[i, ]), rpt)
+            rpt <- rpt[sample(c(1:other_num), size = samp_num, prob = (probs / sum(probs))), ]
+            r.pts0[[i]] <- rpt
+        }
+    }
+
+    # Arranging the Output
+    if (samp_num == 1) {
+        r.pts <- list(0)
+        r.pts[[1]] <- matrix(0, nrow = n, ncol = 2)
+        for (k in 1:n) {
+            r.pts[[1]][k, ] <- c(r.pts0[[k]])
+        }
+        r.pts[[1]] <- SpatialPoints(r.pts[[1]], CRS("+proj=utm +zone=36 +datum=WGS84"))
+    }
+    if (samp_num > 1) {
+        r.pts <- list(0)
+        for (j in 1:samp_num) {
+            r.pts[[j]] <- matrix(0, nrow = n, ncol = 2)
+            for (k in 1:n) {
+                r.pts[[j]][k, ] <- r.pts0[[k]][j, ]
+            }
+            r.pts[[j]] <- SpatialPoints(r.pts[[j]], CRS("+proj=utm +zone=36 +datum=WGS84"))
+        }
+    }
+    return(r.pts)
+}
+
+displace(pts, admin, 1, 100000)
+
+
+```
+

@@ -26,42 +26,65 @@ check_and_load_packages()
 
 
 ```{python}
-import numpy as np
-from shapely.geometry import Point
-from shapely.ops import cascaded_union
-from scipy.spatial import distance
+import numpy as np 
+import rasterio
+from shapely.geometry import box
+from shapely.geometry import Point 
+from shapely.ops import cascaded_union 
+from scipy.spatial import distance 
 
-def displace(pts, admin, samp_num, other_num):
+def displace(pts, admin, samp_num, other_num, landcover_raster, flood_raster):
     n = len(pts)
-    offset_dist = 2000
+    offset_dist = 2000 #2 km buffer as it is an urban DHS cluster
 
     r_pts = []
     for i in range(n):
-        r_pts_i = np.zeros((samp_num, 2))
+        r_pts_i = np.zeros((samp_num, 2)) # Matrix to store random points
 
         # Buffer around point
-        pt = Point(pts[i])
-        buffer = pt.buffer(offset_dist)
+        pt = Point(pts[i]) # transform to shapely point
+        buffer = pt.buffer(offset_dist) # buffer around point
+
+        # Create a polygon of the open water areas
+        with rasterio.open(landcover_raster) as src:
+            open_water = box(*src.bounds)
+            for value, (j, i) in src.sample([(pt.x, pt.y)], indexes=1):
+                if value == 10:
+                    open_water = open_water.union(box(i, j, i + 1, j + 1))
+
+        # Subtract the open water areas from the buffer
+        buffer = buffer.difference(open_water)
+
+        # Create a polygon of the flooding areas
+        with rasterio.open(flood_raster) as src:
+            flood_area = box(*src.bounds)
+            for value, (j, i) in src.sample([(pt.x, pt.y)], indexes=1):
+                if value == 1:
+                    flood_area = flood_area.union(box(i, j, i + 1, j + 1))
+
+        # Subtract the flooding areas from the buffer
+        buffer = buffer.difference(flood_area)
 
         # Intersection with admin
-        intersection = buffer.intersection(admin)
+        intersection = buffer.intersection(admin) # intersection with admin boundary to ensure points are within the admin boundary
 
         # Generating random points
         if intersection.is_empty:
+            # If no intersection, generate random points within the buffer
             random_pts = [Point(buffer.exterior.coords[i]) for i in range(other_num)]
         else:
+            # If intersection exists, generate random points within the intersection
             random_pts = [Point(intersection.exterior.coords[i]) for i in range(other_num)]
 
         # Sample random points
         probs = 1 / distance.cdist([pts[i]], [pt.coords[0] for pt in random_pts])
         probs /= np.sum(probs)
-        indices = np.random.choice(range(other_num), size=samp_num, p=probs)
+        indices = np.random.choice(range(len(random_pts)), size=samp_num, p=probs)
         r_pts_i = np.array([random_pts[idx].coords[0] for idx in indices])
 
         r_pts.append(r_pts_i)
 
     return r_pts
-
 
 ```
 

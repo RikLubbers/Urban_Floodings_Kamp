@@ -3,11 +3,11 @@ title: "Simulated DHS Location"
 author: "Rik Lubbers"
 ---
 
-``` {r setup, include=FALSE}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-``` {r}
+```{r}
 ## Function to check and load packages
 check_and_load_packages <- function() {
     required_packages <- c("sf", "spatstat", "splancs", "fields", "ggplot2", "ggmap")
@@ -24,7 +24,7 @@ check_and_load_packages()
 
 ```
 
-``` {r}
+```{r}
 # pts: The points to be offset.
 # admin: The administrative boundary of the region of interest. Points will not be offset outside of these boundaries.
 # samp_num: The number of times the points should be offset.

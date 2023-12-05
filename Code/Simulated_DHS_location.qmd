@@ -24,6 +24,48 @@ check_and_load_packages()
 
 ```
 
+
+```{python}
+import numpy as np
+from shapely.geometry import Point
+from shapely.ops import cascaded_union
+from scipy.spatial import distance
+
+def displace(pts, admin, samp_num, other_num):
+    n = len(pts)
+    offset_dist = 2000
+
+    r_pts = []
+    for i in range(n):
+        r_pts_i = np.zeros((samp_num, 2))
+
+        # Buffer around point
+        pt = Point(pts[i])
+        buffer = pt.buffer(offset_dist)
+
+        # Intersection with admin
+        intersection = buffer.intersection(admin)
+
+        # Generating random points
+        if intersection.is_empty:
+            random_pts = [Point(buffer.exterior.coords[i]) for i in range(other_num)]
+        else:
+            random_pts = [Point(intersection.exterior.coords[i]) for i in range(other_num)]
+
+        # Sample random points
+        probs = 1 / distance.cdist([pts[i]], [pt.coords[0] for pt in random_pts])
+        probs /= np.sum(probs)
+        indices = np.random.choice(range(other_num), size=samp_num, p=probs)
+        r_pts_i = np.array([random_pts[idx].coords[0] for idx in indices])
+
+        r_pts.append(r_pts_i)
+
+    return r_pts
+
+
+```
+
+
 ```{r}
 # pts: The points to be offset.
 # admin: The administrative boundary of the region of interest. Points will not be offset outside of these boundaries.
@@ -41,10 +83,7 @@ displace <- function(pts, admin, samp_num, other_num) {
     require(fields)
 
     n <- length(pts)
-    offset.dist <- ifelse(pts$URBAN_RURA == "U", 2000, 5000)
-    rural <- which(pts$URBAN_RURA == "R")
-    rur.n <- floor(0.01 * length(rural))
-    offset.dist[sample(rural, rur.n, replace = FALSE)] <- 10000
+    offset.dist <-  2000
 
     r.pts0 <- list(0)
     for (i in 1:nrow(pts)) {

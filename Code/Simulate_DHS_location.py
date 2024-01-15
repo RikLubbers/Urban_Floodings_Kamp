@@ -1,5 +1,4 @@
 import numpy as np
-import rasterio
 from shapely.geometry import box
 from shapely.geometry import Point 
 from shapely.ops import cascaded_union 
@@ -23,39 +22,15 @@ Date: 2023-12-05
 Version: 1.0
 """
 
-def displace(pts, admin, samp_num, other_num, open_water, flood_area):
-    n = len(pts)
-    offset_dist = 2000 #2 km buffer as it is an urban DHS cluster
+def displace(pts, buffer_clipped, samp_num, other_num):
+    n = len(pts) # Number of DHS clusters
 
-    r_pts = []
-    for i in range(n):
+    r_pts = [] # List to store random points
+    for i in range(n): # Loop over DHS clusters
         r_pts_i = np.zeros((samp_num, 2)) # Matrix to store random points
 
-        # Buffer around point
-        pt = Point(pts[i]) # transform to shapely point
-        buffer = pt.buffer(offset_dist) # buffer around point
-
-        # Check if buffer is a GeometryCollection
-        if buffer.geom_type == 'GeometryCollection':
-            # If buffer is a GeometryCollection, take the union of all geometries
-            buffer = cascaded_union(buffer)
-
-        # Subtract the open water areas from the buffer
-        buffer = buffer.difference(open_water)
-
-        # Subtract the flooding areas from the buffer
-        buffer = buffer.difference(flood_area)
-
-        # Intersection with admin
-        intersection = buffer.intersection(admin) # intersection with admin boundary to ensure points are within the admin boundary
-
-        # Generating random points
-        if intersection.is_empty:
-            # If no intersection, generate random points within the buffer
-            random_pts = [Point(buffer.exterior.coords[i]) for i in range(other_num)]
-        else:
-            # If intersection exists, generate random points within the intersection
-            random_pts = [Point(intersection.exterior.coords[i]) for i in range(other_num)]
+        # Generating random points within the buffer
+        random_pts = [Point(buffer_clipped.exterior.coords[i]) for i in range(other_num)]
 
         # Sample random points
         probs = 1 / distance.cdist([pts[i]], [pt.coords[0] for pt in random_pts])
@@ -68,11 +43,6 @@ def displace(pts, admin, samp_num, other_num, open_water, flood_area):
     return r_pts
 
 # Apply function
-pts = [(3, 4), (5, 6), (7, 8)]
-admin = box(0, 0, 10, 10)
-samp_num = 10
-other_num = 1000
-open_water = box(0, 0, 2, 2)
-flood_area = box(0, 0, 1, 1)
+
 
 displace(pts, admin, samp_num, other_num, open_water, flood_area)

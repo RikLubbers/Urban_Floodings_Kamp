@@ -19,7 +19,7 @@ required_packages <- c(
   "modelsummary", "performance", "finalfit", "naniar", "rms", "openxlsx",
   "rcompanion", "questionr", "flextable", "MASS", "car", "cowplot", "heatmaply",
   "esquisse", "visreg", "forcats", "mosaic", "DT", "mice", "gtsummary", "styler",
-  "languageserver", "httpgd"
+  "languageserver", "httpgd", "DBI", "RSQLite")
 )
 
 ## Function to check and install missing packages
@@ -71,6 +71,8 @@ library(mice)
 library(gtsummary)
 library(languageserver)
 library(httpgd)
+library(DBI)
+library(RSQLite)
 ```
 
 
@@ -79,10 +81,10 @@ library(httpgd)
 
 ```{r Data load and subsetting}
 # Load the children dataset from a .SAV file 
-## depending on computer  "C:/Users/Rik/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/DHS Clusters/Uganda Full/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV"
-##                        D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV"
+## depending on computer  "C:/Users/Rik/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/1_Study_1_Physical_access/Data/DATA/Uganda Full/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV"
+##                        "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/1_Study_1_Physical_access/Data/DATA/Uganda Full/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV"
 
-DHS_children_kamp <- read_sav("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV"
+DHS_children_kamp <- read_sav("C:/Users/Rik/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/1_Study_1_Physical_access/Data/DATA/Uganda Full/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV"
 )  %>%
   dplyr::filter(V024 == 0)  %>% #only households in Kampala 
   dplyr::select( 
@@ -102,6 +104,20 @@ DHS_children_kamp <- read_sav("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Ac
     V481, H22,
     V505, H7
   ) # only select relevant variables
+
+
+con <- dbConnect(RSQLite::SQLite(), dbname = "C:/Users/Rik/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/Processed/Simulation/DHS_Clusters_Travel_time_simulation.sqlite")
+df1 <- dbReadTable(con, "dhs_clusters_travel_time_simulation")
+
+df1_mean <- df1 %>%
+  group_by(dhsclust) %>%
+  dplyr::summarize(mean_travel_time = mean(sample_1, na.rm = TRUE))
+
+DHS_children_kamp <- merge(DHS_children_kamp, df1_mean, 
+  by.x = "V001", 
+  by.y = "dhsclust"
+)
+
 ```
 
 ## Removing unnecessary SPSS metadata
@@ -123,27 +139,68 @@ DHS_children_kamp <- zap_label(DHS_children_kamp)
 
 ## Defining missing data
 ```{r missing data}
+```{r missing data}
 # Replace specific values with NA (missing data) in various columns
-replace_values_with_na <- function(column, values) {
-  DHS_children_kamp[[column]][DHS_children_kamp[[column]] %in% values] <- NA
-}
+## For column HW5, replace 9998 and 9999 with NA
+DHS_children_kamp$HW5[DHS_children_kamp$HW5 == 9998] = NA
+DHS_children_kamp$HW5[DHS_children_kamp$HW5 == 9999] = NA
 
-replace_values_with_na("HW5", c(9998, 9999))
-replace_values_with_na("HW8", c(9998, 9999))
-replace_values_with_na("HW11", c(9998, 9999))
-replace_values_with_na("V149", 9)
-replace_values_with_na("V729", 9)
-replace_values_with_na("V445", c(9998, 9999))
-replace_values_with_na("V714", 9)
-replace_values_with_na("M19", c(9996, 9998, 9999))
-replace_values_with_na("H11", c(8, 9))
-replace_values_with_na("M5", c(93, 94, 97, 98, 99))
-replace_values_with_na("V113", c(99, 97, 96))
-replace_values_with_na("H7", c(8, 9))
-replace_values_with_na("V481", 9)
-replace_values_with_na("H22", c(8, 9))
-replace_values_with_na("V505", c(98, 99))
+## For column HW8, replace 9998 and 9999 with NA
+DHS_children_kamp$HW8[DHS_children_kamp$HW8 == 9998] = NA
+DHS_children_kamp$HW8[DHS_children_kamp$HW8 == 9999] = NA
 
+## For column HW11, replace 9998 and 9999 with NA
+DHS_children_kamp$HW11[DHS_children_kamp$HW11 == 9998] = NA
+DHS_children_kamp$HW11[DHS_children_kamp$HW11 == 9999] = NA
+
+## For column V149, replace 9 with NA
+DHS_children_kamp$V149[DHS_children_kamp$V149 == 9] = NA
+
+## For column V729, replace 9 with NA
+DHS_children_kamp$V729[DHS_children_kamp$V729 == 9] = NA
+
+## For column V445, replace 9998 and 9999 with NA
+DHS_children_kamp$V445[DHS_children_kamp$V445 == 9998] = NA
+DHS_children_kamp$V445[DHS_children_kamp$V445 == 9999] = NA
+
+## For column V714, replace 9 with NA
+DHS_children_kamp$V714[DHS_children_kamp$V714 == 9] = NA
+
+## For column M19, replace 9996, 9998, and 9999 with NA
+DHS_children_kamp$M19[DHS_children_kamp$M19 == 9996] = NA
+DHS_children_kamp$M19[DHS_children_kamp$M19 == 9998] = NA
+DHS_children_kamp$M19[DHS_children_kamp$M19 == 9999] = NA
+
+## For column H11, replace 8 and 9 with NA
+DHS_children_kamp$H11[DHS_children_kamp$H11 == 8] = NA
+DHS_children_kamp$H11[DHS_children_kamp$H11 == 9] = NA
+
+## For column M5, replace 93, 94, 97, 98, and 99 with NA
+DHS_children_kamp$M5[DHS_children_kamp$M5 == 93] = NA
+DHS_children_kamp$M5[DHS_children_kamp$M5 == 94] = NA
+DHS_children_kamp$M5[DHS_children_kamp$M5 == 97] = NA
+DHS_children_kamp$M5[DHS_children_kamp$M5 == 98] = NA
+DHS_children_kamp$M5[DHS_children_kamp$M5 == 99] = NA
+
+## For column V113, replace 99, 97, and 96 with NA
+DHS_children_kamp$V113[DHS_children_kamp$V113 == 99] = NA
+DHS_children_kamp$V113[DHS_children_kamp$V113 == 97] = NA
+DHS_children_kamp$V113[DHS_children_kamp$V113 == 96] = NA
+
+## For column H7, replace 8 and 9 with NA
+DHS_children_kamp$H7[DHS_children_kamp$H7 == 8] = NA
+DHS_children_kamp$H7[DHS_children_kamp$H7 == 9] = NA
+
+## For column V481, replace 9 with NA
+DHS_children_kamp$V481[DHS_children_kamp$V481 == 9] = NA
+
+## For column H22, replace 8 and 9 with NA
+DHS_children_kamp$H22[DHS_children_kamp$H22 == 8] = NA
+DHS_children_kamp$H22[DHS_children_kamp$H22 == 9] = NA
+
+## For column V505, replace 98 and 99 with NA
+DHS_children_kamp$V505[DHS_children_kamp$V505 == 98] = NA
+DHS_children_kamp$V505[DHS_children_kamp$V505 == 99] = NA
 ```
 
 ## Recoding variables
@@ -271,6 +328,25 @@ DHS_children_kamp = subset(DHS_children_kamp, B5 == 1)
 ## Keep only children with anthropometric measurements (non-missing HW5 values)
 DHS_children_kamp = DHS_children_kamp %>% drop_na(HW5)
 
+```
+
+```{r}
+summary(DHS_children_kamp$mean_travel_time)
+
+table(DHS_children_kamp$mean_travel_time, DHS_children_kamp$V001)
+
+ggplot(DHS_children_kamp, aes(x = mean_travel_time)) +
+  geom_histogram(binwidth = 1, fill = "steelblue", color = "white") +
+  labs(title = "Mean Travel Time Distribution",
+    x = "Mean Travel Time",
+    y = "Frequency") +
+  theme_minimal()
+
+DHS_children_kamp$travel_time_pf <- DHS_children_kamp$mean_travel_time + runif(nrow(DHS_children_kamp), min = 0, max = 60)
+
+DHS_children_kamp$travel_time_pf
+
+esquisser(DHS_children_kamp)
 ```
 
 ## Exploring Missing Data

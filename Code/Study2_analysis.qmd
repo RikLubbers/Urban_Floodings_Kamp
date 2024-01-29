@@ -84,7 +84,7 @@ library(RSQLite)
 ## depending on computer  "C:/Users/Rik/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/1_Study_1_Physical_access/Data/DATA/Uganda Full/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV"
 ##                        "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/1_Study_1_Physical_access/Data/DATA/Uganda Full/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV"
 
-DHS_children_kamp <- read_sav("C:/Users/Rik/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/1_Study_1_Physical_access/Data/DATA/Uganda Full/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV"
+DHS_children_kamp <- read_sav("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/1_Study_1_Physical_access/Data/DATA/Uganda Full/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV"
 )  %>%
   dplyr::filter(V024 == 0)  %>% #only households in Kampala 
   dplyr::select( 
@@ -105,8 +105,9 @@ DHS_children_kamp <- read_sav("C:/Users/Rik/OneDrive/PhD_Undernutrition_Uganda_P
     V505, H7
   ) # only select relevant variables
 
-
-con <- dbConnect(RSQLite::SQLite(), dbname = "C:/Users/Rik/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/Processed/Simulation/DHS_Clusters_Travel_time_simulation.sqlite")
+# D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/Processed/Simulation
+# C:/Users/Rik/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/Processed/Simulation/
+con <- dbConnect(RSQLite::SQLite(), dbname = "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/Processed/Simulation/DHS_Clusters_Travel_time_simulation.sqlite")
 df1 <- dbReadTable(con, "dhs_clusters_travel_time_simulation")
 
 df1_mean <- df1 %>%
@@ -330,25 +331,6 @@ DHS_children_kamp = DHS_children_kamp %>% drop_na(HW5)
 
 ```
 
-```{r}
-summary(DHS_children_kamp$mean_travel_time)
-
-table(DHS_children_kamp$mean_travel_time, DHS_children_kamp$V001)
-
-ggplot(DHS_children_kamp, aes(x = mean_travel_time)) +
-  geom_histogram(binwidth = 1, fill = "steelblue", color = "white") +
-  labs(title = "Mean Travel Time Distribution",
-    x = "Mean Travel Time",
-    y = "Frequency") +
-  theme_minimal()
-
-DHS_children_kamp$travel_time_pf <- DHS_children_kamp$mean_travel_time + runif(nrow(DHS_children_kamp), min = 0, max = 60)
-
-DHS_children_kamp$travel_time_pf
-
-esquisser(DHS_children_kamp)
-```
-
 ## Exploring Missing Data
 
 ```{r exploring missing data}
@@ -386,8 +368,8 @@ missing_plot(DHS_children_kamp, dependent3, explanatory)
 
 ## Generate summary tables for missing data
 missing1 = ff_glimpse(DHS_children_kamp, dependent1, explanatory)
-flextable(missing1$Continuous) #%>%
-  save_as_image("missing_cont.png")
+
+flextable(missing1$Continuous)
 
 ff_glimpse(DHS_children_kamp, dependent2, explanatory)
 ff_glimpse(DHS_children_kamp, dependent3, explanatory)
@@ -415,6 +397,54 @@ ggplot(DHS_data, aes(x = variable, fill = factor)) +
   geom_bar() +
   theme_minimal()
 # Replace 'variable' and 'factor' with relevant column names
+```
+
+```{r}
+summary(DHS_children_kamp$mean_travel_time)
+
+table(DHS_children_kamp$mean_travel_time, DHS_children_kamp$V001)
+
+ggplot(DHS_children_kamp, aes(x = mean_travel_time)) +
+  geom_histogram(binwidth = 1, fill = "steelblue", color = "white") +
+  labs(title = "Mean Travel Time Distribution",
+    x = "Mean Travel Time",
+    y = "Frequency") +
+  theme_minimal()
+
+DHS_children_kamp$travel_time_pf <- DHS_children_kamp$mean_travel_time + runif(nrow(DHS_children_kamp), min = 0, max = 60)
+
+DHS_children_kamp$travel_time_pf
+
+DHS_children_kamp$travel_time_delta <-  DHS_children_kamp$travel_time_pf - DHS_children_kamp$mean_travel_time
+
+ggplot(DHS_children_kamp, aes(x = travel_time_delta, y = HW5)) +
+  geom_point() +
+  labs(title = "Travel Time Delta vs HW5",
+    x = "Travel Time Delta",
+    y = "HW5") +
+  theme_minimal()
+
+cor(DHS_children_kamp$travel_time_delta, DHS_children_kamp$HW5)
+
+# Linear regression model
+lm_model <- lm(HW5 ~ travel_time_delta, data = DHS_children_kamp)
+
+# Model summary and checking
+modelsummary(lm_model, 
+  stars = T, 
+  coef_rename = TRUE
+)
+
+summary(lm_model)
+check_model(lm_model)
+
+## Model performance metrics
+performance(lm_model)
+
+## Visualize regression relationships
+ggcoef_model(lm_model)
+
+esquisser(DHS_children_kamp)
 ```
 
 # Bivariate Analysis

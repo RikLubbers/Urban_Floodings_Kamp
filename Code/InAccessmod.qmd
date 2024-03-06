@@ -45,6 +45,13 @@ country <- "Uganda"
 ```
 
 # Download and process the required input data for AccessMod
+## Administrative boundaries
+```{r}
+# Parish boundaries
+inputPath <- system.file("extdata", "Parish_Boundaries_Kamp", package="inAccessMod")
+copy_input(mainPath, country, inputPath)
+```
+
 ## Population data
 ```{r}
 #Total population
@@ -92,7 +99,6 @@ download_osm("waterLines", mainPath, country, alwaysDownload = TRUE, countryName
 
 # Set the projected coordinate reference system
 ```{r}
-#UTM 35N (EPSG:32735) is the best CRS for Uganda
 set_projection(mainPath, country, mostRecent = TRUE, alwaysSet = TRUE, bestCRS = TRUE)
 ```
 

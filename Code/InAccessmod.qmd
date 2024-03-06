@@ -1,0 +1,166 @@
+# InAccessmod.qmd Documentation
+
+## Overview
+The `InAccessmod.qmd` file contains the data preparation code for the Accessmod tool. This tool is used for analyzing physical accessibility in the context of undernutrition in Uganda.
+
+## Purpose
+The purpose of this file is to preprocess the input data required by the Accessmod tool. It performs various data cleaning, transformation, and aggregation tasks to ensure that the data is in the appropriate format for analysis.
+
+## Usage
+To use this file, follow these steps:
+1. Ensure that the required input data files are available.
+2. Open the `InAccessmod.qmd` file in a compatible code editor or environment.
+3. Review the code and make any necessary modifications based on your specific data requirements.
+4. Execute the code to preprocess the data.
+
+## Dependencies
+This file may have dependencies on other code files or libraries. Ensure that all required dependencies are installed and accessible before running the code.
+
+## Output
+The output of this file is the preprocessed data that can be used as input for the Accessmod tool. The specific format and structure of the output data will depend on the requirements of the tool.
+
+## Notes
+- It is recommended to review the code and documentation of the Accessmod tool to understand the expected input data format and any additional preprocessing steps that may be required.
+
+## References
+- [Accessmod Tool Documentation](https://www.accessmod.org/)
+
+# Install the inAccessMod package from GitHub
+```{r}
+if (!require("devtools")) install.packages("devtools")
+
+devtools::install_github("unige-geohealth/inAccessMod", build_vignettes = TRUE, dependencies = TRUE)
+
+library(inAccessMod)
+
+```
+
+# Initialize the project for Uganda
+```{r}
+mainPath <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod"
+
+initiate_project(mainPath)
+
+country <- "Uganda"
+```
+
+# Download and process the required input data for AccessMod
+## Population data
+```{r}
+#Total population
+inputPath <- system.file("extdata", "Worldpop_UG_Total", package="inAccessMod")
+copy_input(mainPath, country, inputPath)
+
+#Under-5 population
+inputPath <- system.file("extdata", "Worldpop_UG_U5", package="inAccessMod")
+copy_input(mainPath, country, inputPath)
+
+#Women of reproductive age (15-49 years) population
+inputPath <- system.file("extdata", "Worldpop_UG_WRA", package="inAccessMod")
+copy_input(mainPath, country, inputPath)
+```
+
+## Digital Elevation Model (DEM)
+```{r}
+inputPath <- system.file("extdata", "SRTM_DEM_30_UG", package="inAccessMod")
+copy_input(mainPath, country, inputPath)
+```
+
+## Land cover data
+```{r}
+inputPath <- system.file("extdata", "Landcover_10_UG", package="inAccessMod")
+copy_input(mainPath, country, inputPath)
+```
+
+## Health facilities data
+```{r}
+# Health facilities all
+inputPath <- system.file("extdata", "Health_Facilities_UG_all", package="inAccessMod")
+copy_input(mainPath, country, inputPath)
+
+# Health facilities (hospitals only)
+inputPath <- system.file("extdata", "Health_Facilities_UG_hospitals", package="inAccessMod")
+copy_input(mainPath, country, inputPath)
+```
+
+## OpenStreetMap (OSM) data
+```{r}
+# Roads and water lines
+download_osm(x = "roads", mainPath, country, alwaysDownload = TRUE, countryName = TRUE, mostRecent = NULL, defaultClasses = TRUE)
+download_osm("waterLines", mainPath, country, alwaysDownload = TRUE, countryName = TRUE, mostRecent = NULL, defaultClasses = TRUE)
+```
+
+# Set the projected coordinate reference system
+```{r}
+#UTM 35N (EPSG:32735) is the best CRS for Uganda
+set_projection(mainPath, country, mostRecent = TRUE, alwaysSet = TRUE, bestCRS = TRUE)
+```
+
+# Process all downloaded layers to prepare them for AccessMod analysis
+```{r}
+process_inputs(mainPath, country, selectedInputs = "All", mostRecent = TRUE, alwaysProcess = TRUE, defaultMethods = TRUE, changeRes = TRUE, newRes = 30, popCorrection = TRUE, gridRes = 3000)
+```
+
+# Label land cover classes for AccessMod
+```{r}
+label_landcover(mainPath, country, mostRecent = TRUE, overwrite = TRUE, defaultLabels = TRUE)
+```
+
+# Compile all processed data for easier import into AccessMod
+```{r}
+compile_processed_data(mainPath, country, mostRecent = TRUE)
+```
+
+# Create merged landcover layer for AccessMod
+```{r}
+# No flooding
+MLC0 = 
+
+# MLC(x1)x(x2)x(x3), MLC = merged land cover, x1 = rainfall (mm), x2 = rain duration (h), x3 = flood depth (m)
+
+MLC20x1x0_1 =  
+MLC20x1x0_2 =
+MLC20x1x0_3 =
+MLC40x1x0_1 =
+MLC40x1x0_2 =
+MLC40x1x0_3 =
+MLC60x1x0_1 =
+MLC60x1x0_2 =
+MLC60x1x0_3 =
+MLC80x1x0_1 =
+MLC80x1x0_2 =
+MLC80x1x0_3 =
+MLC100x1x0_1 =
+MLC100x1x0_2 =
+MLC100x1x0_3 =
+MLC20x3x0_1 =
+MLC20x3x0_2 =
+MLC20x3x0_3 =
+MLC40x3x0_1 =
+MLC40x3x0_2 =
+MLC40x3x0_3 =
+MLC60x3x0_1 =
+MLC60x3x0_2 =
+MLC60x3x0_3 =
+MLC80x3x0_1 =
+MLC80x3x0_2 =
+MLC80x3x0_3 =
+MLC100x3x0_1 =
+MLC100x3x0_2 =
+MLC100x3x0_3 =
+MLC20x6x0_1 =
+MLC20x6x0_2 =
+MLC20x6x0_3 =
+MLC40x6x0_1 =
+MLC40x6x0_2 =
+MLC40x6x0_3 =
+MLC60x6x0_1 =
+MLC60x6x0_2 =
+MLC60x6x0_3 =
+MLC80x6x0_1 =
+MLC80x6x0_2 =
+MLC80x6x0_3 =
+MLC100x6x0_1 =
+MLC100x6x0_2 =
+MLC100x6x0_3 =
+```

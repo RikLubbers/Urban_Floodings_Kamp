@@ -424,6 +424,27 @@ ggplot(DHS_children_kamp, aes(x = mean_travel_time)) +
         plot.background = element_blank())
 
 
+#ggplot for travel time distribution
+ggplot(DHS_children_kamp, aes(x = mean_travel_time)) +
+  geom_density(fill = "steelblue", color = "white") +
+  labs(title = "Mean Travel Time Distribution",
+    x = "Mean Travel Time",
+    y = "Density") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 20, face = "bold"),
+        axis.title = element_text(size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        legend.position = "bottom",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        plot.background = element_blank())
+
+
+
 DHS_children_kamp$travel_time_pf <- DHS_children_kamp$mean_travel_time + runif(nrow(DHS_children_kamp), min = 0, max = 60)
 
 DHS_children_kamp$travel_time_pf

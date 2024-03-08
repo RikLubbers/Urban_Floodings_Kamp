@@ -38,7 +38,9 @@ library(doParallel)
 library(foreach)
 library(snow)
 library(terra)
-
+library(raster)
+library(ggplot2)
+library(gridExtra)
 ```
 
 # Initialize the project for Uganda
@@ -86,9 +88,8 @@ copy_input(mainPath, country, inputPath_HF)
 
 ## OpenStreetMap (OSM) data
 ```{r}
-# Roads and water lines
+# Roads data
 download_osm(x = "roads", mainPath, country, alwaysDownload = TRUE, countryName = TRUE, mostRecent = NULL, defaultClasses = TRUE)
-download_osm("waterLines", mainPath, country, alwaysDownload = TRUE, countryName = TRUE, mostRecent = NULL, defaultClasses = TRUE)
 ```
 
 # Set the projected coordinate reference system
@@ -99,11 +100,15 @@ set_projection(mainPath, country, mostRecent = TRUE, alwaysSet = TRUE, bestCRS =
 # Process all downloaded layers to prepare them for AccessMod analysis
 ```{r}
 process_inputs(mainPath, country, selectedInputs = NULL, mostRecent = TRUE, alwaysProcess = TRUE, defaultMethods = TRUE, changeRes = TRUE, newRes = 100, popCorrection = TRUE, gridRes = 30)
+
+# In QGIS clip the road data to the study area as this is not done by the process_inputs function
 ```
 
 # Label land cover classes for AccessMod
 ```{r}
 label_landcover(mainPath, country, mostRecent = TRUE, overwrite = F, defaultLabels = FALSE)
+
+# See WorldCover website for the land cover classes
 ```
 
 # Compile all processed data for easier import into AccessMod
@@ -112,10 +117,14 @@ compile_processed_data(mainPath, country, mostRecent = TRUE)
 ```
 
 # Create merged landcover layer for AccessMod
+## First seperate the flood extents based on the unique values of threshold, rainfall, and duration
 ```{r}
 # Flood(x1)x(x2)x(x3), MLC = merged land cover, x1 = rainfall (mm), x2 = rain duration (h), x3 = flood depth (m)
 # Load full data
 flood_full <- st_read("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Flood_extents_Kampala/flood_extents.gpkg")
+
+# Reproject the flood extent to Arc 1960 / UTM zone 36N
+flood_full <- st_transform(flood_full, crs = "+proj=utm +zone=36 +datum=WGS84 +units=m +no_defs")
 
 # Define unique values for threshold, rainfall, and duration
 threshold_values <- c(0.1, 0.2, 0.3)
@@ -151,75 +160,68 @@ for (threshold in threshold_values) {
     }
 }
 
-# Load all shapefiles from subfolders
+# Load all flood_extents from subfolders
 subfolder_path <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Flood_extents_Kampala"
-shapefiles <- list.files(path = subfolder_path, pattern = "\\.shp$", full.names = TRUE, recursive = TRUE)
-
-shapefiles_t <- list.files(path = subfolder_path, pattern = "\\.shp$", full.names = F, recursive = TRUE)
-
-shapefiles_t <- gsub("/.*", "", shapefiles_t)
+flood_extents <- list.files(path = subfolder_path, pattern = "\\.shp$", full.names = TRUE, recursive = TRUE)
 
 # Read shapefiles into a list
-shp_list <- lapply(shapefiles, function(file) {
-    st_read(file)
+flood_list <- lapply(flood_extents, function(file) {
+    flood <- st_read(file)
 })
+
+# Name the flood extents in flood_list based on their subfolder name
+flood_extents_t <- list.files(path = subfolder_path, pattern = "\\.shp$", full.names = F, recursive = TRUE)
+
+flood_extents_t <- gsub("/.*", "", flood_extents_t)
+
+for (i in 1:length(flood_list)) {
+    flood_list[[i]]$Scenario <- gsub("flood_", "", flood_extents_t[i])
+}
+
+# Remove the other variable names 
+flood_list <- lapply(flood_list, function(x) {
+    x$threshold <- NULL
+    x$rainfall <- NULL
+    x$duration <- NULL
+    return(x)
+})
+
+# Create a list of plots for each item in flood_list
+plot_list <- lapply(flood_list[1:15], function(data) {
+    ggplot() + geom_sf(data = data, aes(fill = Scenario)) + theme_minimal()
+})
+
+# Combine the plots into a single plot
+grid.arrange(grobs = plot_list, ncol = 3)
 
 ```
 
+## Merge landcover layers for each flood extent
 ```{r}
 # Create merged landcover layers for each flood extent
-landcover_merge_function <- function(i) {
-    landcov <- rast(landcover[i])
-    grid_landcov <- rast(ext(landcov))
-    res(grid_landcov) <- 100
-    crs(grid_landcov) <- crs(landcov)
-    landcover_resamp <- resample(landcov, grid_landcov, "ngb")
-    
-    roads_new <- st_read(roads[i]) %>%
-        group_by(highway) %>%
-        summarize() %>%
-        filter(highway %in% as.factor(road_classes)) %>%
-        mutate(class = recode(highway, !!!reclass_roads),
-                class = as.integer(class)) %>%
-        st_transform(st_crs(landcov)) %>%
-        as(., "Spatial") %>%
-        vect()
-    roads_rast <- terra::rasterize(roads_new, grid_landcov, "class", touches = TRUE)
-    
-    water_lines_new <- st_read(water_lines[i]) %>%
-        group_by(waterway) %>%
-        summarize() %>%
-        filter(waterway == "river") %>%
-        mutate(class = 1) %>%
-        st_transform(st_crs(landcov)) %>%
-        as(., "Spatial") %>%
-        vect()
-    water_lines_rast <- terra::rasterize(water_lines_new, grid_landcov, field = "class", touches = TRUE)
-    values(water_lines_rast)[values(water_lines_rast) == 0] <- NA
-    
-    water_poly_new <- st_read(water_poly[i]) %>%
-        mutate(class = 1) %>%
-        st_transform(st_crs(landcov)) %>%
-        as(., "Spatial") %>%
-        vect()
-    water_poly_rast <- terra::rasterize(water_poly_new, grid_landcov, "class", touches = TRUE)
-    values(water_poly_rast)[values(water_poly_rast) == 0] <- NA
-    
-    landcover_merge <- terra::merge(water_lines_rast, landcover_resamp)
-    landcover_merge <- terra::merge(water_poly_rast, landcover_merge)
-    landcover_merge <- terra::merge(roads_rast, landcover_merge)
-    values(landcover_merge)[values(landcover_merge) == 1] <- NA
-    
-    writeRaster(landcover_merge, paste0("data/processed/rLandcover_merge/landcover_merge_", file_name[i], ".tif"), overwrite = TRUE)
+merged_landcovers <- list()
+
+# Base MLC file path
+MLC0 <- raster("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/MLC0_major_roads.tif")
+d_landcovers[[i]] <- merge(MLC0, shp_list[[i]])
 }
 
-# parallel processing of landcover merge
-cores <- 3 # not to overload your computer
-cl <- makeCluster(cores) 
-registerDoParallel(cl)
 
-terraOptions(tempdir="/temp/") # set temporary folder for data processing, so R environment does not have memory issues
-system.time(foreach(i = 1:length(landcover), .packages= c("sf", "dplyr", "terra")) %dopar% {landcover_merge_function(i)})
-
+for i in 1:length(flood_list){
+    landcov <- rast(MLC0) # load landcover raster
+    grid_landcov <- rast(ext(landcov)) 
+    res(grid_landcov) <- 100
+    crs(grid_landcov) <- crs(landcov)
+    landcover_resamp  <- resample(landcov, grid_landcov, "near") # resample landcover to 100m
+    flood_extent <- flood_list[[i]] %>% # load water polygons
+        mutate(class = 1) %>% # give all rivers and lakes integer class 1 so that later they can be classified as barriers
+        st_transform(st_crs(landcov)) %>%
+        as(., "Spatial") %>%
+        vect()
+    flood_extent_rast <- terra::rasterize(flood_extent, grid_landcov, "class", touches = TRUE) # rasterize water polygons
+    values(flood_extent_rast)[values(flood_extent_rast) == 0] <- NA # make background value NA
+    landcover_merge <- terra::merge(flood_extent_rast, landcov)
+    writeRaster(landcover_merge, paste0("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers/MLC_", flood_extents_t[i], ".tif"), overwrite=T)
+}
 
 ```

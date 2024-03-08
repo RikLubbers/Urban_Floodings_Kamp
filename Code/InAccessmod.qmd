@@ -25,13 +25,19 @@ The output of this file is the preprocessed data that can be used as input for t
 ## References
 - [Accessmod Tool Documentation](https://www.accessmod.org/)
 
-# Install the inAccessMod package from GitHub
+# Install the inAccessMod package from GitHub & load the library
 ```{r}
 if (!require("devtools")) install.packages("devtools")
 
 devtools::install_github("unige-geohealth/inAccessMod", build_vignettes = TRUE, dependencies = TRUE)
 
 library(inAccessMod)
+library(sf)
+library(dplyr)
+library(doParallel)
+library(foreach)
+library(snow)
+library(terra)
 
 ```
 
@@ -48,9 +54,7 @@ country <- "Uganda"
 ## Administrative boundaries
 ```{r}
 # Parish boundaries
-
 inputPath_adm = "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/Processed/Adm_boundaries_parishes"
-
 copy_input(mainPath, country, inputPath_adm)
 ```
 
@@ -59,7 +63,6 @@ copy_input(mainPath, country, inputPath_adm)
 #Total population/women of reproductive age (WRA) population/under 5 population
 inputPath_pop <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/WorldPop_density/Inaccessmod"
 copy_input(mainPath, country, inputPath_pop)
-
 ```
 
 ## Digital Elevation Model (DEM)
@@ -78,7 +81,6 @@ copy_input(mainPath, country, inputPath_LC)
 ```{r}
 # Health facilities all/ hospitals only
 inputPath_HF <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Facilities/suhsharan_health_facilities_UG"
-
 copy_input(mainPath, country, inputPath_HF)
 ```
 
@@ -97,13 +99,11 @@ set_projection(mainPath, country, mostRecent = TRUE, alwaysSet = TRUE, bestCRS =
 # Process all downloaded layers to prepare them for AccessMod analysis
 ```{r}
 process_inputs(mainPath, country, selectedInputs = NULL, mostRecent = TRUE, alwaysProcess = TRUE, defaultMethods = TRUE, changeRes = TRUE, newRes = 100, popCorrection = TRUE, gridRes = 30)
-
-?process_inputs
 ```
 
 # Label land cover classes for AccessMod
 ```{r}
-label_landcover(mainPath, country, mostRecent = TRUE, overwrite = TRUE, defaultLabels = TRUE)
+label_landcover(mainPath, country, mostRecent = TRUE, overwrite = F, defaultLabels = FALSE)
 ```
 
 # Compile all processed data for easier import into AccessMod
@@ -114,8 +114,6 @@ compile_processed_data(mainPath, country, mostRecent = TRUE)
 # Create merged landcover layer for AccessMod
 ```{r}
 # Flood(x1)x(x2)x(x3), MLC = merged land cover, x1 = rainfall (mm), x2 = rain duration (h), x3 = flood depth (m)
-library(sf)
-
 # Load full data
 flood_full <- st_read("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Flood_extents_Kampala/flood_extents.gpkg")
 
@@ -152,17 +150,23 @@ for (threshold in threshold_values) {
         }
     }
 }
+
+# Load all shapefiles from subfolders
+subfolder_path <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Flood_extents_Kampala"
+shapefiles <- list.files(path = subfolder_path, pattern = "\\.shp$", full.names = TRUE, recursive = TRUE)
+
+shapefiles_t <- list.files(path = subfolder_path, pattern = "\\.shp$", full.names = F, recursive = TRUE)
+
+shapefiles_t <- gsub("/.*", "", shapefiles_t)
+
+# Read shapefiles into a list
+shp_list <- lapply(shapefiles, function(file) {
+    st_read(file)
+})
+
 ```
 
 ```{r}
-# Libraries
-library(dplyr)
-library(sf)
-library(doParallel)
-library(foreach)
-library(snow)
-library(terra)
-
 # Create merged landcover layers for each flood extent
 landcover_merge_function <- function(i) {
     landcov <- rast(landcover[i])

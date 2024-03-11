@@ -92,6 +92,13 @@ copy_input(mainPath, country, inputPath_HF)
 download_osm(x = "roads", mainPath, country, alwaysDownload = TRUE, countryName = TRUE, mostRecent = NULL, defaultClasses = TRUE)
 ```
 
+# Flood data
+```{r}
+inputPath_flood <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Flood_extents_Kampala/Flood_extents_full"
+copy_input(mainPath, country, inputPath_flood)
+
+```
+
 # Set the projected coordinate reference system
 ```{r}
 set_projection(mainPath, country, mostRecent = TRUE, alwaysSet = TRUE, bestCRS = TRUE)
@@ -121,10 +128,7 @@ compile_processed_data(mainPath, country, mostRecent = TRUE)
 ```{r}
 # Flood(x1)x(x2)x(x3), MLC = merged land cover, x1 = rainfall (mm), x2 = rain duration (h), x3 = flood depth (m)
 # Load full data
-flood_full <- st_read("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Flood_extents_Kampala/flood_extents.gpkg")
-
-# Reproject the flood extent to Arc 1960 / UTM zone 36N
-flood_full <- st_transform(flood_full, crs = "+proj=utm +zone=36 +datum=WGS84 +units=m +no_defs")
+flood_full <- st_read("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vNaturalPolygons/20240311111000/processed/20240311111005")
 
 # Define unique values for threshold, rainfall, and duration
 threshold_values <- c(0.1, 0.2, 0.3)
@@ -205,24 +209,24 @@ grid.arrange(grobs = plot_list, ncol = 2, nrow = 3)
 merged_landcovers <- list()
 
 # Base MLC file path
-MLC0 <- raster("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/MLC0_major_roads.tif")
+MLC0 <- raster("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers/MLC0_major_roads_10m.tif")
 
-plot(MLC0)
+MLC0 <- projectRaster(MLC0, crs = "+init=EPSG:21096")
 
 for (i in 1:length(flood_list)){
     landcov <- rast(MLC0) # load landcover raster
-    grid_landcov <- rast(ext(landcov)) 
-    res(grid_landcov) <- 10
-    crs(grid_landcov) <- crs(landcov)
+    grid_landcov <- rast(ext(landcov)) # create a grid with the same extent as the landcover raster 
+    res(grid_landcov) <- 10 # set the resolution of the grid to 10m
+    crs(grid_landcov) <- crs(landcov) # set the crs of the grid to the same as the landcover raster
     landcover_resamp  <- resample(landcov, grid_landcov, "near") # resample landcover to 10m
     flood_extent <- flood_list[[i]] %>% # load water polygons
         mutate(class = 1) %>% # give all rivers and lakes integer class 1 so that later they can be classified as barriers
-        st_transform(st_crs(landcov)) %>%
-        as(., "Spatial") %>%
-        vect()
+        st_transform(st_crs(landcov)) %>% # transform to the same crs as the landcover raster
+        as(., "Spatial") %>% # convert to sp object
+        vect() # convert to terra object
     flood_extent_rast <- terra::rasterize(flood_extent, grid_landcov, "class", touches = TRUE) # rasterize water polygons
     values(flood_extent_rast)[values(flood_extent_rast) == 0] <- NA # make background value NA
-    landcover_merge <- terra::merge(flood_extent_rast, landcov)
-    writeRaster(landcover_merge, paste0("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers/MLC_", flood_extents_t[i], ".tif"), overwrite=T)
+    landcover_merge <- terra::merge(flood_extent_rast, landcov) # merge landcover and water raster
+    writeRaster(landcover_merge, paste0("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers/MLC_", flood_extents_t[i], ".tif"), overwrite=T) # write merged landcover to file
 }
 ```

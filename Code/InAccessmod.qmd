@@ -47,7 +47,7 @@ library(gridExtra)
 ```{r}
 mainPath <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod"
 
-# initiate_project(mainPath) # Only run this line once to create the project folder
+#initiate_project(mainPath) # Only run this line once to create the project folder
 
 country <- "Uganda"
 ```
@@ -99,7 +99,7 @@ set_projection(mainPath, country, mostRecent = TRUE, alwaysSet = TRUE, bestCRS =
 
 # Process all downloaded layers to prepare them for AccessMod analysis
 ```{r}
-process_inputs(mainPath, country, selectedInputs = NULL, mostRecent = TRUE, alwaysProcess = TRUE, defaultMethods = TRUE, changeRes = TRUE, newRes = 100, popCorrection = TRUE, gridRes = 30)
+process_inputs(mainPath, country, selectedInputs = NULL, mostRecent = TRUE, alwaysProcess = TRUE, defaultMethods = TRUE, changeRes = TRUE, newRes = 10, popCorrection = TRUE, gridRes = 10)
 
 # In QGIS clip the road data to the study area as this is not done by the process_inputs function
 ```
@@ -187,12 +187,15 @@ flood_list <- lapply(flood_list, function(x) {
 })
 
 # Create a list of plots for each item in flood_list
-plot_list <- lapply(flood_list[1:15], function(data) {
-    ggplot() + geom_sf(data = data, aes(fill = Scenario)) + theme_minimal()
+plot_list <- lapply(flood_list[1:6], function(data) {
+    ggplot() + 
+    geom_sf(data = data, aes(fill = Scenario), color = "blue") + 
+    theme_minimal() +
+    guides(fill = guide_legend(title = "Scenario", position = "bottom"))
 })
 
 # Combine the plots into a single plot
-grid.arrange(grobs = plot_list, ncol = 3)
+grid.arrange(grobs = plot_list, ncol = 2, nrow = 3)
 
 ```
 
@@ -203,16 +206,15 @@ merged_landcovers <- list()
 
 # Base MLC file path
 MLC0 <- raster("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/MLC0_major_roads.tif")
-d_landcovers[[i]] <- merge(MLC0, shp_list[[i]])
-}
 
+plot(MLC0)
 
-for i in 1:length(flood_list){
+for (i in 1:length(flood_list)){
     landcov <- rast(MLC0) # load landcover raster
     grid_landcov <- rast(ext(landcov)) 
-    res(grid_landcov) <- 100
+    res(grid_landcov) <- 10
     crs(grid_landcov) <- crs(landcov)
-    landcover_resamp  <- resample(landcov, grid_landcov, "near") # resample landcover to 100m
+    landcover_resamp  <- resample(landcov, grid_landcov, "near") # resample landcover to 10m
     flood_extent <- flood_list[[i]] %>% # load water polygons
         mutate(class = 1) %>% # give all rivers and lakes integer class 1 so that later they can be classified as barriers
         st_transform(st_crs(landcov)) %>%
@@ -223,5 +225,4 @@ for i in 1:length(flood_list){
     landcover_merge <- terra::merge(flood_extent_rast, landcov)
     writeRaster(landcover_merge, paste0("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers/MLC_", flood_extents_t[i], ".tif"), overwrite=T)
 }
-
 ```

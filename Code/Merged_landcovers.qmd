@@ -4,7 +4,7 @@ This code is used to create merged landcover layers for each flood extent in the
 
 ## Step 1: Seperate the flood extents
 
-The code first separates the flood extents based on the unique values of threshold, rainfall, and duration. It loads the full flood extent data and defines the unique values for threshold, rainfall, and duration. Then, it iterates through each combination of threshold, rainfall, and duration and filters the flood extent data based on the current combination. If the filtered data is not empty, it creates a sub-folder for the flood extent and writes the filtered data to a shapefile in the sub-folder.
+The code first separates the flood extents based on the unique values of rainfall and duration. It loads the full flood extent data and defines the unique values for threshold, rainfall, and duration. Then, it iterates through each combination of threshold, rainfall, and duration and filters the flood extent data based on the current combination. If the filtered data is not empty, it creates a sub-folder for the flood extent and writes the filtered data to a shapefile in the sub-folder.
 
 ## Step 2: Load and name the flood extents
 
@@ -45,64 +45,56 @@ library(gridExtra)
 flood_full <- st_read("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vNaturalPolygons/20240311111000/processed/20240311111005")
 
 # Define unique values for threshold, rainfall, and duration
-threshold_values <- c(0.1, 0.2, 0.3)
 rainfall_values <- c(20, 40, 60, 80, 100)
 duration_values <- c(3600, 10800, 21600)
 
-# Seperate each flood extent based on the unique values of threshold, rainfall, and duration
-for (threshold in threshold_values) {
-    for (rainfall in rainfall_values) {
-        for (duration in duration_values) {
+# Seperate each flood extent based on the unique values of rainfall and duration
+for (rainfall in rainfall_values) {
+    for (duration in duration_values) {
+        
+        # Filter data based on current combination
+        filtered_data <- flood_full[flood_full$rainfall == rainfall & flood_full$duration == duration, ]
+        
+        # Check if the filtered data is empty
+        if (nrow(filtered_data) > 0) {
+            # Define sub-folder name
+            subfolder_name <- paste0("flood_", rainfall, "_", duration)
             
-            # Filter data based on current combination
-            filtered_data <- flood_full[flood_full$threshold == threshold & flood_full$rainfall == rainfall & flood_full$duration == duration, ]
-            
-            # Check if the filtered data is empty
-            if (nrow(filtered_data) > 0) {
-                # Define sub-folder name
-                subfolder_name <- paste0("flood_", threshold, "_", rainfall, "_", duration)
-                
-                # Create sub-folder if it doesn't exist
-                dir_path <- paste0("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Flood_extents_Kampala/", subfolder_name)
-                if (!dir.exists(dir_path)) {
-                    dir.create(dir_path)
-                }
-                
-                # Define shapefile name
-                shapefile_name <- paste0(subfolder_name, ".shp")
-                
-                # Write filtered data to shapefile in the sub-folder
-                st_write(filtered_data, file.path(dir_path, shapefile_name), append = FALSE)
+            # Create sub-folder if it doesn't exist
+            dir_path <- paste0("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Flood_extents_Kampala/", subfolder_name)
+            if (!dir.exists(dir_path)) {
+                dir.create(dir_path)
             }
+            
+            # Define shapefile name
+            shapefile_name <- paste0(subfolder_name, ".shp")
+            
+            # Write filtered data to shapefile in the sub-folder
+            st_write(filtered_data, file.path(dir_path, shapefile_name), append = FALSE)
         }
     }
 }
 
 # Load all flood_extents from subfolders
-subfolder_path <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Flood_extents_Kampala"
-flood_extents <- list.files(path = subfolder_path, pattern = "\\.shp$", full.names = TRUE, recursive = TRUE)
-
-# Read shapefiles into a list
-flood_list <- lapply(flood_extents, function(file) {
-    flood <- st_read(file)
-})
+flood_list <- list.files(path = "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Flood_extents_Kampala", pattern = "\\.shp$", full.names = TRUE, recursive = TRUE) %>% 
+    lapply(st_read)
 
 # Name the flood extents in flood_list based on their subfolder name
-flood_extents_t <- list.files(path = subfolder_path, pattern = "\\.shp$", full.names = F, recursive = TRUE)
+flood_extents_names <- list.files(path = "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Flood_extents_Kampala", pattern = "\\.shp$", full.names = F, recursive = TRUE)
 
-flood_extents_t <- gsub("/.*", "", flood_extents_t)
+flood_extents_names <- gsub("/.*", "", flood_extents_names)
 
 for (i in 1:length(flood_list)) {
-    flood_list[[i]]$Scenario <- gsub("flood_", "", flood_extents_t[i])
+    flood_list[[i]]$Scenario <- gsub("flood_", "", flood_extents_names[i])
 }
 
-# Remove the other variable names 
+# Remove other variable names from the flood extents
 flood_list <- lapply(flood_list, function(x) {
-    x$threshold <- NULL
     x$rainfall <- NULL
     x$duration <- NULL
     return(x)
 })
+
 ```
 
 ## Merge landcover layers for each flood extent
@@ -111,26 +103,27 @@ flood_list <- lapply(flood_list, function(x) {
 merged_landcovers <- list()
 
 # Base MLC file path
-MLC0 <- raster("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers/MLC0_major_roads_10m.tif")
+MLC0 <- rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/am5_MLC0_major_roads_10m_2024_03_11@09_22/raster_land_cover_merged_MLC0_major_roads_10m/raster_land_cover_merged_MLC0_major_roads_10m.img")
 
-## Set projection
-MLC0 <- projectRaster(MLC0, crs = "+init=EPSG:21096")
+# Load landcover raster to set projection
+landcover = rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rLandcover/20240308161141/processed/20240308171535/rLandcover_processed.tif") %>% crs(MLC0) = crs(landcover)
 
 ## Iterate through each flood extent in the flood list and create merged landcover layers for each flood scenario 
 for (i in 1:length(flood_list)){
-    landcov <- rast(MLC0) # load landcover raster
-    grid_landcov <- rast(ext(landcov)) # create a grid with the same extent as the landcover raster 
-    res(grid_landcov) <- 10 # set the resolution of the grid to 10m
-    crs(grid_landcov) <- crs(landcov) # set the crs of the grid to the same as the landcover raster
-    landcover_resamp  <- resample(landcov, grid_landcov, "near") # resample landcover to 10m
+    landcov <- MLC0 # load landcover raster
     flood_extent <- flood_list[[i]] %>% # load water polygons
-        mutate(class = 1) %>% # give all rivers and lakes integer class 1 so that later they can be classified as barriers
-        st_transform(st_crs(landcov)) %>% # transform to the same crs as the landcover raster
+        mutate(class = case_when(
+            threshold == 0.1 ~ 1,
+            threshold == 0.2 ~ 2,
+            threshold == 0.3 ~ 3,
+            TRUE ~ NA_real_
+        )) %>% # assign classes based on threshold values
         as(., "Spatial") %>% # convert to sp object
         vect() # convert to terra object
-    flood_extent_rast <- terra::rasterize(flood_extent, grid_landcov, "class", touches = TRUE) # rasterize water polygons
+    flood_extent_rast <- terra::rasterize(flood_extent, landcov, "class", touches = TRUE) # rasterize water polygons
     values(flood_extent_rast)[values(flood_extent_rast) == 0] <- NA # make background value NA
     landcover_merge <- terra::merge(flood_extent_rast, landcov) # merge landcover and water raster
-    writeRaster(landcover_merge, paste0("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers/MLC_", flood_extents_t[i], ".tif"), overwrite=T) # write merged landcover to file
+    writeRaster(landcover_merge, paste0("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers/MLC_", flood_extents_names[i], ".tif"), overwrite=T) # write merged landcover to file
 }
+
 ```

@@ -14,7 +14,7 @@ To use this file, follow these steps:
 4. Execute the code to preprocess the data.
 
 ## Dependencies
-This file may have dependencies on other code files or libraries. Ensure that all required dependencies are installed and accessible before running the code.
+This file has dependencies on the `inAccessMod` package. Make sure to install the package using the `devtools::install_github` function before running the code.
 
 ## Output
 The output of this file is the preprocessed data that can be used as input for the Accessmod tool. The specific format and structure of the output data will depend on the requirements of the tool.
@@ -32,6 +32,7 @@ if (!require("devtools")) install.packages("devtools")
 devtools::install_github("unige-geohealth/inAccessMod", build_vignettes = TRUE, dependencies = TRUE)
 
 library(inAccessMod)
+library(terra)
 ```
 
 # Initialize the project for Uganda
@@ -43,7 +44,7 @@ mainPath <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study
 country <- "Uganda"
 ```
 
-# Download and process the required input data for AccessMod
+# Download or process the required input data for AccessMod
 ## Administrative boundaries
 ```{r}
 # Parish boundaries
@@ -87,7 +88,6 @@ download_osm(x = "roads", mainPath, country, alwaysDownload = TRUE, countryName 
 ```{r}
 inputPath_flood <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Flood_extents_Kampala/Flood_extents_full"
 copy_input(mainPath, country, inputPath_flood)
-
 ```
 
 # Set the projected coordinate reference system
@@ -95,11 +95,47 @@ copy_input(mainPath, country, inputPath_flood)
 set_projection(mainPath, country, mostRecent = TRUE, alwaysSet = TRUE, bestCRS = TRUE)
 ```
 
-# Process all downloaded layers to prepare them for AccessMod analysis
+# Process the input data for AccessMod This cannot be done for rasters using the `process_inputs` function as we need to do a manual disaggregation correction for the population data (see 02.pop_raster_correction.qmd.). 
 ```{r}
-process_inputs(mainPath, country, selectedInputs = NULL, mostRecent = TRUE, alwaysProcess = TRUE, defaultMethods = TRUE, changeRes = TRUE, newRes = 10, popCorrection = TRUE, gridRes = 10)
+# Use this function to process the vector data (e.g. administrative boundaries, health facilities, OSM roads). No need to use this function for rasters as they are processed in the next step (therefore no extra settings are provided for rasters in this function).
+process_inputs(mainPath, country, mostRecent = TRUE, alwaysProcess = FALSE, overwrite = TRUE)
+
+# Process the population data
+## see 02. pop_raster_correction.qmd for the population data processing
+
+# pre-process the raster data to be smaller
+dem = rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rDEM/20240308161123/raw/Uganda_SRTM30meters.tif")
+landcover = rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rLandcover/20240308161141/raw/ESA_WorldCover_10m_2021_v200_N00E030_Map.tif")
+
+## Crop to the study area
+study_area = vect("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp")
+
+study_area = project(study_area, crs(dem))
+study_area = buffer(study_area, 1000) # buffer by 1km to ensure we have enough data for the analysis
+
+dem = crop(dem, study_area)
+landcover = crop(landcover, study_area)
+
+## save the cropped rasters
+writeRaster(dem, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rDEM/20240308161123/processed/DEM_cropped.tif", overwrite = TRUE)
+writeRaster(landcover, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rLandcover/20240308161141/processed/ESA_WorldCover_10m_2021_v200_N00E030_Map_cropped.tif", overwrite = TRUE)
+
+# Move to QGIS
+## Use the align raster tool to align all rasters to the same crs and resolution as the population data
 
 # In QGIS clip the road data to the study area as this is not done by the process_inputs function
+
+# All these files are then saved from QGIS to the processed folder and can be used for the next steps and for AccessMod
+
+# Load the aligned rasters
+dem = rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rDEM/20240308161123/processed/DEM_10m.tif")
+landcover = rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rLandcover/20240308161141/processed/Landcover_10m.tif")
+
+# mask the rasters data to the study area
+study_area = vect("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp") # load the study area again to ensure the correct crs
+
+dem = mask(dem, study_area)
+landcover = mask(landcover, study_area)
 ```
 
 # Label land cover classes for AccessMod
@@ -111,5 +147,10 @@ label_landcover(mainPath, country, mostRecent = TRUE, overwrite = F, defaultLabe
 
 # Compile all processed data for easier import into AccessMod
 ```{r}
-compile_processed_data(mainPath, country, mostRecent = TRUE)
+# For vector data use the compile_processed_data function
+compile_processed_data(mainPath, country, mostRecent = FALSE)
+
+# For raster data save manually in ZtoAccessMod folder
+writeRaster(dem, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240308173332/DEM_10m.tif", overwrite = TRUE)
+writeRaster(landcover, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240308173332/landcover_10m.tif", overwrite = TRUE)
 ```

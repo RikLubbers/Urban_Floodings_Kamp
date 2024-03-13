@@ -127,3 +127,7 @@ for (i in 1:length(flood_list)){
 }
 
 ```
+
+# align rasters with population as reference
+# nearest neighbour
+# first run 03. pop_raster_correction.qmd

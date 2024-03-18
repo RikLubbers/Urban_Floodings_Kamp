@@ -103,10 +103,12 @@ flood_list <- lapply(flood_list, function(x) {
 merged_landcovers <- list()
 
 # Base MLC file path
-MLC0 <- rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/am5_MLC0_major_roads_10m_2024_03_11@09_22/raster_land_cover_merged_MLC0_major_roads_10m/raster_land_cover_merged_MLC0_major_roads_10m.img")
+MLC0 <- rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers/raster_land_cover_merged_MLC0_major_roads_10m/raster_land_cover_merged_MLC0_major_roads_10m.img")
 
 # Load landcover raster to set projection
-landcover = rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rLandcover/20240308161141/processed/20240308171535/rLandcover_processed.tif") %>% crs(MLC0) = crs(landcover)
+landcover = rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240308173332/landcover_10m.tif")
+
+crs(MLC0) = crs(landcover)
 
 ## Iterate through each flood extent in the flood list and create merged landcover layers for each flood scenario 
 for (i in 1:length(flood_list)){
@@ -127,7 +129,3 @@ for (i in 1:length(flood_list)){
 }
 
 ```
-
-# align rasters with population as reference
-# nearest neighbour
-# first run 03. pop_raster_correction.qmd

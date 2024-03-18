@@ -1,0 +1,121 @@
+# Loading packages
+
+```{r package loading}
+library(tidyverse)
+library(haven)
+library(lattice)
+library(data.table)
+library(knitr)
+library(survey)
+ options(survey.lonely.psu="adjust")
+library(expss)
+library(ggplot2)
+library(labelled)
+library(table1)
+library(readxl)
+library(GGally)
+library(kableExtra)
+library(xtable)
+library(modelsummary)
+library(performance)
+library(finalfit)
+library(naniar)
+library(rms)
+library(openxlsx)
+library(rcompanion)
+library(questionr)
+library(flextable)
+library(MASS)
+library(car)
+library(cowplot)
+library(heatmaply)
+library(esquisse)
+library(visreg)
+library(forcats) 
+library(mosaic)
+library(DT)
+library(mice)
+library(gtsummary)
+library(styler)
+library(languageserver)
+library(httpgd)
+library(plotly)
+library(sf)
+```
+
+# Data handling
+
+#### Loading data and creating subset
+
+```{r Dota load and subsetting}
+# Load the children dataset from a .SAV file 
+
+#depending on computer C:/Users/Rik/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/1_Study_1_Physical_access/Data/DATA/Uganda Full/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV   
+
+DHS_children_sub <- read_sav("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/1_Study_1_Physical_access/Data/DATA/Uganda Full/DHS Clusters/UGKR7BSV_Children/UGKR7BFL.SAV")
+
+
+# Filter out rows with children who are no longer alive (B5 == 1)
+DHS_children_sub = subset(DHS_children_sub, B5 == 1)
+
+# Keep only children with anthropometric measurements (non-missing HW5 values)
+DHS_children_sub = DHS_children_sub %>% drop_na(HW5)
+
+Kamp = subset(DHS_children_sub, V024 == 0)
+
+DHS_loc <- st_read("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/1_Study_1_Physical_access/Data/DATA/Uganda Full/DHS Clusters/UGGE7AFL/UGGE7AFL.shp")
+
+# Only select 
+DHS_loc <- subset(DHS_loc, ADM1NAME == "KAMPALA")
+
+
+Kamp <- Kamp %>%
+  group_by(V001) %>%
+  summarise(Count = n()) %>%
+  mutate(V001 = reorder(V001, Count)) # Reorder V001 based on Count
+
+# Rename V001 to DHSCUST
+names(Kamp)[names(Kamp) == "V001"] <- "DHSCLUST"
+
+DHS_loc <- merge(DHS_loc, Kamp, by = "DHSCLUST", all.x = TRUE)
+
+# Read the shapefile
+parishes <- st_read("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/Processed/Adm_boundaries_parishes/Parishes_Kamp_UTM36N.shp")
+
+# Reproject the parishes shapefile to the same projection as the DHS location data
+parishes <- st_transform(parishes, st_crs(DHS_loc))
+
+map = ggplot() +
+  geom_sf(data = parishes, fill = "lightgray", color = "black") +  # Add the shapefile as a base layer
+  geom_point(data = DHS_loc, aes(x = LONGNUM, y = LATNUM, size = Count, color = Count), alpha = 0.7) +
+  labs(title = "Distribution of Children per Cluster in Kampala", x = "Longitude", y = "Latitude") +
+  scale_color_gradient(low = "blue", high = "red") +
+  scale_size(range = c(2, 10), name = "Count") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 14, face = "bold"),
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 10),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        legend.position = "right")
+
+# Summary statistics of the count variable
+summary(Kamp$Count)
+
+# Create a bar plot of the cluster distribution
+ggplot(Kamp, aes(x = DHSCLUST, y = Count)) +
+  geom_bar(stat = "identity", fill = "steelblue") + # Use 'identity' to use Count values directly
+  labs(title = "Distribution of Clusters in Kampala", x = "Cluster", y = "Count") +
+  theme_bw() + # Use a black and white theme
+  theme(plot.title = element_text(size = 14, face = "bold"), # Increase title size and make it bold
+    axis.title = element_text(size = 12), # Increase axis label size
+    axis.text = element_text(size = 10), # Increase axis tick label size
+    panel.grid.major = element_blank(), # Remove major grid lines
+    panel.grid.minor = element_blank(), # Remove minor grid lines
+    panel.border = element_blank(), # Remove plot border
+    legend.position = "none") + # Remove legend
+  scale_y_continuous(breaks = seq(0, max(Kamp$Count), by = 1)) + # Add more y ticks
+  geom_hline(yintercept = seq(0, max(Kamp$Count), by = 1), linetype = "dotted", color = "gray") # Add dotted lines
+
+

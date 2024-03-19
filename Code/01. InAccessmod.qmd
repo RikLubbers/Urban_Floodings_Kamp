@@ -98,7 +98,7 @@ set_projection(mainPath, country, mostRecent = TRUE, alwaysSet = TRUE, bestCRS =
 # Process the input data for AccessMod This cannot be done for rasters using the `process_inputs` function as we need to do a manual disaggregation correction for the population data (see 02.pop_raster_correction.qmd.). 
 ```{r}
 # Use this function to process the vector data (e.g. administrative boundaries, health facilities, OSM roads). No need to use this function for rasters as they are processed in the next step (therefore no extra settings are provided for rasters in this function).
-process_inputs(mainPath, country, mostRecent = TRUE, alwaysProcess = FALSE, overwrite = TRUE)
+process_inputs(mainPath, country, mostRecent = TRUE, alwaysProcess = FALSE)
 
 # Process the population data
 ## see 02. pop_raster_correction.qmd for the population data processing
@@ -151,6 +151,6 @@ label_landcover(mainPath, country, mostRecent = TRUE, overwrite = F, defaultLabe
 compile_processed_data(mainPath, country, mostRecent = FALSE)
 
 # For raster data save manually in ZtoAccessMod folder
-writeRaster(dem, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240308173332/DEM_10m.tif", overwrite = TRUE)
-writeRaster(landcover, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240308173332/landcover_10m.tif", overwrite = TRUE)
+writeRaster(dem, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240319094916/DEM_10m.tif", overwrite = TRUE)
+writeRaster(landcover, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240319094916/landcover_10m.tif", overwrite = TRUE)
 ```

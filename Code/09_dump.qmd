@@ -118,4 +118,62 @@ ggplot(Kamp, aes(x = DHSCLUST, y = Count)) +
   scale_y_continuous(breaks = seq(0, max(Kamp$Count), by = 1)) + # Add more y ticks
   geom_hline(yintercept = seq(0, max(Kamp$Count), by = 1), linetype = "dotted", color = "gray") # Add dotted lines
 
+```
 
+```{r}
+
+df <- data.frame(
+  Combination = c("40mm_1hr", "40mm_2hr", "40mm_3hr", "80mm_1hr", "80mm_2hr", "80mm_3hr", "120mm_1hr", "120mm_2hr", "120mm_3hr"),
+  Rainfall = c(40, 40, 40, 80, 80, 80, 120, 120, 120),
+  Duration = c(1, 2, 3, 1, 2, 3, 1, 2, 3),
+  Healthcare_Coverage = c(90, 75, 60, 75, 60, 45, 60, 45, 30)
+)
+
+ggplot(df, aes(x = Combination, y = Healthcare_Coverage, fill = factor(Rainfall))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_line(aes(group = Rainfall), position = position_dodge(width = 0.9), linewidth = 3) +
+  labs(title = "Healthcare Coverage by Rainfall and Duration", x = "Combination", y = "Healthcare Coverage") +
+  scale_fill_discrete(name = "Rainfall (mm)", labels = c("40mm", "80mm", "120mm")) +
+  theme_bw() +
+  theme(plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    legend.position = "top") + 
+      scale_x_discrete(limits = c("40mm_1hr", "40mm_2hr", "40mm_3hr", "80mm_1hr", "80mm_2hr", "80mm_3hr", "120mm_1hr", "120mm_2hr", "120mm_3hr"))
+
+
+ggplot(df, aes(x = Combination, y = Healthcare_Coverage, fill = factor(Duration))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_line(aes(group = Duration), position = position_dodge(width = 0.9), linewidth = 3) +
+  labs(title = "Healthcare Coverage by Rainfall and Duration", x = "Combination", y = "Healthcare Coverage") +
+  scale_fill_discrete(name = "Duration (hours)", labels = c("1 hour", "2 hours", "3 hours")) +
+  theme_bw() +
+  theme(plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    legend.position = "top") +
+      scale_x_discrete(limits = c("40mm_1hr", "40mm_2hr", "40mm_3hr", "80mm_1hr", "80mm_2hr", "80mm_3hr", "120mm_1hr", "120mm_2hr", "120mm_3hr"))
+
+      # Line plot of Healthcare Coverage by Rainfall and Duration
+      ggplot(df, aes(x = Combination, y = Healthcare_Coverage, group = Rainfall, color = factor(Rainfall))) +
+        geom_line() +
+        labs(title = "Healthcare Coverage by Rainfall and Duration", x = "Combination", y = "Healthcare Coverage") +
+        scale_color_discrete(name = "Rainfall (mm)", labels = c("40mm", "80mm", "120mm")) +
+        theme_bw() +
+        theme(plot.title = element_text(size = 14, face = "bold"),
+              axis.title = element_text(size = 12),
+              axis.text = element_text(size = 10),
+              panel.grid.major = element_blank(),
+              panel.grid.minor = element_blank(),
+              panel.border = element_blank()) +
+              scale_x_discrete(limits = c("40mm_1hr", "40mm_2hr", "40mm_3hr", "80mm_1hr", "80mm_2hr", "80mm_3hr", "120mm_1hr", "120mm_2hr", "120mm_3hr"))
+```
+
+```{r}
+```

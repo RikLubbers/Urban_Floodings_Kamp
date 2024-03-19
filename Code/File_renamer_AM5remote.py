@@ -1,7 +1,14 @@
 import os
 
+##########################################################################################
+# This script is designed to rename all .img files in the subdirectories of a base directory
+# to the name of the grandparent folder. This is useful for renaming all .img files in the
+# subdirectories of a base directory to the name of the grandparent folder, which is useful
+# for further processing.
+##########################################################################################
+
 # Define your base directory
-base_directory = 'D:/AM5_flood_project/out/2024-03-19-10-49-29'
+base_directory = 'D:/AM5_flood_project/out/2024-03-19-16-03-54'
 
 # Walk through the directory
 for dirpath, dirnames, filenames in os.walk(base_directory):

@@ -1,0 +1,111 @@
+#
+#
+#
+library(tidyverse)
+library(ggplot2)
+library(ggpubr)
+#
+#
+#
+#
+#
+#
+#
+rainfall <- read_csv("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Rainfall_estimation/10_4231_6YK1-CQ13/10_4231_6YK1-CQ13/Uganda/entebbe_climate_cfsr.csv")
+
+#
+#
+#
+#
+#
+# Add variable labels
+rainfall <- rainfall %>%
+    rename(
+        date = date,
+        prcpmm = prcpmm,
+        tmin_c = tmin_c,
+        tmax_c = tmax_c
+    )
+
+## Convert date to date format
+rainfall$date <- as.Date(data$date, format = "%Y-%m-%d")
+
+# Create filtered datasets
+rainfall20 <- rainfall %>% filter(prcpmm > 20, prcpmm <= 40)
+rainfall40 <- rainfall %>% filter(prcpmm > 40, prcpmm <= 60)
+rainfall60 <- rainfall %>% filter(prcpmm > 60, prcpmm <= 80)
+rainfall80 <- rainfall %>% filter(prcpmm > 80, prcpmm <= 100)
+rainfall100 <- rainfall %>% filter(prcpmm > 100)
+#
+#
+#
+#
+#
+# Plot
+p1 = ggplot(rainfall, aes(x = date, y = prcpmm, color = prcpmm)) +
+    geom_line() +
+    scale_color_gradient(low = "lightblue", high = "red") +
+    labs(
+        title = "Daily Rainfall in Entebbe, Uganda 1979-2020",
+        x = "Date",
+        y = "Rainfall (mm)"
+    ) +
+    geom_smoo
+    geom_hline(yintercept = 120, linetype = "dashed", color = "black", linewidth = 1) +
+    geom_hline(yintercept = 100, linetype = "dashed", color = "black", linewidth = 1) +
+    geom_hline(yintercept = 80, linetype = "dashed", color = "black", linewidth = 1) +
+    geom_hline(yintercept = 60, linetype = "dashed", color = "black", linewidth = 1) +
+    geom_hline(yintercept = 40, linetype = "dashed", color = "black", linewidth = 1) +
+    geom_hline(yintercept = 20, linetype = "dashed", color = "black", linewidth = 1) +
+    scale_y_continuous(breaks = seq(0, 160, 20)) +
+    theme_bw() +
+    theme(
+        plot.title = element_text(size = 14, face = "bold"),
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 10),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()
+    )
+
+# Create table with counts of rainfall days above specified thresholds
+    rainfall_counts <- data.frame(
+    Threshold = c("20 mm", "40 mm", "60 mm", "80 mm", "100 mm"),
+    Count = c(
+        nrow(rainfall20),
+        nrow(rainfall40),
+        nrow(rainfall60),
+        nrow(rainfall80),
+        nrow(rainfall100)
+    )
+)
+
+p2 = ggtexttable(rainfall_counts)
+
+# Combine plot and table
+plot <- ggarrange(p1, p2,
+ncol = 1, nrow = 2,
+heights = c(10,3))
+
+plot
+
+# Save plot
+ggsave("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/Rainfall_Entebbe.png", plot, width = 10, height = 10, units = "in", dpi = 600)
+#
+#
+#
+# First change the date to a number
+rainfall$date <- as.numeric(rainfall$date)
+
+# then a simple linear regression
+model <- lm(prcpmm ~ date, data = rainfall)
+
+summary(model)
+
+
+#
+#
+#

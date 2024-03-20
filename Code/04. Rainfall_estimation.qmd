@@ -95,6 +95,47 @@ plot
 ggsave("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/Rainfall_Entebbe.png", plot, width = 10, height = 10, units = "in", dpi = 600)
 ```
 
+### Hourly rainfall data
+```{r}
+# load the data
+shear_rain <- read.csv("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Rainfall_estimation/Hourly_kamp/data/shear_rain.csv")
+
+# Create total rainfall variable
+shear_rain$Total_rainfall <- apply(shear_rain[, c("ACTogether.HQ", "Makerere", "MengoSS", "RC.ClimateCentre", "RC.Warehouse")], 1, sum)
+
+# set X as a time variable
+shear_rain$X <- as.POSIXct(shear_rain$X, format = "%Y-%m-%d %H:%M:%S")
+
+# Create a line plot of the total rainfall with color based on intensity
+p1 = ggplot(shear_rain, aes(x = X, y = Total_rainfall, color = Total_rainfall)) +
+    geom_line() +
+    geom_hline(yintercept = c(20, 40, 60, 80, 100), linetype = "dashed", color = "gray", linewidth = 1) +
+    labs(title = "Hourly Rainfall in Kampala (April 2019 - March 2020)", x = "Time", y = "Total Rainfall (mm)") +
+    theme_bw() +
+    theme(plot.title = element_text(size = 14, face = "bold"),
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 10),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank()) +
+    scale_y_continuous(breaks = seq(0, max(shear_rain$Total_rainfall), by = 20)) +
+    scale_color_gradient(low = "blue", high = "red")
+
+# Create a table that shows the total rainfall per category (0-20, 20-40, 40-60, 60-80, 80-100, 100+)
+
+# Create a new variable that categorizes the total rainfall
+shear_rain$Rainfall_category <- cut(shear_rain$Total_rainfall, breaks = c(0, 20, 40, 60, 80, 100, Inf), labels = c("0-20", "20-40", "40-60", "60-80", "80-100", "100+"))
+
+# Create a table that shows the total rainfall per category
+p2 = table(shear_rain$Rainfall_category)
+
+p2 <- ggtexttable(data.frame(p2))
+
+# Combine the plot and the table
+ggarrange(p1, p2, ncol = 1, nrow = 2, heights = c(10, 3))
+
+```
+
 ```{r}
 # First change the date to a number
 rainfall$date <- as.numeric(rainfall$date)

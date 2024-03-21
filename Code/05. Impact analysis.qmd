@@ -1,0 +1,64 @@
+#Load libraries
+```{r}
+library(sf)
+library(dplyr)
+library(foreach)
+library(snow)
+library(terra)
+library(raster)
+library(ggplot2)
+library(gridExtra)
+library(tidyterra)
+library(cowplot)
+```
+
+# Flood scenarios Travel Time
+```{r}
+# Load all .img files in the specified folder
+file_path <- "D:/AM5_flood_project/out/2024-03-19-16-03-54/All"
+file_list <- list.files(file_path, pattern = "\\.img$", full.names = TRUE)
+
+# Load all rasters 
+raster_list <- lapply(file_list, rast)
+
+# Label the raster files with the corresponding file names
+names(raster_list) <- file_list
+
+# load all rasters as seperate objects
+MLC100_10800 = raster_list[[1]]
+MLC100_21600 = raster_list[[2]]
+MLC100_3600 = raster_list[[3]]
+
+MLC20_10800 = raster_list[[4]]
+MLC20_21600 = raster_list[[5]]
+MLC20_3600 = raster_list[[6]]
+
+MLC40_10800 = raster_list[[7]]
+MLC40_21600 = raster_list[[8]]
+MLC40_3600 = raster_list[[9]]
+
+MLC60_10800 = raster_list[[10]]
+MLC60_21600 = raster_list[[11]]
+MLC60_3600 = raster_list[[12]]
+
+MLC80_10800 = raster_list[[13]]
+MLC80_21600 = raster_list[[14]]
+MLC80_3600 = raster_list[[15]]
+
+x = c(MLC20_3600, MLC20_10800, MLC20_21600, MLC40_3600, MLC40_10800, MLC40_21600, MLC60_3600, MLC60_10800, MLC60_21600, MLC80_3600, MLC80_10800, MLC80_21600, MLC100_3600, MLC100_10800, MLC100_21600)
+
+names(x) <- c("MLC20_3600", "MLC20_10800", "MLC20_21600", "MLC40_3600", "MLC40_10800", "MLC40_21600", "MLC60_3600", "MLC60_10800", "MLC60_21600", "MLC80_3600", "MLC80_10800", "MLC80_21600", "MLC100_3600", "MLC100_10800", "MLC100_21600")
+
+# Create a grid of the plots
+gridplot = panel(x, col = data.frame(from = c(0, 15, 30, 45, 60, 90, 120, 180), 
+  to = c(15, 30, 45, 60, 90, 120, 180, Inf), 
+  color = rev(colorRampPalette(cividis(8))(8))),
+  nr = 5, nc = 3,
+  axes = FALSE
+)
+
+# save the gridplot as a pdf
+png("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/flood_scenarios.png", width = 20, height = 30, units = "cm", res = 600)
+print(gridplot)
+dev.off()
+```

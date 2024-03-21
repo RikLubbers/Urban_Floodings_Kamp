@@ -35,6 +35,8 @@ library(terra)
 library(raster)
 library(ggplot2)
 library(gridExtra)
+library(tidyterra)
+library(cowplot)
 ```
 
 # Create merged landcover layer for AccessMod
@@ -127,5 +129,63 @@ for (i in 1:length(flood_list)){
     landcover_merge <- terra::merge(flood_extent_rast, landcov) # merge landcover and water raster
     writeRaster(landcover_merge, paste0("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers/MLC_", flood_extents_names[i], ".tif"), overwrite=T) # write merged landcover to file
 }
+```
 
+# Create a grid plot of all merged landcovers
+```{r}	
+# Load all merged landcovers from the Merged landcovers folder
+merged_landcovers <- list.files(path = "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers", pattern = "\\.tif$", full.names = TRUE, recursive = TRUE) %>% 
+    lapply(terra::rast)
+
+# Name the MLC extents in merged_landcovers based on their subfolder name
+merged_landcovers_names <- list.files(path = "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers", pattern = "\\.tif$", full.names = F, recursive = TRUE)
+
+merged_landcovers_names <- gsub("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers/MLC_", "", merged_landcovers_names)
+
+# Load all merged landcovers as separate objects
+for (i in 1:length(merged_landcovers)) {
+    assign(gsub(".tif", "", merged_landcovers_names[i]), merged_landcovers[[i]])
+}
+
+# Define legend colours and names
+legend_colour <- data.frame(
+    value = c(1, 2, 3, 10, 20, 30, 40, 50, 60, 80, 90, 1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009),
+    color = c("#169FFB", "#3C3CCF", "#170AA6", "#A8E16E", "#FFB400", "#FFFF1B", "#D7B5D8", "#FF0000", "#30123B", "#0312DC", "#15C44C", "#DE0004", "#CF5052", "#CE0FA4", "#CA0FA4", "#336CE6", "#336CE6", "#34EF05", "#34EF05", "#333333", "#333333")
+)
+
+legend_names <- c(
+    "Flood 10cm",
+    "Flood 20cm",
+    "Flood 30cm",
+    "Tree Cover",
+    "Shrubs",
+    "Grass Land",
+    "Agriculture",
+    "Urban",
+    "Bare",
+    "Water Bodies",
+    "Herbaceous wetland",
+    "Trunk",
+    "Trunk link",
+    "Primary",
+    "Primary Link",
+    "Motorway",
+    "Motorway Link",
+    "Secondary",
+    "Secondary link",
+    "Tertiary",
+    "Tertiary link"
+)
+
+# Create list of MLC names
+MLC_names <- c(MLC_flood_20_3600, MLC_flood_20_10800, MLC_flood_20_21600, MLC_flood_40_3600, MLC_flood_40_10800, MLC_flood_40_21600, MLC_flood_60_3600, MLC_flood_60_10800, MLC_flood_60_21600, MLC_flood_80_3600, MLC_flood_80_10800, MLC_flood_80_21600, MLC_flood_100_3600, MLC_flood_100_10800, MLC_flood_100_21600)
+
+names(MLC_names) <- c("Flood 20mm, 3600s", "Flood 20mm, 10800s", "Flood 20mm, 21600s", "Flood 40mm, 3600s", "Flood 40mm, 10800s", "Flood 40mm, 21600s", "Flood 60mm, 3600s", "Flood 60mm, 10800s", "Flood 60mm, 21600s", "Flood 80mm, 3600s", "Flood 80mm, 10800s", "Flood 80mm, 21600s", "Flood 100mm, 3600s", "Flood 100mm, 10800s", "Flood 100mm, 21600s")
+
+gridplot = panel(MLC_names, col = legend_colour, plg = list(legend = legend_names), nr = 5, nc =3, axes = FALSE)
+
+# Save grid plot
+png("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/MLC_gridplot.png", width = 10, height = 10, units = "in", res = 600)
+print(gridplot)
+dev.off()
 ```

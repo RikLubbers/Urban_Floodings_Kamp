@@ -107,9 +107,9 @@ ggplot(hourly_rain, aes(x = X, y = Max_rainfall - Min_rainfall, color = Max_rain
 
 # Create a line plot of the Max hourly_rain with color based on intensity
 p1 = ggplot(hourly_rain, aes(x = X, y = Max_rainfall, color = Max_rainfall)) +
-    geom_line() +
     geom_hline(yintercept = seq(20, 160, by = 20), linetype = "dashed", color = "gray", linewidth = 1) +
-    labs(title = "Hourly Rainfall in Kampala (April 2019 - March 2020)", x = "Time", y = "Max rainfall daily (mm)") +
+    geom_line() +
+    labs(title = "1-Hourly Rainfall in Kampala (April 2019 - March 2020)", x = "Time", y = "Max rainfall daily (mm)") +
     theme_bw() +
     theme(plot.title = element_text(size = 14, face = "bold"),
         axis.title = element_text(size = 12),
@@ -127,11 +127,10 @@ hourly_rain$Rainfall_category <- cut(hourly_rain$Max_rainfall, breaks = c(0, 20,
 # Create a table that shows the Max_rainfall hourly_rain per category
 p2 <- table(hourly_rain$Rainfall_category)
 
-p2 <- ggtexttable(data.frame(p2), cols = c("Max Rainfall Hourly in mm Category", "Count"))
+p2 <- ggtexttable(data.frame(p2), cols = c("1-Hourly Rainfall in mm Category", "Count"))
 
 # Combine the plot and the table
 ggarrange(p1, p2, ncol = 1, nrow = 2, heights = c(10, 3))
-
 ```
 
 ### Create 3-hour and 6-hour totals 
@@ -142,9 +141,9 @@ hourly_rain$three_hour_totals <- hourly_rain$Max_rainfall + dplyr::lag(hourly_ra
 
 # Create a line plot of the 3-hour totals with color based on intensity
 p3 = ggplot(hourly_rain, aes(x = X, y = three_hour_totals, color = three_hour_totals)) +
-    geom_line() +
     geom_hline(yintercept = seq(20, 160, by = 20), linetype = "dashed", color = "gray", linewidth = 1) +
-    labs(title = "3-Hour Hourly Totals in Kampala (April 2019 - March 2020)", x = "Time", y = "3-Hour Hourly Max_rainfall (mm)") +
+    geom_line() +
+    labs(title = "3-Hourly Totals in Kampala (April 2019 - March 2020)", x = "Time", y = "3-Hour Hourly Max_rainfall (mm)") +
     theme_bw() +
     theme(plot.title = element_text(size = 14, face = "bold"),
         axis.title = element_text(size = 12),
@@ -162,7 +161,7 @@ hourly_rain$Three_hour_category <- cut(hourly_rain$three_hour_totals, breaks = c
 # Create a table that shows the 3-hourly Max_rainfall hourly_rain per category
 p4 <- table(hourly_rain$Three_hour_category)
 
-p4 <- ggtexttable(data.frame(p4), cols = c("Hourly Rainfall in mm Category", "Count"))
+p4 <- ggtexttable(data.frame(p4), cols = c("3-Hourly Rainfall in mm Category", "Count"))
 
 # Combine the plot and the table
 ggarrange(p3, p4, ncol = 1, nrow = 2, heights = c(10, 3))
@@ -175,9 +174,9 @@ hourly_rain$six_hour_totals <- hourly_rain$Max_rainfall + dplyr::lag(hourly_rain
 
 # Create a line plot of the 6-hour totals with color based on intensity
 p5 = ggplot(hourly_rain, aes(x = X, y = six_hour_totals, color = six_hour_totals)) +
-    geom_line() +
     geom_hline(yintercept = seq(20, 160, by = 20), linetype = "dashed", color = "gray", linewidth = 1) +
-    labs(title = "6-Hour Hourly Rainfall Totals in Kampala (April 2019 - March 2020)", x = "Time", y = "6-Hour Hourly Max Rainfall (mm)") +
+    geom_line() +
+    labs(title = "6-Hourly Rainfall Totals in Kampala (April 2019 - March 2020)", x = "Time", y = "6-Hour Hourly Max Rainfall (mm)") +
     theme_bw() +
     theme(plot.title = element_text(size = 14, face = "bold"),
         axis.title = element_text(size = 12),
@@ -205,10 +204,14 @@ ggarrange(p5, p6, ncol = 1, nrow = 2, heights = c(10, 3))
 #### Combine all hourly plots and tables
 ```{r}
 # Combine the 1-hour, 3-hour, and 6-hour plots and tables
-rainfall_hourly = ggarrange(p1, p2, p3, p4, p5, p6, ncol = 1, nrow = 6, widths = c(5, 1.5), heights = c(10, 6))
+rainfall_hourly_plots = ggarrange(p1, p3, p5, ncol = 1, nrow = 3, widths = 5, heights = 10)
+rainfall_hourly_tables = ggarrange(p2, p4, p6, ncol = 1, nrow = 3, widths = 5, heights = 10)
 
-rainfall_hourly
+rainfall_hourly_plots
+rainfall_hourly_tables
 
 # Save the plot
-ggsave("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/Rainfall_Kampala_hourly.png", rainfall_hourly , width = 10, height = 20, units = "in", dpi = 600)
+ggsave("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/Rainfall_Kampala_hourly_plots.png", rainfall_hourly_plots, width = 10, height = 20, units = "in", dpi = 600)
+
+ggsave("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/Rainfall_Kampala_hourly_tables.png", rainfall_hourly_tables, width = 10, height = 20, units = "in", dpi = 600)
 ```

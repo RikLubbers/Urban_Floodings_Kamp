@@ -127,7 +127,7 @@ hourly_rain$Rainfall_category <- cut(hourly_rain$Max_rainfall, breaks = c(0, 20,
 # Create a table that shows the Max_rainfall hourly_rain per category
 p2 <- table(hourly_rain$Rainfall_category)
 
-p2 <- ggtexttable(data.frame(p2), cols = c("Max Rainfall Hourly in mm Category", "Count"), ncol = 2)
+p2 <- ggtexttable(data.frame(p2), cols = c("Max Rainfall Hourly in mm Category", "Count"))
 
 # Combine the plot and the table
 ggarrange(p1, p2, ncol = 1, nrow = 2, heights = c(10, 3))
@@ -205,5 +205,10 @@ ggarrange(p5, p6, ncol = 1, nrow = 2, heights = c(10, 3))
 #### Combine all hourly plots and tables
 ```{r}
 # Combine the 1-hour, 3-hour, and 6-hour plots and tables
-ggarrange(p1, p2, p3, p4, p5, p6, ncol = 1, nrow = 6, widths = c(5, 1.5), heights = c(10, 6))
+rainfall_hourly = ggarrange(p1, p2, p3, p4, p5, p6, ncol = 1, nrow = 6, widths = c(5, 1.5), heights = c(10, 6))
+
+rainfall_hourly
+
+# Save the plot
+ggsave("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/Rainfall_Kampala_hourly.png", rainfall_hourly , width = 10, height = 20, units = "in", dpi = 600)
 ```

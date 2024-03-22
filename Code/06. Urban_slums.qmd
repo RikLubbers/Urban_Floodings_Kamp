@@ -1,0 +1,60 @@
+# load packages
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(tidyterra)
+library(terra)
+library(sf)
+library(viridis)
+```
+
+# Load data
+```{r}
+# Load UGA_geodata.gpkg
+urban_slums <- vect("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Urban_slums/UGA_geodata.gpkg")
+
+# Load Parishes_Kamp_UTM36N.shp
+parishes <- vect("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/Processed/Adm_boundaries_parishes/Parishes_Kamp_UTM36N.shp")
+```
+
+# Pre-processing
+```{r}
+# Clip and reproject data
+## First set CRS of parishes to that of the urban_slums
+parishes <- project(parishes, crs(urban_slums))
+
+## Crop urban_slums to the parishes of Kampala
+urban_slums <- crop(urban_slums, parishes)
+
+## Set CRS of urban_slums to UTM36N
+urban_slums <- project(urban_slums, crs("+proj=utm +zone=36 +datum=WGS84 +units=m +no_defs"))
+```
+
+# Plot
+```{r}
+ggplot() +
+    geom_sf(data = urban_slums, aes(fill = k_complexity)) +
+    labs(
+        title = "Distribution of Urban Slums by Complexity",
+        x = "",
+        y = "",
+        fill = "Complexity"
+    ) +
+    theme_dark() +
+    theme(
+        plot.title = element_text(size = 14, face = "bold"),
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 10),
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 8)
+    ) +
+    scale_fill_viridis_c(option = "H") +
+    coord_sf(datum = NA) +
+    theme(
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "white"),
+        legend.position = "bottom"
+    )
+```

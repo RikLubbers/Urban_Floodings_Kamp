@@ -35,19 +35,14 @@ rainfall_daily$date  <- as.Date(rainfall_daily$date, format = "%Y-%m-%d")
 ```{r}
 # Plot
 p1_daily = ggplot(rainfall_daily, aes(x = date, y = prcpmm, color = prcpmm)) +
+    geom_hline(yintercept = c(20, 40, 60, 80, 100, 120, 140 , 160), linetype = "dashed", color = "black", linewidth = 1) +
     geom_line() +
-    scale_color_gradient(low = "lightblue", high = "red") +
+    scale_color_gradient(low = "light blue", high = "red", limits = c(0, 160)) +
     labs(
         title = "Daily Rainfall in mm in Entebbe, Uganda 1979-2020",
         x = "Date",
         y = "Daily Rainfall (mm)"
     ) +
-    geom_hline(yintercept = 120, linetype = "dashed", color = "black", linewidth = 1) +
-    geom_hline(yintercept = 100, linetype = "dashed", color = "black", linewidth = 1) +
-    geom_hline(yintercept = 80, linetype = "dashed", color = "black", linewidth = 1) +
-    geom_hline(yintercept = 60, linetype = "dashed", color = "black", linewidth = 1) +
-    geom_hline(yintercept = 40, linetype = "dashed", color = "black", linewidth = 1) +
-    geom_hline(yintercept = 20, linetype = "dashed", color = "black", linewidth = 1) +
     scale_y_continuous(breaks = seq(0, 160, 20)) +
     theme_bw() +
     theme(
@@ -118,7 +113,7 @@ p1 = ggplot(hourly_rain, aes(x = X, y = Max_rainfall, color = Max_rainfall)) +
         panel.grid.minor = element_blank(),
         panel.border = element_blank()) +
     scale_y_continuous(breaks = seq(0, 160, by = 20)) +
-    scale_color_gradient(low = "lightblue", high = "red")
+    scale_color_gradient(low = "lightblue", high = "red", limits = c(0, 160))
 
 # Create a table that shows the Max_rainfall hourly_rain per category (0-20, 20-40, 40-60, 60-80, 80-100, 100+)
 ## Create a new variable that categorizes the Max_rainfall hourly_rain
@@ -152,7 +147,7 @@ p3 = ggplot(hourly_rain, aes(x = X, y = three_hour_totals, color = three_hour_to
         panel.grid.minor = element_blank(),
         panel.border = element_blank()) +
     scale_y_continuous(breaks = seq(0, 160, by = 20)) +
-    scale_color_gradient(low = "lightblue", high = "red")
+    scale_color_gradient(low = "lightblue", high = "red", limits = c(0, 160))
 
 # Create a table that shows the 3-hourly Max_rainfall hourly_rain per category (0-20, 20-40, 40-60, 60-80, 80-100, 100+)
 # Create a new variable that categorizes the 3-hourly Max_rainfall hourly_rain
@@ -185,7 +180,7 @@ p5 = ggplot(hourly_rain, aes(x = X, y = six_hour_totals, color = six_hour_totals
         panel.grid.minor = element_blank(),
         panel.border = element_blank()) +
     scale_y_continuous(breaks = seq(0, 160, by = 20)) +
-    scale_color_gradient(low = "lightblue", high = "red")
+    scale_color_gradient(low = "lightblue", high = "red", limits = c(0, 160))
 
 # Create a table that shows the 6-hourly Max_rainfall hourly_rain per category (1-6, 2-7, 3-8, etc.)
 # Create a new variable that categorizes the 6-hourly Max_rainfall hourly_rain
@@ -198,7 +193,6 @@ p6 <- ggtexttable(data.frame(p6), cols = c("6 Hourly Rainfall in mm Category", "
 
 # Combine the plot and the table
 ggarrange(p5, p6, ncol = 1, nrow = 2, heights = c(10, 3))
-
 ```
 
 #### Combine all hourly plots and tables

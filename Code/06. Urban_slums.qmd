@@ -33,7 +33,7 @@ urban_slums <- project(urban_slums, crs("+proj=utm +zone=36 +datum=WGS84 +units=
 
 # Plot
 ```{r}
-ggplot() +
+Urban_slums = ggplot() +
     geom_sf(data = urban_slums, aes(fill = k_complexity)) +
     labs(
         title = "Distribution of Urban Slums by Complexity",
@@ -57,4 +57,7 @@ ggplot() +
         panel.background = element_rect(fill = "white"),
         legend.position = "bottom"
     )
+
+# Save the plot
+ggsave("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/Urban_slums.png", Urban_slums, width = 10, height = 10, units = "in", dpi = 600)
 ```

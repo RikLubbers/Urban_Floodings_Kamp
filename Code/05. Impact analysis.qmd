@@ -16,7 +16,7 @@ library(viridis)
 # Flood scenarios Travel Time
 ```{r}
 # Load all .img files in the specified folder
-file_path <- "D:/AM5_flood_project/out/2024-03-19-16-03-54/All"
+file_path <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-03-26-15-29-29/All"
 file_list <- list.files(file_path, pattern = "\\.img$", full.names = TRUE)
 
 # Load all rasters 
@@ -59,7 +59,7 @@ gridplot = panel(x, col = data.frame(from = c(0, 15, 30, 45, 60, 90, 120, 180),
 )
 
 # save the gridplot as a pdf
-png("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/flood_tt__scenarios.png", width = 20, height = 30, units = "cm", res = 600)
+png("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/flood_tt__scenarios.png", width = 40, height = 60, units = "cm", res = 1000)
 print(gridplot)
 dev.off()
 ```
@@ -105,7 +105,7 @@ gridplot_delta_tt = panel(x, col = data.frame(from = c(-Inf, -180, -120, -90, -6
 gridplot_delta_tt
 
 # save the gridplot as a png
-png("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/delta_tt_scenarios.png", width = 20, height = 30, units = "cm", res = 600)
+png("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/delta_tt_scenarios.png", width = 40, height = 60, units = "cm", res = 1000)
 print(gridplot_delta_tt)
 dev.off()
 ```

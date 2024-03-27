@@ -185,7 +185,7 @@ names(MLC_names) <- c("Flood 20mm, 3600s", "Flood 20mm, 10800s", "Flood 20mm, 21
 gridplot = panel(MLC_names, col = legend_colour, plg = list(legend = legend_names), nr = 5, nc =3, axes = FALSE)
 
 # Save grid plot
-png("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/MLC_gridplot.png", width = 10, height = 10, units = "in", res = 600)
+png("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/MLC_gridplot.png", width = 30, height = 40, units = "cm", res = 1000)
 print(gridplot)
 dev.off()
 ```

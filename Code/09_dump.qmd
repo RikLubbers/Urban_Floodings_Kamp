@@ -405,39 +405,5 @@ grid_plot <- cowplot::plot_grid(
 grid_plot
 
 # Save the grid of plots as a PNG
-ggsave("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/flood_scenarios.png", grid_plot, width = 20, height = 30, units = "cm", dpi = 600, bg = "white")
-```
-
-
-# Test coverage processing
-```{r}
-# load the test coverage data
-pop_coverage <- read.csv("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-03-26-14-16-42/MLC_flood_100_10800/zonalStat/zonalStat__MLC_flood_100_10800.csv")
-
-# Cleaning the data
-pop_coverage$table.pname2016 = as.factor(pop_coverage$table.pname2016)
-pop_coverage$table.time_m = as.factor(pop_coverage$table.time_m)
-
-# Remove the 'empty' column from the pop_coverage data frame
-pop_coverage <- subset(pop_coverage, select = -empty)
-
-# GGplot
-ggplot(pop_coverage, aes(x = table.time_m, y = table.popCoveredPercent, fill = table.popCoveredPercent)) +
-  geom_bar(stat = "identity") +
-  labs(title = "Population Coverage by Time", x = "Time (minutes)", y = "Population Covered (%)") +
-  theme_bw() +
-  theme(plot.title = element_text(size = 14, face = "bold"),
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank(),
-    legend.position = "none") + 
-  facet_wrap(~ table.pname2016) +
-  scale_fill_gradient(low = "red", high = "light green") +
-  theme(plot.margin = margin(1, 1, 1, 1, "cm")) + 
-  theme(plot.background = element_rect(fill = "white"))
-
-
-
+ggsave("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/flood_scenarios.png", grid_plot, width = 20, height = 30, units = "cm", dpi = 1000, bg = "white")
 ```

@@ -27,20 +27,28 @@ The output of this file is the preprocessed data that can be used as input for t
 
 # Install the inAccessMod package from GitHub & load the library
 ```{r}
+
+# Check if the 'devtools' package is already installed, if not, install it
 if (!require("devtools")) install.packages("devtools")
 
+# Install the 'inAccessMod' package from GitHub with vignettes and dependencies
 devtools::install_github("unige-geohealth/inAccessMod", build_vignettes = TRUE, dependencies = TRUE)
 
+# Load the required libraries
 library(inAccessMod)
 library(terra)
+
 ```
 
 # Initialize the project for Uganda
 ```{r}
+# Set the main path for the project
+# This path will be used as the root directory for all input and output files related to the Accessmod tool
 mainPath <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod"
 
-#initiate_project(mainPath) # Only run this line once to create the project folder
 
+# Set the country name
+# This variable will be used to specify the country for which the analysis is being performed
 country <- "Uganda"
 ```
 

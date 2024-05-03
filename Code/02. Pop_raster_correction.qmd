@@ -51,5 +51,5 @@ pop_total_10m <- project(pop_total_10m, crs(study_area))
 writeRaster(pop_total_10m, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rPopulation/20240308161107/processed/UG_total_10m.tif", overwrite=TRUE)
 
 # also save it to the zToAccessMod folder
-writeRaster(pop_total_10m, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240308173332/UG_total_10m.tif", overwrite=TRUE)
+writeRaster(pop_total_10m, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240319094916/UG_total_10m.tif", overwrite=TRUE)
 ```

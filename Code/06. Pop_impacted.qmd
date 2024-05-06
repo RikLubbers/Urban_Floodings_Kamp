@@ -1,6 +1,18 @@
 # Load packages
 
 ```{r}
+# Check if packages are installed, if not install them
+required_packages <- c("sf", "dplyr", "foreach", "snow", "terra", "raster", "ggplot2", "gridExtra", "tidyterra", "cowplot", "viridis")
+
+for (package in required_packages) {
+  if (!requireNamespace(package, quietly = TRUE)) {
+    install.packages(package)
+    library(package, character.only = TRUE)
+  } else {
+    library(package, character.only = TRUE)
+  }
+}
+
 library(sf)
 library(dplyr)
 library(foreach)
@@ -18,7 +30,7 @@ library(viridis)
 
 ```{r}
 # Load CSVs as a list 
-pop_coverage_all = list.files("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-03-26-15-29-29/All/zonalstat", full.names = TRUE, pattern = "*.csv")
+pop_coverage_all = list.files("C:/Users/Rik/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-03-26-15-29-29/All/zonalstat", full.names = TRUE, pattern = "*.csv")
 
 # Read all CSVs in the list
 pop_coverage_all = lapply(pop_coverage_all, read.csv)
@@ -27,7 +39,7 @@ pop_coverage_all = lapply(pop_coverage_all, read.csv)
 # Pre-process data all facilities
 ```{r}	
 # label CSVs based on the file name
-names(pop_coverage_all) = gsub("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-03-26-15-29-29/All/zonalstat/zonalStat__", "", basename(list.files("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-03-26-15-29-29/All/zonalstat", full.names = TRUE, pattern = "*.csv")))
+names(pop_coverage_all) = gsub("C:/Users/Rik/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-03-26-15-29-29/All/zonalstat/zonalStat__", "", basename(list.files("C:/Users/Rik/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-03-26-15-29-29/All/zonalstat", full.names = TRUE, pattern = "*.csv")))
 
 # Test run
 # Set as factor

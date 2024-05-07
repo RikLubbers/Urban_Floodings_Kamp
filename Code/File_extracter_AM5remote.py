@@ -11,7 +11,7 @@ def validate_timestamp(timestamp):
         return False
 
 # Ask for the timestamp
-timestamp = input("Please enter the timestamp of the files to process (format YYYY-MM-DD-HH-MM-SS): ")
+timestamp = input("Please enter the timestamp to process (format YYYY-MM-DD-HH-MM-SS): ")
 
 # Validate the timestamp
 if not validate_timestamp(timestamp):
@@ -26,18 +26,20 @@ else:
         os.makedirs(destination_directory)
     else:
         print("Destination directory already exists.")
-
-    # Create the zonalstat subdirectory in the destination directory
-    zonalstat_directory = os.path.join(destination_directory, 'zonalstat')
+    
+    # Create the zonalStat directory within the destination directory if it does not exist
+    zonalstat_directory = os.path.join(destination_directory, 'zonalStat')
     if not os.path.exists(zonalstat_directory):
         os.makedirs(zonalstat_directory)
+    else:
+        print("ZonalStat directory already exists.")
 
-    # Initialize counters
+# Initialize counters
     renamed_img_files_count = 0
     copied_img_files_count = 0
     copied_zonalstat_count = 0
 
-    # Walk through the directory for renaming and copying .img files
+    # Walk through the directory for renaming and copying
     for dirpath, dirnames, filenames in os.walk(base_directory):
         if 'raster_travel_time_MLC_config_all' in dirpath:
             parts = dirpath.split(os.sep)
@@ -50,15 +52,24 @@ else:
                         new_file_name = f"{grandparent_folder_name}.img"
                         new_file_path = os.path.join(dirpath, new_file_name)
                         
+                        # Rename the file if the new file name doesn't exist
+                        if not os.path.exists(new_file_path):
+                            os.rename(old_file_path, new_file_path)
+                            renamed_img_files_count += 1
+                        
+                        # Prepare the path for copying to avoid duplication
+                        copy_path = os.path.join(destination_directory, new_file_name)
+                        
                         # Check if the file already exists in the destination directory
-                        if os.path.exists(os.path.join(destination_directory, new_file_name)):
-                            print(f"File {new_file_name} already exists in the destination directory. Skipping...")
+                        if os.path.exists(os.path.join(destination_directory, file)):
+                            print(f"File {file} already exists in the destination directory. Skipping...")
                             continue
                         
-                        # Copy the renamed .img file to the destination directory
-                        shutil.copy(new_file_path, destination_directory)
-                        copied_img_files_count += 1
-    
+                        # Copy the file if it doesn't already exist in the destination directory
+                        if not os.path.exists(copy_path):
+                            shutil.copy2(new_file_path, copy_path)
+                            copied_img_files_count += 1
+
     # Walk through the directory for copying zonalstat files
     for dirpath, dirnames, filenames in os.walk(base_directory):
         if 'zonalStat' in dirpath:
@@ -71,6 +82,7 @@ else:
                         old_file_path = os.path.join(dirpath, file)
                         
                         # Prepare the path for copying to the zonalstat subdirectory
+                        zonalstat_directory = os.path.join(destination_directory, 'zonalStat')
                         copy_path = os.path.join(zonalstat_directory, file)
                         
                         # Check if the file already exists in the zonalstat subdirectory

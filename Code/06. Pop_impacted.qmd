@@ -110,3 +110,40 @@ ggplot(pop_coverage_all$zonalStat__MLC_flood_100_3600.csv, aes(x = table.time_m,
 ggsave("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/zonalStat__MLC_flood_100_3600_diff_20_21600.png", width = 30, height = 60, units = "cm", dpi = 1000)
 
 ```
+
+# Load data hospitals only scenario
+```{r}
+# Load CSVs as a list
+pop_coverage_hospitals = list.files("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-05-07-10-59-39/All/zonalStat", full.names = TRUE, pattern = "*.csv")
+
+# Read all CSVs in the list
+pop_coverage_hospitals = lapply(pop_coverage_hospitals, read.csv)
+```
+
+# Pre-process data hospitals only scenario
+```{r}
+# label CSVs based on the file name
+names(pop_coverage_hospitals) = gsub("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-05-07-10-59-39/All/zonalStat/zonalStat__", "", basename(list.files("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-05-07-10-59-39/All/zonalStat", full.names = TRUE, pattern = "*.csv")))
+
+# Test run
+# Set as factor
+pop_coverage_hospitals$zonalStat__MLC_flood_100_3600.csv$table.pname2016 = as.factor(pop_coverage_hospitals$zonalStat__MLC_flood_100_3600.csv$table.pname2016)
+pop_coverage_hospitals$zonalStat__MLC_flood_100_3600.csv$table.time_m = as.factor(pop_coverage_hospitals$zonalStat__MLC_flood_100_3600.csv$table.time_m)
+
+# Plot
+ggplot(pop_coverage_hospitals$zonalStat__MLC_flood_100_3600.csv, aes(x = table.time_m, y = table.popCoveredPercent, fill = table.popCoveredPercent)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Population Coverage by Time (100mm / 1hr)", x = "Time (minutes)", y = "Population Covered (%)") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    legend.position = "none") + 
+  facet_wrap(~ table.pname2016) +
+  scale_fill_gradient(low = "red", high = "light green") +
+  theme(plot.margin = margin(1, 1, 1, 1, "cm")) + 
+  theme(plot.background = element_rect(fill = "white"))
+```

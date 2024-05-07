@@ -1,6 +1,24 @@
 # load packages
 
 ```{r}
+# Function to check if packages are installed
+check_packages <- function(packages) {
+    missing_packages <- packages[!sapply(packages, requireNamespace, quietly = TRUE)]
+    if (length(missing_packages) > 0) {
+        install.packages(missing_packages)
+        message("Installing missing packages...")
+        for (package in missing_packages) {
+            library(package, character.only = TRUE)
+        }
+        message("All packages are installed.")
+    } else {
+        message("All packages are already installed.")
+    }
+}
+
+# Call the function with the required packages
+check_packages(c("tidyverse", "ggplot2", "tidyterra", "terra", "sf", "viridis",))
+
 library(tidyverse)
 library(ggplot2)
 library(tidyterra)
@@ -33,6 +51,7 @@ urban_slums <- project(urban_slums, crs("+proj=utm +zone=36 +datum=WGS84 +units=
 
 # Plot
 ```{r}
+# Plot the urban slums
 Urban_slums = ggplot() +
     geom_sf(data = urban_slums, aes(fill = k_complexity)) +
     labs(
@@ -57,6 +76,9 @@ Urban_slums = ggplot() +
         panel.background = element_rect(fill = "white"),
         legend.position = "bottom"
     )
+
+# Print the plot
+Urban_slums
 
 # Save the plot
 ggsave("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/Urban_slums.png", Urban_slums, width = 10, height = 10, units = "in", dpi = 600)

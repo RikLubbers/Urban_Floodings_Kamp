@@ -30,7 +30,7 @@ library(viridis)
 ## Flood scenarios Travel Time All
 ```{r}
 # Load all .img files in the specified folder
-file_path <- "C:/Users/Rik/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-03-26-15-29-29/All"
+file_path <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-03-26-15-29-29/All"
 file_list <- list.files(file_path, pattern = "\\.img$", full.names = TRUE)
 
 # Load all rasters 
@@ -81,7 +81,7 @@ dev.off()
 ## Travel time delta all
 ```{r}
 # Load base travel time raster
-base_tt_all = rast("C:/Users/Rik/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/Travel_time_surfaces/am5_MLC_base_2024_03_19@10_34/raster_travel_time_MLC_base_all/raster_travel_time_MLC_base_all.img")
+base_tt_all = rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/AM5_export/am5_MLC_base_2024_03_19@10_34/raster_travel_time_MLC_base_all/raster_travel_time_MLC_base_all.img")
 
 # Create delta travel time rasters
 delta_tt_all_20_3600 = base_tt_all - flood_tt_all_20_3600
@@ -127,9 +127,8 @@ dev.off()
 # Hospitals only scenarios
 ## Flood scenarios Travel Time Hospitals only
 ```{r}
-```{r}
 # Load all .img files in the specified folder
-file_path <- "C:/Users/Rik/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-03-26-15-29-29/Hospitals"
+file_path <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-05-07-10-59-39/All"
 file_list <- list.files(file_path, pattern = "\\.img$", full.names = TRUE)
 
 # Load all rasters 
@@ -181,7 +180,7 @@ dev.off()
 ## Travel time delta Hospitals only
 ```{r}
 # Load base hospital travel time raster
-base_tt_hosp = rast("C:/Users/Rik/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/Travel_time_surfaces/am5_MLC_base_2024_03_19@10_34/raster_travel_time_MLC_base_hospitals/raster_travel_time_MLC_base_hospitals.img")
+base_tt_hosp = rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/AM5_export/am5_MLC_base_2024_03_19@10_34/raster_travel_time_MLC_base_hosp/raster_travel_time_MLC_base_hosp.img")
 
 # Create delta travel time rasters for hospitals only
 delta_tt_hosp_20_3600 = base_tt_hosp - flood_tt_hosp_20_3600
@@ -216,7 +215,6 @@ gridplot_delta_tt_hosp = panel(x_hosp, col = data.frame(from = c(-Inf, -180, -12
   axes = FALSE
 )
 
-gridplot_delta_tt_hosp
 
 # save the gridplot as a png
 png("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/delta_tt_hosp_scenarios.png", width = 40, height = 60, units = "cm", res = 1000)

@@ -13,7 +13,7 @@ library(terra)
 # Load data
 ```{r}
 # Read the population TIFF file
-pop_raster_total = rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rPopulation/20240308161107/raw/UG_total.tif")
+pop_raster_total <- rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rPopulation/20240308161107/raw/UG_total.tif")
 
 ## load the shapefile of the study area
 study_area <- vect("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp")
@@ -34,13 +34,13 @@ study_area_buffer <- buffer(study_area, width = 2000)
 pop_raster_total <- crop(pop_raster_total, study_area_buffer)
 
 # disaggregate population data
-pop_total_10m <- disagg(pop_raster_total, c(10,10))
+pop_total_10m <- disagg(pop_raster_total, c(10, 10))
 
 ## Mask the population raster to the extent of the study area
 pop_total_10m <- mask(pop_total_10m, study_area)
 
 # Project the population raster to the same projection as the original study area
-study_area = vect("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp")
+study_area <- vect("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp")
 
 pop_total_10m <- project(pop_total_10m, crs(study_area))
 ```
@@ -48,8 +48,8 @@ pop_total_10m <- project(pop_total_10m, crs(study_area))
 # Save the data to new TIFF files
 ```{r}
 ## Write the disaggregated data to a new TIFF file
-writeRaster(pop_total_10m, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rPopulation/20240308161107/processed/UG_total_10m.tif", overwrite=TRUE)
+writeRaster(pop_total_10m, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rPopulation/20240308161107/processed/UG_total_10m.tif", overwrite = TRUE)
 
 # also save it to the zToAccessMod folder
-writeRaster(pop_total_10m, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240319094916/UG_total_10m.tif", overwrite=TRUE)
+writeRaster(pop_total_10m, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240319094916/UG_total_10m.tif", overwrite = TRUE)
 ```

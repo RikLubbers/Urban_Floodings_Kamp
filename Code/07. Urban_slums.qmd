@@ -17,7 +17,7 @@ check_packages <- function(packages) {
 }
 
 # Call the function with the required packages
-check_packages(c("tidyverse", "ggplot2", "tidyterra", "terra", "sf", "viridis",))
+check_packages(c("tidyverse", "ggplot2", "tidyterra", "terra", "sf", "viridis", ))
 
 library(tidyverse)
 library(ggplot2)
@@ -52,7 +52,7 @@ urban_slums <- project(urban_slums, crs("+proj=utm +zone=36 +datum=WGS84 +units=
 # Plot
 ```{r}
 # Plot the urban slums
-Urban_slums = ggplot() +
+Urban_slums <- ggplot() +
     geom_sf(data = urban_slums, aes(fill = k_complexity)) +
     labs(
         title = "Distribution of Urban Slums by Complexity",

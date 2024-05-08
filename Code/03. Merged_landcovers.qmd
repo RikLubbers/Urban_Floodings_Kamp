@@ -53,24 +53,23 @@ duration_values <- c(3600, 10800, 21600)
 # Seperate each flood extent based on the unique values of rainfall and duration
 for (rainfall in rainfall_values) {
     for (duration in duration_values) {
-        
         # Filter data based on current combination
         filtered_data <- flood_full[flood_full$rainfall == rainfall & flood_full$duration == duration, ]
-        
+
         # Check if the filtered data is empty
         if (nrow(filtered_data) > 0) {
             # Define sub-folder name
             subfolder_name <- paste0("flood_", rainfall, "_", duration)
-            
+
             # Create sub-folder if it doesn't exist
             dir_path <- paste0("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Flood_extents_Kampala/", subfolder_name)
             if (!dir.exists(dir_path)) {
                 dir.create(dir_path)
             }
-            
+
             # Define shapefile name
             shapefile_name <- paste0(subfolder_name, ".shp")
-            
+
             # Write filtered data to shapefile in the sub-folder
             st_write(filtered_data, file.path(dir_path, shapefile_name), append = FALSE)
         }
@@ -78,7 +77,7 @@ for (rainfall in rainfall_values) {
 }
 
 # Load all flood_extents from subfolders
-flood_list <- list.files(path = "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Flood_extents_Kampala", pattern = "\\.shp$", full.names = TRUE, recursive = TRUE) %>% 
+flood_list <- list.files(path = "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Flood_extents_Kampala", pattern = "\\.shp$", full.names = TRUE, recursive = TRUE) %>%
     lapply(st_read)
 
 # Name the flood extents in flood_list based on their subfolder name
@@ -108,14 +107,14 @@ merged_landcovers <- list()
 MLC0 <- rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers/raster_land_cover_merged_MLC0_major_roads_10m/raster_land_cover_merged_MLC0_major_roads_10m.img")
 
 # Load landcover raster to set projection
-landcover = rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240319094916/landcover_10m.tif")
+landcover <- rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240319094916/landcover_10m.tif")
 
 crs(landcover)
 
-crs(MLC0) = crs(landcover)
+crs(MLC0) <- crs(landcover)
 
-## Iterate through each flood extent in the flood list and create merged landcover layers for each flood scenario 
-for (i in 1:length(flood_list)){
+## Iterate through each flood extent in the flood list and create merged landcover layers for each flood scenario
+for (i in 1:length(flood_list)) {
     landcov <- MLC0 # load landcover raster
     flood_extent <- flood_list[[i]] %>% # load water polygons
         mutate(class = case_when(
@@ -129,14 +128,14 @@ for (i in 1:length(flood_list)){
     flood_extent_rast <- terra::rasterize(flood_extent, landcov, "class", touches = TRUE) # rasterize water polygons
     values(flood_extent_rast)[values(flood_extent_rast) == 0] <- NA # make background value NA
     landcover_merge <- terra::merge(flood_extent_rast, landcov) # merge landcover and water raster
-    writeRaster(landcover_merge, paste0("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers/MLC_", flood_extents_names[i], ".tif"), overwrite=T) # write merged landcover to file
+    writeRaster(landcover_merge, paste0("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers/MLC_", flood_extents_names[i], ".tif"), overwrite = T) # write merged landcover to file
 }
 ```
 
 # Create a grid plot of all merged landcovers
 ```{r}	
 # Load all merged landcovers from the Merged landcovers folder
-merged_landcovers <- list.files(path = "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers", pattern = "\\.tif$", full.names = TRUE, recursive = TRUE) %>% 
+merged_landcovers <- list.files(path = "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers", pattern = "\\.tif$", full.names = TRUE, recursive = TRUE) %>%
     lapply(terra::rast)
 
 # Name the MLC extents in merged_landcovers based on their subfolder name
@@ -184,7 +183,7 @@ MLC_names <- c(MLC_flood_20_3600, MLC_flood_20_10800, MLC_flood_20_21600, MLC_fl
 
 names(MLC_names) <- c("20mm / 1hr", "20mm / 3hr", "20mm / 6hr", "40mm / 1hr", "40mm / 3hr", "40mm / 6hr", "60mm / 1hr", "60mm / 3hr", "60mm / 6hr", "80mm / 1hr", "80mm / 3hr", "80mm / 6hr", "100mm / 1hr", "100mm / 3hr", "100mm / 6hr")
 
-gridplot = panel(MLC_names, col = legend_colour, plg = list(legend = legend_names), nr = 5, nc =3, axes = FALSE)
+gridplot <- panel(MLC_names, col = legend_colour, plg = list(legend = legend_names), nr = 5, nc = 3, axes = FALSE)
 
 # Save grid plot
 png("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/MLC_gridplot.png", width = 40, height = 60, units = "cm", res = 1000)

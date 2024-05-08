@@ -56,13 +56,13 @@ country <- "Uganda"
 ## Administrative boundaries
 ```{r}
 # Parish boundaries
-inputPath_adm = "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/Processed/Adm_boundaries_parishes"
+inputPath_adm <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/Processed/Adm_boundaries_parishes"
 copy_input(mainPath, country, inputPath_adm)
 ```
 
 ## Population data
 ```{r}
-#Total population/women of reproductive age (WRA) population/under 5 population
+# Total population/women of reproductive age (WRA) population/under 5 population
 inputPath_pop <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/WorldPop_density/Inaccessmod"
 copy_input(mainPath, country, inputPath_pop)
 ```
@@ -112,17 +112,17 @@ process_inputs(mainPath, country, mostRecent = TRUE, alwaysProcess = FALSE)
 ## see 02. pop_raster_correction.qmd for the population data processing
 
 # pre-process the raster data to be smaller
-dem = rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rDEM/20240308161123/raw/Uganda_SRTM30meters.tif")
-landcover = rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rLandcover/20240308161141/raw/ESA_WorldCover_10m_2021_v200_N00E030_Map.tif")
+dem <- rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rDEM/20240308161123/raw/Uganda_SRTM30meters.tif")
+landcover <- rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rLandcover/20240308161141/raw/ESA_WorldCover_10m_2021_v200_N00E030_Map.tif")
 
 ## Crop to the study area
-study_area = vect("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp")
+study_area <- vect("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp")
 
-study_area = project(study_area, crs(dem))
-study_area = buffer(study_area, 1000) # buffer by 1km to ensure we have enough data for the analysis
+study_area <- project(study_area, crs(dem))
+study_area <- buffer(study_area, 1000) # buffer by 1km to ensure we have enough data for the analysis
 
-dem = crop(dem, study_area)
-landcover = crop(landcover, study_area)
+dem <- crop(dem, study_area)
+landcover <- crop(landcover, study_area)
 
 ## save the cropped rasters
 writeRaster(dem, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rDEM/20240308161123/processed/DEM_cropped.tif", overwrite = TRUE)
@@ -136,14 +136,14 @@ writeRaster(landcover, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbil
 # All these files are then saved from QGIS to the processed folder and can be used for the next steps and for AccessMod
 
 # Load the aligned rasters
-dem = rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rDEM/20240308161123/processed/DEM_10m.tif")
-landcover = rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rLandcover/20240308161141/processed/Landcover_10m.tif")
+dem <- rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rDEM/20240308161123/processed/DEM_10m.tif")
+landcover <- rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rLandcover/20240308161141/processed/Landcover_10m.tif")
 
 # mask the rasters data to the study area
-study_area = vect("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp") # load the study area again to ensure the correct crs
+study_area <- vect("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp") # load the study area again to ensure the correct crs
 
-dem = mask(dem, study_area)
-landcover = mask(landcover, study_area)
+dem <- mask(dem, study_area)
+landcover <- mask(landcover, study_area)
 ```
 
 # Label land cover classes for AccessMod

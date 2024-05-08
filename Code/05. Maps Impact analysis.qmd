@@ -2,13 +2,13 @@
 ```{r}
 # Function to load packages
 install_packages <- function() {
-  packages <- c("sf", "dplyr", "foreach", "snow", "terra", "raster", "ggplot2", "gridExtra", "tidyterra", "cowplot", "viridis")
-  for (package in packages) {
-    if (!require(package, character.only = TRUE)) {
-      install.packages(package, dependencies = TRUE)
-      library(package, character.only = TRUE)
+    packages <- c("sf", "dplyr", "foreach", "snow", "terra", "raster", "ggplot2", "gridExtra", "tidyterra", "cowplot", "viridis")
+    for (package in packages) {
+        if (!require(package, character.only = TRUE)) {
+            install.packages(package, dependencies = TRUE)
+            library(package, character.only = TRUE)
+        }
     }
-  }
 }
 
 install_packages()
@@ -33,43 +33,46 @@ library(viridis)
 file_path <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-03-26-15-29-29/All"
 file_list <- list.files(file_path, pattern = "\\.img$", full.names = TRUE)
 
-# Load all rasters 
+# Load all rasters
 raster_list <- lapply(file_list, rast)
 
 # Label the raster files with the corresponding file names
 names(raster_list) <- file_list
 
 # load all rasters as separate objects
-flood_tt_all_100_10800 = raster_list[[1]]
-flood_tt_all_100_21600 = raster_list[[2]]
-flood_tt_all_100_3600 = raster_list[[3]]
+flood_tt_all_100_10800 <- raster_list[[1]]
+flood_tt_all_100_21600 <- raster_list[[2]]
+flood_tt_all_100_3600 <- raster_list[[3]]
 
-flood_tt_all_20_10800 = raster_list[[4]]
-flood_tt_all_20_21600 = raster_list[[5]]
-flood_tt_all_20_3600 = raster_list[[6]]
+flood_tt_all_20_10800 <- raster_list[[4]]
+flood_tt_all_20_21600 <- raster_list[[5]]
+flood_tt_all_20_3600 <- raster_list[[6]]
 
-flood_tt_all_40_10800 = raster_list[[7]]
-flood_tt_all_40_21600 = raster_list[[8]]
-flood_tt_all_40_3600 = raster_list[[9]]
+flood_tt_all_40_10800 <- raster_list[[7]]
+flood_tt_all_40_21600 <- raster_list[[8]]
+flood_tt_all_40_3600 <- raster_list[[9]]
 
-flood_tt_all_60_10800 = raster_list[[10]]
-flood_tt_all_60_21600 = raster_list[[11]]
-flood_tt_all_60_3600 = raster_list[[12]]
+flood_tt_all_60_10800 <- raster_list[[10]]
+flood_tt_all_60_21600 <- raster_list[[11]]
+flood_tt_all_60_3600 <- raster_list[[12]]
 
-flood_tt_all_80_10800 = raster_list[[13]]
-flood_tt_all_80_21600 = raster_list[[14]]
-flood_tt_all_80_3600 = raster_list[[15]]
+flood_tt_all_80_10800 <- raster_list[[13]]
+flood_tt_all_80_21600 <- raster_list[[14]]
+flood_tt_all_80_3600 <- raster_list[[15]]
 
-x = c(flood_tt_all_20_3600, flood_tt_all_20_10800, flood_tt_all_20_21600, flood_tt_all_40_3600, flood_tt_all_40_10800, flood_tt_all_40_21600, flood_tt_all_60_3600, flood_tt_all_60_10800, flood_tt_all_60_21600, flood_tt_all_80_3600, flood_tt_all_80_10800, flood_tt_all_80_21600, flood_tt_all_100_3600, flood_tt_all_100_10800, flood_tt_all_100_21600)
+x <- c(flood_tt_all_20_3600, flood_tt_all_20_10800, flood_tt_all_20_21600, flood_tt_all_40_3600, flood_tt_all_40_10800, flood_tt_all_40_21600, flood_tt_all_60_3600, flood_tt_all_60_10800, flood_tt_all_60_21600, flood_tt_all_80_3600, flood_tt_all_80_10800, flood_tt_all_80_21600, flood_tt_all_100_3600, flood_tt_all_100_10800, flood_tt_all_100_21600)
 
 names(x) <- c("20mm / 1hr", "20mm / 3hr", "20mm / 6hr", "40mm / 1hr", "40mm / 3hr", "40mm / 6hr", "60mm / 1hr", "60mm / 3hr", "60mm / 6hr", "80mm / 1hr", "80mm / 3hr", "80mm / 6hr", "100mm / 1hr", "100mm / 3hr", "100mm x 6hr")
 
 # Create a grid of the plots
-gridplot = panel(x, col = data.frame(from = c(0, 15, 30, 45, 60, 90, 120, 180), 
-  to = c(15, 30, 45, 60, 90, 120, 180, Inf), 
-  color = rev(colorRampPalette(cividis(8))(8))),
-  nr = 5, nc = 3,
-  axes = FALSE
+gridplot <- panel(x,
+    col = data.frame(
+        from = c(0, 15, 30, 45, 60, 90, 120, 180),
+        to = c(15, 30, 45, 60, 90, 120, 180, Inf),
+        color = rev(colorRampPalette(cividis(8))(8))
+    ),
+    nr = 5, nc = 3,
+    axes = FALSE
 )
 
 # save the gridplot as a pdf
@@ -81,39 +84,42 @@ dev.off()
 ## Travel time delta all
 ```{r}
 # Load base travel time raster
-base_tt_all = rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/AM5_export/am5_MLC_base_2024_03_19@10_34/raster_travel_time_MLC_base_all/raster_travel_time_MLC_base_all.img")
+base_tt_all <- rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/AM5_export/am5_MLC_base_2024_03_19@10_34/raster_travel_time_MLC_base_all/raster_travel_time_MLC_base_all.img")
 
 # Create delta travel time rasters
-delta_tt_all_20_3600 = base_tt_all - flood_tt_all_20_3600
-delta_tt_all_20_10800 = base_tt_all - flood_tt_all_20_10800
-delta_tt_all_20_21600 = base_tt_all - flood_tt_all_20_21600
+delta_tt_all_20_3600 <- base_tt_all - flood_tt_all_20_3600
+delta_tt_all_20_10800 <- base_tt_all - flood_tt_all_20_10800
+delta_tt_all_20_21600 <- base_tt_all - flood_tt_all_20_21600
 
-delta_tt_all_40_3600 = base_tt_all - flood_tt_all_40_3600
-delta_tt_all_40_10800 = base_tt_all - flood_tt_all_40_10800
-delta_tt_all_40_21600 = base_tt_all - flood_tt_all_40_21600
+delta_tt_all_40_3600 <- base_tt_all - flood_tt_all_40_3600
+delta_tt_all_40_10800 <- base_tt_all - flood_tt_all_40_10800
+delta_tt_all_40_21600 <- base_tt_all - flood_tt_all_40_21600
 
-delta_tt_all_60_3600 = base_tt_all - flood_tt_all_60_3600
-delta_tt_all_60_10800 = base_tt_all - flood_tt_all_60_10800
-delta_tt_all_60_21600 = base_tt_all - flood_tt_all_60_21600
+delta_tt_all_60_3600 <- base_tt_all - flood_tt_all_60_3600
+delta_tt_all_60_10800 <- base_tt_all - flood_tt_all_60_10800
+delta_tt_all_60_21600 <- base_tt_all - flood_tt_all_60_21600
 
-delta_tt_all_80_3600 = base_tt_all - flood_tt_all_80_3600
-delta_tt_all_80_10800 = base_tt_all - flood_tt_all_80_10800
-delta_tt_all_80_21600 = base_tt_all - flood_tt_all_80_21600
+delta_tt_all_80_3600 <- base_tt_all - flood_tt_all_80_3600
+delta_tt_all_80_10800 <- base_tt_all - flood_tt_all_80_10800
+delta_tt_all_80_21600 <- base_tt_all - flood_tt_all_80_21600
 
-delta_tt_all_100_3600 = base_tt_all - flood_tt_all_100_3600
-delta_tt_all_100_10800 = base_tt_all - flood_tt_all_100_10800
-delta_tt_all_100_21600 = base_tt_all - flood_tt_all_100_21600
+delta_tt_all_100_3600 <- base_tt_all - flood_tt_all_100_3600
+delta_tt_all_100_10800 <- base_tt_all - flood_tt_all_100_10800
+delta_tt_all_100_21600 <- base_tt_all - flood_tt_all_100_21600
 
-x = c(delta_tt_all_20_3600, delta_tt_all_20_10800, delta_tt_all_20_21600, delta_tt_all_40_3600, delta_tt_all_40_10800, delta_tt_all_40_21600, delta_tt_all_60_3600, delta_tt_all_60_10800, delta_tt_all_60_21600, delta_tt_all_80_3600, delta_tt_all_80_10800, delta_tt_all_80_21600, delta_tt_all_100_3600, delta_tt_all_100_10800, delta_tt_all_100_21600)
+x <- c(delta_tt_all_20_3600, delta_tt_all_20_10800, delta_tt_all_20_21600, delta_tt_all_40_3600, delta_tt_all_40_10800, delta_tt_all_40_21600, delta_tt_all_60_3600, delta_tt_all_60_10800, delta_tt_all_60_21600, delta_tt_all_80_3600, delta_tt_all_80_10800, delta_tt_all_80_21600, delta_tt_all_100_3600, delta_tt_all_100_10800, delta_tt_all_100_21600)
 
 names(x) <- c("20mm / 1hr", "20mm / 3hr", "20mm / 6hr", "40mm / 1hr", "40mm / 3hr", "40mm / 6hr", "60mm / 1hr", "60mm / 3hr", "60mm / 6hr", "80mm / 1hr", "80mm / 3hr", "80mm / 6hr", "100mm / 1hr", "100mm / 3hr", "100mm x 6hr")
 
 # Create a grid of the plots
-gridplot_delta_tt = panel(x, col = data.frame(from = c(-Inf, -180, -120, -90, -60, -45, -30, -15, -0.01), 
-  to = c(-180, -120, -90, -60, -45, -30, -15, -1, 0), 
-  color = rev(colorRampPalette(turbo(9))(9))),
-  nr = 5, nc = 3,
-  axes = FALSE
+gridplot_delta_tt <- panel(x,
+    col = data.frame(
+        from = c(-Inf, -180, -120, -90, -60, -45, -30, -15, -0.01),
+        to = c(-180, -120, -90, -60, -45, -30, -15, -1, 0),
+        color = rev(colorRampPalette(turbo(9))(9))
+    ),
+    nr = 5, nc = 3,
+    axes = FALSE
 )
 
 gridplot_delta_tt
@@ -131,43 +137,46 @@ dev.off()
 file_path <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-05-07-10-59-39/All"
 file_list <- list.files(file_path, pattern = "\\.img$", full.names = TRUE)
 
-# Load all rasters 
+# Load all rasters
 raster_list <- lapply(file_list, rast)
 
 # Label the raster files with the corresponding file names
 names(raster_list) <- file_list
 
 # load all rasters as separate objects
-flood_tt_hosp_100_10800 = raster_list[[1]]
-flood_tt_hosp_100_21600 = raster_list[[2]]
-flood_tt_hosp_100_3600 = raster_list[[3]]
+flood_tt_hosp_100_10800 <- raster_list[[1]]
+flood_tt_hosp_100_21600 <- raster_list[[2]]
+flood_tt_hosp_100_3600 <- raster_list[[3]]
 
-flood_tt_hosp_20_10800 = raster_list[[4]]
-flood_tt_hosp_20_21600 = raster_list[[5]]
-flood_tt_hosp_20_3600 = raster_list[[6]]
+flood_tt_hosp_20_10800 <- raster_list[[4]]
+flood_tt_hosp_20_21600 <- raster_list[[5]]
+flood_tt_hosp_20_3600 <- raster_list[[6]]
 
-flood_tt_hosp_40_10800 = raster_list[[7]]
-flood_tt_hosp_40_21600 = raster_list[[8]]
-flood_tt_hosp_40_3600 = raster_list[[9]]
+flood_tt_hosp_40_10800 <- raster_list[[7]]
+flood_tt_hosp_40_21600 <- raster_list[[8]]
+flood_tt_hosp_40_3600 <- raster_list[[9]]
 
-flood_tt_hosp_60_10800 = raster_list[[10]]
-flood_tt_hosp_60_21600 = raster_list[[11]]
-flood_tt_hosp_60_3600 = raster_list[[12]]
+flood_tt_hosp_60_10800 <- raster_list[[10]]
+flood_tt_hosp_60_21600 <- raster_list[[11]]
+flood_tt_hosp_60_3600 <- raster_list[[12]]
 
-flood_tt_hosp_80_10800 = raster_list[[13]]
-flood_tt_hosp_80_21600 = raster_list[[14]]
-flood_tt_hosp_80_3600 = raster_list[[15]]
+flood_tt_hosp_80_10800 <- raster_list[[13]]
+flood_tt_hosp_80_21600 <- raster_list[[14]]
+flood_tt_hosp_80_3600 <- raster_list[[15]]
 
-x_hosp = c(flood_tt_hosp_20_3600, flood_tt_hosp_20_10800, flood_tt_hosp_20_21600, flood_tt_hosp_40_3600, flood_tt_hosp_40_10800, flood_tt_hosp_40_21600, flood_tt_hosp_60_3600, flood_tt_hosp_60_10800, flood_tt_hosp_60_21600, flood_tt_hosp_80_3600, flood_tt_hosp_80_10800, flood_tt_hosp_80_21600, flood_tt_hosp_100_3600, flood_tt_hosp_100_10800, flood_tt_hosp_100_21600)
+x_hosp <- c(flood_tt_hosp_20_3600, flood_tt_hosp_20_10800, flood_tt_hosp_20_21600, flood_tt_hosp_40_3600, flood_tt_hosp_40_10800, flood_tt_hosp_40_21600, flood_tt_hosp_60_3600, flood_tt_hosp_60_10800, flood_tt_hosp_60_21600, flood_tt_hosp_80_3600, flood_tt_hosp_80_10800, flood_tt_hosp_80_21600, flood_tt_hosp_100_3600, flood_tt_hosp_100_10800, flood_tt_hosp_100_21600)
 
 names(x_hosp) <- c("20mm / 1hr", "20mm / 3hr", "20mm / 6hr", "40mm / 1hr", "40mm / 3hr", "40mm / 6hr", "60mm / 1hr", "60mm / 3hr", "60mm / 6hr", "80mm / 1hr", "80mm / 3hr", "80mm / 6hr", "100mm / 1hr", "100mm / 3hr", "100mm x 6hr")
 
 # Create a grid of the plots
-gridplot_hosp = panel(x_hosp, col = data.frame(from = c(0, 15, 30, 45, 60, 90, 120, 180), 
-  to = c(15, 30, 45, 60, 90, 120, 180, Inf), 
-  color = rev(colorRampPalette(cividis(8))(8))),
-  nr = 5, nc = 3,
-  axes = FALSE
+gridplot_hosp <- panel(x_hosp,
+    col = data.frame(
+        from = c(0, 15, 30, 45, 60, 90, 120, 180),
+        to = c(15, 30, 45, 60, 90, 120, 180, Inf),
+        color = rev(colorRampPalette(cividis(8))(8))
+    ),
+    nr = 5, nc = 3,
+    axes = FALSE
 )
 
 # save the gridplot as a pdf
@@ -180,39 +189,42 @@ dev.off()
 ## Travel time delta Hospitals only
 ```{r}
 # Load base hospital travel time raster
-base_tt_hosp = rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/AM5_export/am5_MLC_base_2024_03_19@10_34/raster_travel_time_MLC_base_hosp/raster_travel_time_MLC_base_hosp.img")
+base_tt_hosp <- rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/AM5_export/am5_MLC_base_2024_03_19@10_34/raster_travel_time_MLC_base_hosp/raster_travel_time_MLC_base_hosp.img")
 
 # Create delta travel time rasters for hospitals only
-delta_tt_hosp_20_3600 = base_tt_hosp - flood_tt_hosp_20_3600
-delta_tt_hosp_20_10800 = base_tt_hosp - flood_tt_hosp_20_10800
-delta_tt_hosp_20_21600 = base_tt_hosp - flood_tt_hosp_20_21600
+delta_tt_hosp_20_3600 <- base_tt_hosp - flood_tt_hosp_20_3600
+delta_tt_hosp_20_10800 <- base_tt_hosp - flood_tt_hosp_20_10800
+delta_tt_hosp_20_21600 <- base_tt_hosp - flood_tt_hosp_20_21600
 
-delta_tt_hosp_40_3600 = base_tt_hosp - flood_tt_hosp_40_3600
-delta_tt_hosp_40_10800 = base_tt_hosp - flood_tt_hosp_40_10800
-delta_tt_hosp_40_21600 = base_tt_hosp - flood_tt_hosp_40_21600
+delta_tt_hosp_40_3600 <- base_tt_hosp - flood_tt_hosp_40_3600
+delta_tt_hosp_40_10800 <- base_tt_hosp - flood_tt_hosp_40_10800
+delta_tt_hosp_40_21600 <- base_tt_hosp - flood_tt_hosp_40_21600
 
-delta_tt_hosp_60_3600 = base_tt_hosp - flood_tt_hosp_60_3600
-delta_tt_hosp_60_10800 = base_tt_hosp - flood_tt_hosp_60_10800
-delta_tt_hosp_60_21600 = base_tt_hosp - flood_tt_hosp_60_21600
+delta_tt_hosp_60_3600 <- base_tt_hosp - flood_tt_hosp_60_3600
+delta_tt_hosp_60_10800 <- base_tt_hosp - flood_tt_hosp_60_10800
+delta_tt_hosp_60_21600 <- base_tt_hosp - flood_tt_hosp_60_21600
 
-delta_tt_hosp_80_3600 = base_tt_hosp - flood_tt_hosp_80_3600
-delta_tt_hosp_80_10800 = base_tt_hosp - flood_tt_hosp_80_10800
-delta_tt_hosp_80_21600 = base_tt_hosp - flood_tt_hosp_80_21600
+delta_tt_hosp_80_3600 <- base_tt_hosp - flood_tt_hosp_80_3600
+delta_tt_hosp_80_10800 <- base_tt_hosp - flood_tt_hosp_80_10800
+delta_tt_hosp_80_21600 <- base_tt_hosp - flood_tt_hosp_80_21600
 
-delta_tt_hosp_100_3600 = base_tt_hosp - flood_tt_hosp_100_3600
-delta_tt_hosp_100_10800 = base_tt_hosp - flood_tt_hosp_100_10800
-delta_tt_hosp_100_21600 = base_tt_hosp - flood_tt_hosp_100_21600
+delta_tt_hosp_100_3600 <- base_tt_hosp - flood_tt_hosp_100_3600
+delta_tt_hosp_100_10800 <- base_tt_hosp - flood_tt_hosp_100_10800
+delta_tt_hosp_100_21600 <- base_tt_hosp - flood_tt_hosp_100_21600
 
-x_hosp = c(delta_tt_hosp_20_3600, delta_tt_hosp_20_10800, delta_tt_hosp_20_21600, delta_tt_hosp_40_3600, delta_tt_hosp_40_10800, delta_tt_hosp_40_21600, delta_tt_hosp_60_3600, delta_tt_hosp_60_10800, delta_tt_hosp_60_21600, delta_tt_hosp_80_3600, delta_tt_hosp_80_10800, delta_tt_hosp_80_21600, delta_tt_hosp_100_3600, delta_tt_hosp_100_10800, delta_tt_hosp_100_21600)
+x_hosp <- c(delta_tt_hosp_20_3600, delta_tt_hosp_20_10800, delta_tt_hosp_20_21600, delta_tt_hosp_40_3600, delta_tt_hosp_40_10800, delta_tt_hosp_40_21600, delta_tt_hosp_60_3600, delta_tt_hosp_60_10800, delta_tt_hosp_60_21600, delta_tt_hosp_80_3600, delta_tt_hosp_80_10800, delta_tt_hosp_80_21600, delta_tt_hosp_100_3600, delta_tt_hosp_100_10800, delta_tt_hosp_100_21600)
 
 names(x_hosp) <- c("20mm / 1hr", "20mm / 3hr", "20mm / 6hr", "40mm / 1hr", "40mm / 3hr", "40mm / 6hr", "60mm / 1hr", "60mm / 3hr", "60mm / 6hr", "80mm / 1hr", "80mm / 3hr", "80mm / 6hr", "100mm / 1hr", "100mm / 3hr", "100mm x 6hr")
 
 # Create a grid of the plots
-gridplot_delta_tt_hosp = panel(x_hosp, col = data.frame(from = c(-Inf, -180, -120, -90, -60, -45, -30, -15, -0.01), 
-  to = c(-180, -120, -90, -60, -45, -30, -15, -1, 0), 
-  color = rev(colorRampPalette(turbo(9))(9))),
-  nr = 5, nc = 3,
-  axes = FALSE
+gridplot_delta_tt_hosp <- panel(x_hosp,
+    col = data.frame(
+        from = c(-Inf, -180, -120, -90, -60, -45, -30, -15, -0.01),
+        to = c(-180, -120, -90, -60, -45, -30, -15, -1, 0),
+        color = rev(colorRampPalette(turbo(9))(9))
+    ),
+    nr = 5, nc = 3,
+    axes = FALSE
 )
 
 
@@ -225,42 +237,54 @@ dev.off()
 # Comparison of all scenarios
 ```{r}
 # Create a grid of the plots for all scenarios
-gridplot_all = panel(x, col = data.frame(from = c(0, 15, 30, 45, 60, 90, 120, 180), 
-  to = c(15, 30, 45, 60, 90, 120, 180, Inf), 
-  color = rev(colorRampPalette(cividis(8))(8))),
-  nr = 5, nc = 3,
-  axes = FALSE
+gridplot_all <- panel(x,
+    col = data.frame(
+        from = c(0, 15, 30, 45, 60, 90, 120, 180),
+        to = c(15, 30, 45, 60, 90, 120, 180, Inf),
+        color = rev(colorRampPalette(cividis(8))(8))
+    ),
+    nr = 5, nc = 3,
+    axes = FALSE
 )
 
 # Create a grid of the plots for hospital only scenarios
-gridplot_hosp = panel(x_hosp, col = data.frame(from = c(0, 15, 30, 45, 60, 90, 120, 180), 
-  to = c(15, 30, 45, 60, 90, 120, 180, Inf), 
-  color = rev(colorRampPalette(cividis(8))(8))),
-  nr = 5, nc = 3,
-  axes = FALSE
+gridplot_hosp <- panel(x_hosp,
+    col = data.frame(
+        from = c(0, 15, 30, 45, 60, 90, 120, 180),
+        to = c(15, 30, 45, 60, 90, 120, 180, Inf),
+        color = rev(colorRampPalette(cividis(8))(8))
+    ),
+    nr = 5, nc = 3,
+    axes = FALSE
 )
 
 # Create a grid of the plots for delta travel time in all scenarios
-gridplot_delta_all = panel(x, col = data.frame(from = c(-Inf, -180, -120, -90, -60, -45, -30, -15, -0.01), 
-  to = c(-180, -120, -90, -60, -45, -30, -15, -1, 0), 
-  color = rev(colorRampPalette(turbo(9))(9))),
-  nr = 5, nc = 3,
-  axes = FALSE
+gridplot_delta_all <- panel(x,
+    col = data.frame(
+        from = c(-Inf, -180, -120, -90, -60, -45, -30, -15, -0.01),
+        to = c(-180, -120, -90, -60, -45, -30, -15, -1, 0),
+        color = rev(colorRampPalette(turbo(9))(9))
+    ),
+    nr = 5, nc = 3,
+    axes = FALSE
 )
 
 # Create a grid of the plots for delta travel time in hospital only scenarios
-gridplot_delta_hosp = panel(x_hosp, col = data.frame(from = c(-Inf, -180, -120, -90, -60, -45, -30, -15, -0.01), 
-  to = c(-180, -120, -90, -60, -45, -30, -15, -1, 0), 
-  color = rev(colorRampPalette(turbo(9))(9))),
-  nr = 5, nc = 3,
-  axes = FALSE
+gridplot_delta_hosp <- panel(x_hosp,
+    col = data.frame(
+        from = c(-Inf, -180, -120, -90, -60, -45, -30, -15, -0.01),
+        to = c(-180, -120, -90, -60, -45, -30, -15, -1, 0),
+        color = rev(colorRampPalette(turbo(9))(9))
+    ),
+    nr = 5, nc = 3,
+    axes = FALSE
 )
 
 # Create a grid of the plots for comparison between all scenarios and hospital only scenarios
-gridplot_comparison = grid.arrange(gridplot_all, gridplot_hosp, nrow = 2)
+gridplot_comparison <- grid.arrange(gridplot_all, gridplot_hosp, nrow = 2)
 
 # Create a grid of the plots for comparison between delta travel time in all scenarios and hospital only scenarios
-gridplot_delta_comparison = grid.arrange(gridplot_delta_all, gridplot_delta_hosp, nrow = 2)
+gridplot_delta_comparison <- grid.arrange(gridplot_delta_all, gridplot_delta_hosp, nrow = 2)
 
 # save the gridplot comparison as a pdf
 pdf("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/comparison_all_hosp_scenarios.pdf", width = 40, height = 60, units = "cm")

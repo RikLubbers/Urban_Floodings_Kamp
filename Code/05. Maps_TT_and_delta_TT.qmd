@@ -134,7 +134,7 @@ dev.off()
 ## Flood scenarios Travel Time Hospitals only
 ```{r}
 # Load all .img files in the specified folder
-file_path <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-05-07-10-59-39/All"
+file_path <- "C:/Users/Rik/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-05-07-10-59-39/All"
 file_list <- list.files(file_path, pattern = "\\.img$", full.names = TRUE)
 
 # Load all rasters

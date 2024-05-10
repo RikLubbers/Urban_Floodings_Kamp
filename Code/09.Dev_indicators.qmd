@@ -25,9 +25,12 @@ check_install_packages(required_packages)
 
 # Load all required packages
 lapply(required_packages, library, character.only = TRUE)
+
+# Delete unnecessary objects
+rm(required_packages, check_install_packages)
 ```
 
-## Data Loading
+## Data Loading and Handling
 
 ```{r}
 # {r} code block for loading and handling data
@@ -44,16 +47,47 @@ tif_files_pop <- list.files(path = folder_path_pop, pattern = "\\.tif$", full.na
 # Load all raster layers  using the rast function
 raster_data_dev <- lapply(tif_files_dev, rast)
 raster_data_dev1 <- lapply(tif_files_dev1, rast)
-raster_data_population <- lapply(tif_files_pop, rast)
+raster_data_pop <- lapply(tif_files_pop, rast)
 
 raster_data_all_dev <- c(raster_data_dev, raster_data_dev1)
 
 # Load and handle the administrative boundary of Kampala
 kampala_extent <- vect("C:/Users/Rik/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp")
 
-# Reproject the vector data to the same projection as the raster data for faster processing
-kampala_extent <- project(kampala_extent, crs = crs(raster_data_dev[[1]]), "+proj=longlat +datum=WGS84")
+# Reproject the vector data to the same projection as the raster data for faster processing (WGS 84)
+kampala_extent <- project(kampala_extent, "+proj=longlat +datum=WGS84")
 
+# Reproject the raster data to the same projection as the vector data (WGS 84) (The raster data already had WGS84 projection but was not assigned to the raster object)
+raster_data_all_dev <- lapply(raster_data_all_dev, function(x) project(x, crs(kampala_extent)))
+raster_data_pop <- lapply(raster_data_pop, function(x) project(x, crs(kampala_extent)))
+
+# Crop the raster data to the extent of Kampala
+raster_data_all_dev <- lapply(raster_data_all_dev, function(x) crop(x, kampala_extent))
+raster_data_pop <- lapply(raster_data_pop, function(x) crop(x, kampala_extent))
+
+# Mask the raster data to the extent of Kampala
+raster_data_all_dev <- lapply(raster_data_all_dev, function(x) mask(x, kampala_extent))
+raster_data_pop <- lapply(raster_data_pop, function(x) mask(x, kampala_extent))
+
+# Set the projection of the raster data to the original kampala_extent projection
+kampala_extent <- vect("C:/Users/Rik/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp")
+
+raster_data_all_dev <- lapply(raster_data_all_dev, function(x) project(x, crs(kampala_extent)))
+raster_data_pop <- lapply(raster_data_pop, function(x) project(x, crs(kampala_extent)))
+
+# Resample the development indicator rasters data to the resolution of the population raster using nearest neighbor method
+raster_data_all_dev <- lapply(raster_data_all_dev, function(x) resample(x, raster_data_pop[[1]], method = "near"))
+
+# Set the extent of the raster data to the extent of Kampala
+raster_data_all_dev <- lapply(raster_data_all_dev, function(x) {
+    ext(x) <- ext(kampala_extent)
+    return(x)
+})
+
+raster_data_pop <- lapply(raster_data_pop, function(x) {
+    ext(x) <- ext(kampala_extent)
+    return(x)
+})
 
 # Load all rasters as separate objects
 UGA_ANC_MEAN <- raster_data_all_dev[[1]]
@@ -76,57 +110,9 @@ UGA_MEDUCATION_MEAN <- raster_data_all_dev[[17]]
 UGA_MEDUCATION_SD <- raster_data_all_dev[[18]]
 
 # Load all population rasters as separate objects
-UGA_POPULATION_TOTAL <- raster_data_population[[1]]
-UGA_POPULATION_U5 <- raster_data_population[[2]]
-UGA_POPULATION_WRA <- raster_data_population[[3]]
-
-# Crop the raster data to the extent of Kampala
-UGA_ANC_MEAN <- crop(UGA_ANC_MEAN, kampala_extent)
-UGA_ANC_SD <- crop(UGA_ANC_SD, kampala_extent)
-UGA_INSURANCE_MEAN <- crop(UGA_INSURANCE_MEAN, kampala_extent)
-UGA_INSURANCE_SD <- crop(UGA_INSURANCE_SD, kampala_extent)
-UGA_MALNUTRITION_MEAN <- crop(UGA_MALNUTRITION_MEAN, kampala_extent)
-UGA_MALNUTRITION_SD <- crop(UGA_MALNUTRITION_SD, kampala_extent)
-UGA_PNC_MEAN <- crop(UGA_PNC_MEAN, kampala_extent)
-UGA_PNC_SD <- crop(UGA_PNC_SD, kampala_extent)
-UGA_SBA_MEAN <- crop(UGA_SBA_MEAN, kampala_extent)
-UGA_SBA_SD <- crop(UGA_SBA_SD, kampala_extent)
-UGA_TT_MEAN <- crop(UGA_TT_MEAN, kampala_extent)
-UGA_TT_SD <- crop(UGA_TT_SD, kampala_extent)
-UGA_DECISION_MEAN <- crop(UGA_DECISION_MEAN, kampala_extent)
-UGA_DECISION_SD <- crop(UGA_DECISION_SD, kampala_extent)
-UGA_HWEALTH_MEAN <- crop(UGA_HWEALTH_MEAN, kampala_extent)
-UGA_HWEALTH_SD <- crop(UGA_HWEALTH_SD, kampala_extent)
-UGA_MEDUCATION_MEAN <- crop(UGA_MEDUCATION_MEAN, kampala_extent)
-UGA_MEDUCATION_SD <- crop(UGA_MEDUCATION_SD, kampala_extent)
-
-UGA_POPULATION_TOTAL <- crop(UGA_POPULATION_TOTAL, kampala_extent)
-UGA_POPULATION_U5 <- crop(UGA_POPULATION_U5, kampala_extent)
-UGA_POPULATION_WRA <- crop(UGA_POPULATION_WRA, kampala_extent)
-
-# Mask the raster data to the extent of Kampala
-UGA_ANC_MEAN <- mask(UGA_ANC_MEAN, kampala_extent)
-UGA_ANC_SD <- mask(UGA_ANC_SD, kampala_extent)
-UGA_INSURANCE_MEAN <- mask(UGA_INSURANCE_MEAN, kampala_extent)
-UGA_INSURANCE_SD <- mask(UGA_INSURANCE_SD, kampala_extent)
-UGA_MALNUTRITION_MEAN <- mask(UGA_MALNUTRITION_MEAN, kampala_extent)
-UGA_MALNUTRITION_SD <- mask(UGA_MALNUTRITION_SD, kampala_extent)
-UGA_PNC_MEAN <- mask(UGA_PNC_MEAN, kampala_extent)
-UGA_PNC_SD <- mask(UGA_PNC_SD, kampala_extent)
-UGA_SBA_MEAN <- mask(UGA_SBA_MEAN, kampala_extent)
-UGA_SBA_SD <- mask(UGA_SBA_SD, kampala_extent)
-UGA_TT_MEAN <- mask(UGA_TT_MEAN, kampala_extent)
-UGA_TT_SD <- mask(UGA_TT_SD, kampala_extent)
-UGA_DECISION_MEAN <- mask(UGA_DECISION_MEAN, kampala_extent)
-UGA_DECISION_SD <- mask(UGA_DECISION_SD, kampala_extent)
-UGA_HWEALTH_MEAN <- mask(UGA_HWEALTH_MEAN, kampala_extent)
-UGA_HWEALTH_SD <- mask(UGA_HWEALTH_SD, kampala_extent)
-UGA_MEDUCATION_MEAN <- mask(UGA_MEDUCATION_MEAN, kampala_extent)
-UGA_MEDUCATION_SD <- mask(UGA_MEDUCATION_SD, kampala_extent)
-
-UGA_POPULATION_TOTAL <- mask(UGA_POPULATION_TOTAL, kampala_extent)
-UGA_POPULATION_U5 <- mask(UGA_POPULATION_U5, kampala_extent)
-UGA_POPULATION_WRA <- mask(UGA_POPULATION_WRA, kampala_extent)
+UGA_POPULATION_TOTAL <- raster_data_pop[[1]]
+UGA_POPULATION_U5 <- raster_data_pop[[2]]
+UGA_POPULATION_WRA <- raster_data_pop[[3]]
 
 # Set the names of the raster layers
 names(UGA_ANC_MEAN) <- "ANC - Proportion of children aged 12 to 23 months born to mothers who did not attend antenatal care (Mean)"
@@ -158,6 +144,61 @@ raster_data_sd <- c(UGA_ANC_SD, UGA_INSURANCE_SD, UGA_MALNUTRITION_SD, UGA_PNC_S
 raster_data_all_dev <- c(raster_data_mean, raster_data_sd)
 
 raster_data_pop <- c(UGA_POPULATION_TOTAL, UGA_POPULATION_U5, UGA_POPULATION_WRA)
+
+# Delete unnecessary objects
+rm(tif_files_dev, tif_files_dev1, tif_files_pop, raster_data_dev, raster_data_dev1, folder_path_dev, folder_path_dev1, folder_path_pop)
+```
+
+
+## Checking Raster Properties
+```{r}
+# Function to check extent, crs and resolution of two rasters match
+# Function to check extent, crs and resolution of two rasters match
+check_raster_properties <- function(raster1, raster2) {
+    # Initialize a message list
+    messages <- list()
+
+    # Check if extents match using all.equal for numerical tolerance
+    if (!isTRUE(all.equal(ext(raster1), ext(raster2)))) {
+        messages$extent <- sprintf(
+            "Extents do not match:\n  Raster 1: %s\n  Raster 2: %s",
+            paste(ext(raster1), collapse = ", "),
+            paste(ext(raster2), collapse = ", ")
+        )
+    }
+
+    # Check if CRS match
+    if (crs(raster1) != crs(raster2)) {
+        messages$crs <- sprintf(
+            "CRS do not match:\n  Raster 1: %s\n  Raster 2: %s",
+            crs(raster1),
+            crs(raster2)
+        )
+    }
+
+    # Check if resolutions match
+    res1 <- res(raster1)
+    res2 <- res(raster2)
+    if (!isTRUE(all.equal(res1, res2))) {
+        messages$resolution <- sprintf(
+            "Resolutions do not match:\n  Raster 1: %s (rows x cols = %dx%d)\n  Raster 2: %s (rows x cols = %dx%d)",
+            paste(res1, collapse = " x "), nrow(raster1), ncol(raster1),
+            paste(res2, collapse = " x "), nrow(raster2), ncol(raster2)
+        )
+    }
+
+    # Output messages if there are any mismatches
+    if (length(messages) > 0) {
+        cat("Differences found:\n")
+        for (msg in messages) {
+            cat(msg, "\n\n")
+        }
+    } else {
+        cat("All properties (extent, CRS, resolution) match.\n")
+    }
+}
+
+check_raster_properties(UGA_POPULATION_TOTAL, UGA_ANC_MEAN)
 ```
 
 ## Plotting
@@ -168,7 +209,7 @@ raster_data_pop <- c(UGA_POPULATION_TOTAL, UGA_POPULATION_U5, UGA_POPULATION_WRA
 create_plot <- function(raster_layer, title) {
     # Insert a line break specifically after 'months'
     formatted_title <- gsub("months", "months\n", title, fixed = TRUE)
-
+    
     p <- gplot(raster_layer) +
         geom_tile(aes(fill = value)) +
         scale_fill_viridis_c(option = "turbo") + # Using Viridis color scale, change as needed
@@ -209,6 +250,9 @@ print(plot_layout_sd)
 print(plot_layout_all)
 
 print(plot_layout_pop)
+
+# Delete unnecessary objects
+rm(plots_mean, plots_sd, plots_all, plots_pop)
 ```
 
 ## Analysis
@@ -216,21 +260,49 @@ print(plot_layout_pop)
 ```{r}
 # {r} code block for analysis
 # Function to multiply each mean raster by the total population raster
-multiply_by_population <- function(raster_data_mean, population_raster) {
-    multiplied_rasters <- lapply(raster_data_mean, function(r) {
-        # Multiply the raster values
+multiply_by_population <- function(mean_rasters, population_raster) {
+    # Apply the multiplication operation across all rasters in the list
+    multiplied_rasters <- lapply(mean_rasters, function(r) {
+        # Perform the multiplication
         result_raster <- r * population_raster
-        # Set the name of the new raster to indicate it has been processed
-        names(result_raster) <- paste("PopAdjusted", names(r), sep = "_")
+
         return(result_raster)
     })
+
     return(multiplied_rasters)
 }
 
-# Usage of the function with your data
-adjusted_dev_rasters <- multiply_by_population(raster_data_mean, UGA_POPULATION_TOTAL)
+# Usage of the function with your mean rasters and total population raster
+affected_population_rasters <- multiply_by_population(raster_data_mean, UGA_POPULATION_TOTAL)
 
+# Name the affected population rasters
+names(affected_population_rasters) <- paste("pop_affected",
+    c(
+        "Antenatal_Care_Nonattendance",
+        "Health_Insurance_Absence",
+        "Postnatal_Care_Nonreceipt",
+        "Skilled_Birth_Attendant_Absence",
+        "Tetanus_Toxoid_Injection_Absence",
+        "Women_Decision_Making_Exclusion",
+        "Household_Poverty_Prevalence",
+        "Mother_Education_Deprivation"
+    ),
+    sep = "_"
+)
+```
 
+## Plotting Affected Population Rasters
 
+```{r}
+# Create a list of plots for the affected population rasters
+plots_affected_population <- lapply(affected_population_rasters, function(x) create_plot(x, names(x)))
 
+# Use patchwork to combine and arrange all plots
+plot_layout_affected_population <- wrap_plots(plots_affected_population, ncol = 2) # Adjust the number of columns as needed
+
+# Print the plot layout
+print(plot_layout_affected_population)
+
+# Delete unnecessary objects
+rm(affected_population_rasters, plots_affected_population)
 ```

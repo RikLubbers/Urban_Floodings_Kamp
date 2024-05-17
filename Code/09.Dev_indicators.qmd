@@ -21,7 +21,7 @@ check_install_packages <- function(packages) {
 }
 
 # List of required packages
-required_packages <- c("terra", "ggplot2", "dplyr", "viridis", "rasterVis", "tidyterra", "patchwork", "httpgd")
+required_packages <- c("terra", "ggplot2", "dplyr", "viridis", "rasterVis", "tidyterra", "patchwork")
 
 # Check and install required packages
 check_install_packages(required_packages)
@@ -243,8 +243,6 @@ plot_layout_sd <- wrap_plots(plots_sd, ncol = 2) # Adjust the number of columns 
 plot_layout_all <- wrap_plots(plots_all, ncol = 2) # Adjust the number of columns as needed
 
 plot_layout_pop <- wrap_plots(plots_pop, ncol = 2) # Adjust the number of columns as needed
-
-plot(plot_layout_mean[[1]])
 
 # Print the plot layouts
 print(plot_layout_mean)

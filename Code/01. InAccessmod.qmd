@@ -27,13 +27,25 @@ The output of this file is the preprocessed data that can be used as input for t
 
 # Install the inAccessMod package from GitHub & load the library
 ```{r}
-# Check if renv is installed
+# Set up renv for package management
 if (!requireNamespace("renv", quietly = TRUE)) {
     install.packages("renv")
 }
 
-# Restore the project library
+# Load the renv package
+library(renv)
+
+# Check if renv is already active, activate if not
+if (!renv::status()$synchronized) {
+    renv::activate()
+}
+
+# To restore the environment (for a collaborator)
 renv::restore()
+
+# Load the required libraries
+library(inAccessMod)
+library(terra)
 ```
 
 # Initialize the project for Uganda

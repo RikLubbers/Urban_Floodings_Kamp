@@ -27,13 +27,33 @@ The resulting merged landcover layers are saved in the "Merged landcovers" folde
 # R code
 ## Load libraries
 ```{r}
-# Check if renv is installed
+# Set up renv for package management
 if (!requireNamespace("renv", quietly = TRUE)) {
     install.packages("renv")
 }
 
-# Restore the project library
+# Load the renv package
+library(renv)
+
+# Check if renv is already active, activate if not
+if (!renv::status()$synchronized) {
+    renv::activate()
+}
+
+# To restore the environment (for a collaborator)
 renv::restore()
+
+# Load the required libraries
+library(sf)
+library(dplyr)
+library(foreach)
+library(snow)
+library(terra)
+library(raster)
+library(ggplot2)
+library(gridExtra)
+library(tidyterra)
+library(cowplot)
 ```
 
 # Create merged landcover layer for AccessMod

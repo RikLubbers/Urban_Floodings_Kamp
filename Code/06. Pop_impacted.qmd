@@ -1,13 +1,34 @@
 # Load packages
 
 ```{r}
-# Check if renv is installed
+# Set up renv for package management
 if (!requireNamespace("renv", quietly = TRUE)) {
     install.packages("renv")
 }
 
-# Restore the project library
+# Load the renv package
+library(renv)
+
+# Check if renv is already active, activate if not
+if (!renv::status()$synchronized) {
+    renv::activate()
+}
+
+# To restore the environment (for a collaborator)
 renv::restore()
+
+# Load packages
+library(sf)
+library(dplyr)
+library(foreach)
+library(snow)
+library(terra)
+library(raster)
+library(ggplot2)
+library(gridExtra)
+library(tidyterra)
+library(cowplot)
+library(viridis)
 ```
 
 # Load data all facilities

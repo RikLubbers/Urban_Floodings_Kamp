@@ -1,13 +1,26 @@
 # load packages
 
 ```{r}
-# Check if renv is installed
+# Set up renv for package management
 if (!requireNamespace("renv", quietly = TRUE)) {
     install.packages("renv")
 }
 
-# Restore the project library
+# Load the renv package
+library(renv)
+
+# Check if renv is already active, activate if not
+if (!renv::status()$synchronized) {
+    renv::activate()
+}
+
+# To restore the environment (for a collaborator)
 renv::restore()
+
+# Load the required libraries
+library(tidyverse)
+library(ggplot2)
+library(ggpubr)
 ```
 
 # load data

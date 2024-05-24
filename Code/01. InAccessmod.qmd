@@ -27,17 +27,13 @@ The output of this file is the preprocessed data that can be used as input for t
 
 # Install the inAccessMod package from GitHub & load the library
 ```{r}
+# Check if renv is installed
+if (!requireNamespace("renv", quietly = TRUE)) {
+    install.packages("renv")
+}
 
-# Check if the 'devtools' package is already installed, if not, install it
-if (!require("devtools")) install.packages("devtools")
-
-# Install the 'inAccessMod' package from GitHub with vignettes and dependencies
-devtools::install_github("unige-geohealth/inAccessMod", build_vignettes = TRUE, dependencies = TRUE)
-
-# Load the required libraries
-library(inAccessMod)
-library(terra)
-
+# Restore the project library
+renv::restore()
 ```
 
 # Initialize the project for Uganda

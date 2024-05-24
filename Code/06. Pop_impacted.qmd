@@ -1,29 +1,13 @@
 # Load packages
 
 ```{r}
-# Check if packages are installed, if not install them
-required_packages <- c("sf", "dplyr", "foreach", "snow", "terra", "raster", "ggplot2", "gridExtra", "tidyterra", "cowplot", "viridis")
-
-for (package in required_packages) {
-    if (!requireNamespace(package, quietly = TRUE)) {
-        install.packages(package)
-        library(package, character.only = TRUE)
-    } else {
-        library(package, character.only = TRUE)
-    }
+# Check if renv is installed
+if (!requireNamespace("renv", quietly = TRUE)) {
+    install.packages("renv")
 }
 
-library(sf)
-library(dplyr)
-library(foreach)
-library(snow)
-library(terra)
-library(raster)
-library(ggplot2)
-library(gridExtra)
-library(tidyterra)
-library(cowplot)
-library(viridis)
+# Restore the project library
+renv::restore()
 ```
 
 # Load data all facilities

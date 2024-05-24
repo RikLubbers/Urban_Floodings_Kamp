@@ -7,7 +7,13 @@ This QMD file provides a script for performing block averaging of population ras
 
 # Load libraries
 ```{r}
-library(terra)
+# Check if renv is installed
+if (!requireNamespace("renv", quietly = TRUE)) {
+    install.packages("renv")
+}
+
+# Restore the project library
+renv::restore()
 ```
 
 # Load data

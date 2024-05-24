@@ -3,31 +3,13 @@
 ## Loading packages
 
 ```{r}
-# Function to check and install required packages
-check_install_packages <- function(packages) {
-    # Check if packages are installed
-    missing_packages <- packages[!sapply(packages, requireNamespace, quietly = TRUE)]
-
-    # Install missing packages
-    if (length(missing_packages) > 0) {
-        install.packages(missing_packages, dependencies = TRUE)
-    }
-
-    # Check for package updates
-    update.packages(ask = FALSE, checkBuilt = TRUE, repos = "https://cloud.r-project.org", oldPkgs = missing_packages)
-
-    # Load all packages
-    lapply(packages, library, character.only = TRUE)
+# Check if renv is installed
+if (!requireNamespace("renv", quietly = TRUE)) {
+    install.packages("renv")
 }
 
-# List of required packages
-required_packages <- c("terra", "ggplot2", "dplyr", "viridis", "rasterVis", "tidyterra", "patchwork")
-
-# Check and install required packages
-check_install_packages(required_packages)
-
-# Delete unnecessary objects
-rm(required_packages, check_install_packages)
+# Restore the project library
+renv::restore()
 ```
 
 ## Data Loading and Handling

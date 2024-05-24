@@ -1,29 +1,13 @@
 #Load libraries
 ```{r}
 # Function to load packages
-install_packages <- function() {
-    packages <- c("sf", "dplyr", "foreach", "snow", "terra", "raster", "ggplot2", "gridExtra", "tidyterra", "cowplot", "viridis")
-    for (package in packages) {
-        if (!require(package, character.only = TRUE)) {
-            install.packages(package, dependencies = TRUE)
-            library(package, character.only = TRUE)
-        }
-    }
+# Check if renv is installed
+if (!requireNamespace("renv", quietly = TRUE)) {
+    install.packages("renv")
 }
 
-install_packages()
-
-library(sf)
-library(dplyr)
-library(foreach)
-library(snow)
-library(terra)
-library(raster)
-library(ggplot2)
-library(gridExtra)
-library(tidyterra)
-library(cowplot)
-library(viridis)
+# Restore the project library
+renv::restore()
 ```
 
 # ALL SCENARIOS

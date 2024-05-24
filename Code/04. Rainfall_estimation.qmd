@@ -1,9 +1,13 @@
 # load packages
 
 ```{r}
-library(tidyverse)
-library(ggplot2)
-library(ggpubr)
+# Check if renv is installed
+if (!requireNamespace("renv", quietly = TRUE)) {
+    install.packages("renv")
+}
+
+# Restore the project library
+renv::restore()
 ```
 
 # load data

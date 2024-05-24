@@ -6,6 +6,8 @@
 # Set up renv for package management
 if (!requireNamespace("renv", quietly = TRUE)) {
     install.packages("renv")
+} else {
+    message("renv is already installed.")
 }
 
 # Load the renv package

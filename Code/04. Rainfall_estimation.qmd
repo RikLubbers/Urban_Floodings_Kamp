@@ -4,6 +4,8 @@
 # Set up renv for package management
 if (!requireNamespace("renv", quietly = TRUE)) {
     install.packages("renv")
+} else {
+    message("renv is already installed.")
 }
 
 # Load the renv package
@@ -28,7 +30,7 @@ library(ggpubr)
 ## Daily rainfall_daily data
 
 ```{r}
-rainfall_daily <- read_csv("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Rainfall_estimation/Daily_1979_2020/10_4231_6YK1-CQ13/Uganda/entebbe_climate_cfsr.csv")
+rainfall_daily <- read_csv("C:/Users/Rik/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Rainfall_estimation/Daily_1979_2020/10_4231_6YK1-CQ13/Uganda/entebbe_climate_cfsr.csv")
 ```
 
 # Process data

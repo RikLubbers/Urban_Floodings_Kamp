@@ -10,6 +10,8 @@ This QMD file provides a script for performing block averaging of population ras
 # Set up renv for package management
 if (!requireNamespace("renv", quietly = TRUE)) {
     install.packages("renv")
+} else {
+    message("renv is already installed.")
 }
 
 # Load the renv package

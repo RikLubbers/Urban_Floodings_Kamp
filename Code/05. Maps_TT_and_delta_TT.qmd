@@ -36,7 +36,7 @@ library(viridis)
 ## Flood scenarios Travel Time All
 ```{r}
 # Load all .img files in the specified folder
-file_path <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-03-26-15-29-29/All"
+file_path <- "C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/AM5_flood_project/out/2024-03-26-15-29-29/All"
 file_list <- list.files(file_path, pattern = "\\.img$", full.names = TRUE)
 
 # Load all rasters
@@ -90,7 +90,35 @@ dev.off()
 ## Travel time delta all
 ```{r}
 # Load base travel time raster
-base_tt_all <- rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/AM5_export/am5_MLC_base_2024_03_19@10_34/raster_travel_time_MLC_base_all/raster_travel_time_MLC_base_all.img")
+base_tt_all <- rast("C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/AM5_export/am5_MLC_base_2024_03_19@10_34/raster_travel_time_MLC_base_all/raster_travel_time_MLC_base_all.img")
+
+# Plot the SpatRaster with no axis labels or tick marks, but with a box
+base_tt_all %>%
+    plot(
+        col = colorRampPalette(turbo(8))(8),  # Using turbo for stronger contrast
+        breaks = c(0, 15, 30, 45, 60, 90, 120, 180, Inf),  # Define travel time breaks
+        nr = 5, nc = 3,  # Grid layout (5 rows, 3 columns)
+        axes = FALSE,  # Remove axes and labels
+        box = TRUE,  # Keep the plot box
+        main = "Baseline Healthcare Accessibility in Travel Time (minutes)",  # Improved title
+        legend = FALSE,
+        cex.main = 1.5,  # Adjust title font size
+    ) %>%
+    { grid(nx = NULL, ny = NULL, col = "lightgray", lty = "dashed", lwd = 0.5) } %>%
+    {
+        legend(
+            x = "bottomleft",  # Reposition legend to bottom left
+            inset = c(0.12, 0.02),  # Slight inset to avoid clipping
+            legend = c( "0-15 min", "15-30 min", "30-45 min", "45-60 min", 
+                        "60-90 min", "90-120 min", "120-180 min", ">180 min"),  # Custom travel time labels
+            fill = colorRampPalette(viridis::turbo(8))(8),  # Matching the turbo color ramp
+            bg = "white",  # Set white background for legend
+            cex = 1.4,  # Adjust text size in the legend
+            x.intersp = 0.6,  # Reduce horizontal space in the legend
+            title = "Travel Time Categories (walking)",  # Improved legend title
+            ncol = 2
+        )
+    } 
 
 # Create delta travel time rasters
 delta_tt_all_20_3600 <- base_tt_all - flood_tt_all_20_3600
@@ -120,15 +148,45 @@ names(x) <- c("20mm / 1hr", "20mm / 3hr", "20mm / 6hr", "40mm / 1hr", "40mm / 3h
 # Create a grid of the plots
 gridplot_delta_tt <- panel(x,
     col = data.frame(
-        from = c(-Inf, -180, -120, -90, -60, -45, -30, -15, -0.01),
-        to = c(-180, -120, -90, -60, -45, -30, -15, -1, 0),
-        color = rev(colorRampPalette(turbo(9))(9))
+        from = c(-Inf, -180, -120, -90, -60, -45, -30, -15, -0.01),  # Negative time differences
+        to = c(-180, -120, -90, -60, -45, -30, -15, -1, 0),          # Matching the color breaks
+        color = rev(colorRampPalette(turbo(9))(9))                   # Matching the turbo color palette
     ),
-    nr = 5, nc = 3,
-    axes = FALSE
+    nr = 5, nc = 3,            # Define number of rows and columns
+    axes = FALSE,              # Hide the axes for a cleaner grid
+    box = TRUE,                # Add box around each plot for clarity
+    grid = TRUE,               # Draw gridlines to distinguish between plots
 )
 
-gridplot_delta_tt
+# Plot using ggplot2's autoplot() method from tidyterra
+autoplot(x, nrow = 5, ncol = 3) +
+  scale_fill_stepsn(
+    colours = rev(viridisLite::turbo(8)),  # Matching the turbo color palette with 8 steps
+    name = "Delta Travel Time Categories (walking)",  # Improved legend title
+    breaks = c(-180, -120, -90, -60, -45, -30, -15, 0),  # Custom breaks
+    labels = c(">-180 min", "-120-180 min", "-90-120 min", "-60-90 min", 
+               "-45-60 min", "-30-45 min", "-15-30 min", "-0-15 min"),  # Custom legend labels
+    na.value = "transparent"  # Hide NAs by making them transparent
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",  # Move the legend to the bottom
+    legend.title = element_text(size = 12),  # Increase legend title font size
+    legend.text = element_text(size = 10),  # Increase legend label font size
+    legend.key.width = unit(1.5, "cm"),  # Adjust width of legend keys
+    legend.key.height = unit(0.5, "cm"),  # Adjust height of legend keys
+    legend.spacing.x = unit(1.5, 'cm'),  # Increase spacing between legend items to avoid overlap
+    axis.text = element_blank(),  # Remove axis text
+    axis.title = element_blank(),  # Remove axis titles
+    panel.grid.major = element_line(color = "gray80", size = 0.5),  # Add major gridlines
+    panel.grid.minor = element_line(color = "gray90", size = 0.25),  # Add minor gridlines
+    strip.background = element_rect(fill = "white")  # Add white background to facet labels
+    ) +
+    guides(
+    fill = guide_legend(title.position = "top", nrow = 3, byrow = FALSE),  # Move legend title to top and arrange items
+    ) +
+  ggtitle("Delta Travel Time Accessibility Analysis")
+
 
 # save the gridplot as a png
 png("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/delta_tt_all_scenarios.png", width = 40, height = 60, units = "cm", res = 1000)
@@ -195,7 +253,7 @@ dev.off()
 ## Travel time delta Hospitals only
 ```{r}
 # Load base hospital travel time raster
-base_tt_hosp <- rast("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/AM5_export/am5_MLC_base_2024_03_19@10_34/raster_travel_time_MLC_base_hosp/raster_travel_time_MLC_base_hosp.img")
+base_tt_hosp <- rast("C:/Users/Rik/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/AM5_export/am5_MLC_base_2024_03_19@10_34/raster_travel_time_MLC_base_hosp/raster_travel_time_MLC_base_hosp.img")
 
 # Create delta travel time rasters for hospitals only
 delta_tt_hosp_20_3600 <- base_tt_hosp - flood_tt_hosp_20_3600
@@ -233,6 +291,7 @@ gridplot_delta_tt_hosp <- panel(x_hosp,
     axes = FALSE
 )
 
+autoplot(x_hosp)
 
 # save the gridplot as a png
 png("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/delta_tt_hosp_scenarios.png", width = 40, height = 60, units = "cm", res = 1000)

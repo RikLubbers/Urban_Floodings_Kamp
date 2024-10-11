@@ -1,0 +1,145 @@
+# Install packes
+```{r}
+# Set up renv for package management
+if (!requireNamespace("renv", quietly = TRUE)) {
+    install.packages("renv")
+} else {
+    message("renv is already installed.")
+}
+
+# Load the renv package
+library(renv)
+
+# Check if renv is already active, activate if not
+if (!renv::status()$synchronized) {
+    renv::activate()
+}
+
+# To restore the environment (for a collaborator)
+renv::restore()
+
+# Load the required libraries
+library(terra)
+library(Spatial.align)
+library(rasterVis)
+```
+
+# Load the data
+```{r}
+# Parish boundaries
+parish_boundaries = vect("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/Processed/Adm_boundaries_parishes/Parishes_Kamp_UTM36N.shp")
+
+land_cover <- rast("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Landcover/terrascope_download_20240305_144418/ESA_WorldCover_10m_2021_v200_N00E030_Map/ESA_WorldCover_10m_2021_v200_N00E030_Map.tif")
+
+health_facilities <- vect("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Facilities/suhsharan_health_facilities_UG/UG_HF_all.shp")
+
+dem <- rast("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/DEM/Uganda_SRTM30m/Uganda_SRTM30meters.tif")
+```
+
+# Align the data
+```{r}
+# Align the land cover data to the parish boundaries
+land_cover <- align(land_cover, parish_boundaries, show_plot = FALSE)
+
+# Align the health facilities data to the parish boundaries
+health_facilities <- align(health_facilities, parish_boundaries, show_plot = FALSE)
+
+# Align the DEM data to the parish boundaries
+dem <- align(dem, parish_boundaries, show_plot = FALSE)
+contour_lines <- terra::as.contour(dem, levels = seq(minmax(dem)[1], minmax(dem)[2], by = 50))  # Contour interval set to 50
+
+```
+
+# Plot the data
+```{r}
+# Plot using GGplot
+ggplot() +
+  # Plot parish boundaries with transparent fill and black borders
+  geom_sf(data = parish_boundaries, fill = "transparent", color = "black", size = 0.5) +
+  # Plot health facilities with red color
+  geom_sf(data = health_facilities, aes(color = "Health Facilities"), size = 2) +
+  # Define custom color for health facilities
+  scale_color_manual(values = c("Health Facilities" = "red")) +
+  # Add labels and titles
+  labs(
+    title = "Spatial Distribution of Health Facilities in Kampala",
+    subtitle = "Aligned with Parish Boundaries",
+    x = "Longitude",
+    y = "Latitude",
+    caption = "Data Source: PhD_Undernutrition_Uganda_Physical_Accessbility"
+  ) +
+  # Apply minimal theme
+  theme_minimal() +
+  # Customize theme elements
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),  # Center and style title
+    plot.subtitle = element_text(hjust = 0.5, size = 12),  # Center subtitle
+    legend.position = "bottom",  # Position legend at the bottom
+    legend.title = element_text(size = 10),  # Style legend title
+    legend.text = element_text(size = 8)  # Style legend text
+  )
+
+# Plot with landcover data and healthcare facilities, and legend placed inside the plot
+autoplot(land_cover, alpha = 0.6) +  # Set opacity to 60%
+  scale_fill_stepsn(
+    colours = c(
+      "10" = "#006400",  # Tree cover
+      "20" = "#FFBB22",  # Shrubland
+      "30" = "#FFFF4C",  # Grassland
+      "40" = "#F096FF",  # Cropland
+      "50" = "#FA0000",  # Built-up
+      "60" = "#B4B4B4",  # Bare / sparse vegetation
+      "70" = "#F0F0F0",  # Snow and Ice
+      "80" = "#0064C8",  # Permanent water bodies
+      "90" = "#009696",  # Herbaceous wetland
+      "95" = "#00CF75",  # Mangroves
+      "100" = "#FAE6A0"  # Moss and lichen
+    ),  # Use the specified color palette
+    name = "Landcover Categories",  # Improved legend title
+    limits = c(10, 100),  # Set limits for the color scale
+    breaks = c(10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100),  # Custom breaks
+    labels = c(
+      "Tree cover", 
+      "Shrubland", 
+      "Grassland", 
+      "Cropland", 
+      "Built-up", 
+      "Bare / sparse \nvegetation", 
+      "Snow and Ice", 
+      "Permanent water \nbodies", 
+      "Herbaceous \nwetland", 
+      "Mangroves", 
+      "Moss and lichen"
+    ),  # Custom legend labels
+    na.value = "transparent"  # Set NA values to transparent
+  ) +
+  geom_sf(data = contour_lines, color = "black", size = 0.3) +  # Add DEM contour lines directly
+  geom_sf(data = health_facilities, aes(color = "Health Facilities"), shape = 23, size = 6, fill = "blue") +  # Changed shape and added fill
+  scale_color_manual(values = c("Health Facilities" = "red")) +
+  theme_minimal() +
+  theme(
+    legend.position = c(0.02, 0.15),  # Position legend inside the plot (adjust as needed)
+    legend.justification = "left",  # Align legend at the specified position
+    legend.title = element_text(size = 20),  # Increase legend title font size
+    legend.text = element_text(size = 16),  # Increase legend label font size
+    legend.key.width = unit(1.5, "cm"),  # Adjust width of legend keys (smaller)
+    legend.key.height = unit(0.75, "cm"),  # Adjust height of legend keys (smaller)
+    legend.spacing.x = unit(0.5, 'cm'),  # Adjust spacing between legend items
+    legend.box = "vertical",  # Stack the legends vertically
+    legend.background = element_rect(color = "black", fill = NA),  # Add box around the legend
+    axis.text = element_blank(),  # Remove axis text
+    axis.title = element_blank(),  # Remove axis titles
+    panel.grid.major = element_line(color = "gray80", size = 0.5),  # Add major gridlines
+    panel.grid.minor = element_line(color = "gray90", size = 0.25),  # Add minor gridlines
+    strip.background = element_rect(fill = "white"),  # Add white background to facet labels
+    plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),  # Center and enlarge title
+    panel.border = element_rect(color = "black", fill = NA, size = 1)  # Add a box around the plot
+  ) +
+  guides(
+    fill = guide_legend(title.position = "top", nrow = 7, byrow = TRUE),  # Move legend title to top and arrange items
+    color = guide_legend(title = NULL)  # Remove the "colour" title for Health Facilities
+  ) +
+  ggtitle("Landcover Map of Kampala with Health Facilities")
+
+
+```

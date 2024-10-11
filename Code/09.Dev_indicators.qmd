@@ -36,9 +36,9 @@ library(patchwork)
 ```{r}
 # {r} code block for loading and handling data
 # Set the directory path
-folder_path_dev <- "D:/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/World_Pop_development_indicators/UGA_Maternal_and_child_health"
-folder_path_dev1 <- "D:/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/World_Pop_development_indicators/UGA_Maternal_and_child_socioeconomic"
-folder_path_pop <- "D:/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/WorldPop_density/Inaccessmod"
+folder_path_dev <- "C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/World_Pop_development_indicators/UGA_Maternal_and_child_health"
+folder_path_dev1 <- "C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/World_Pop_development_indicators/UGA_Maternal_and_child_socioeconomic"
+folder_path_pop <- "C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/WorldPop_density/Inaccessmod"
 
 # List all .tif files in the directory
 tif_files_dev <- list.files(path = folder_path_dev, pattern = "\\.tif$", full.names = TRUE)
@@ -53,7 +53,7 @@ raster_data_pop <- lapply(tif_files_pop, rast)
 raster_data_all_dev <- c(raster_data_dev, raster_data_dev1)
 
 # Load and handle the administrative boundary of Kampala
-kampala_extent <- vect("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp")
+kampala_extent <- vect("C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp")
 
 # Reproject the vector data to the same projection as the raster data for faster processing (WGS 84)
 kampala_extent <- project(kampala_extent, "+proj=longlat +datum=WGS84")
@@ -71,7 +71,7 @@ raster_data_all_dev <- lapply(raster_data_all_dev, function(x) mask(x, kampala_e
 raster_data_pop <- lapply(raster_data_pop, function(x) mask(x, kampala_extent))
 
 # Set the projection of the raster data to the original kampala_extent projection
-kampala_extent <- vect("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp")
+kampala_extent <- vect("C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp")
 
 raster_data_all_dev <- lapply(raster_data_all_dev, function(x) project(x, crs(kampala_extent)))
 raster_data_pop <- lapply(raster_data_pop, function(x) project(x, crs(kampala_extent)))

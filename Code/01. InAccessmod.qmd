@@ -66,7 +66,7 @@ country <- "Uganda"
 ## Administrative boundaries
 ```{r}
 # Parish boundaries
-inputPath_adm <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/Processed/Adm_boundaries_parishes"
+inputPath_adm <- "C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/Processed/Adm_boundaries_parishes"
 copy_input(mainPath, country, inputPath_adm)
 ```
 
@@ -85,14 +85,14 @@ copy_input(mainPath, country, inputPath_DEM)
 
 ## Land cover data
 ```{r}
-inputPath_LC <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Landcover/terrascope_download_20240305_144418/ESA_WorldCover_10m_2021_v200_N00E030_Map"
+inputPath_LC <- "C:/Users/rikib/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Landcover/terrascope_download_20240305_144418/ESA_WorldCover_10m_2021_v200_N00E030_Map"
 copy_input(mainPath, country, inputPath_LC)
 ```
 
 ## Health facilities data
 ```{r}
 # Health facilities all/ hospitals only
-inputPath_HF <- "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Facilities/suhsharan_health_facilities_UG"
+inputPath_HF <- "C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Facilities/suhsharan_health_facilities_UG"
 copy_input(mainPath, country, inputPath_HF)
 ```
 

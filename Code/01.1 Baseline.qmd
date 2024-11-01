@@ -41,6 +41,9 @@ dem <- rast("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbi
 # Align the land cover data to the parish boundaries
 land_cover <- align(land_cover, parish_boundaries, show_plot = FALSE)
 
+# Ensure the land_cover is treated as categorical
+land_cover <- as.factor(land_cover)
+
 # Align the health facilities data to the parish boundaries
 health_facilities <- align(health_facilities, parish_boundaries, show_plot = FALSE)
 
@@ -79,67 +82,76 @@ ggplot() +
     legend.text = element_text(size = 8)  # Style legend text
   )
 
-# Plot with landcover data and healthcare facilities, and legend placed inside the plot
-autoplot(land_cover, alpha = 0.6) +  # Set opacity to 60%
-  scale_fill_stepsn(
-    colours = c(
-      "10" = "#006400",  # Tree cover
-      "20" = "#FFBB22",  # Shrubland
-      "30" = "#FFFF4C",  # Grassland
-      "40" = "#F096FF",  # Cropland
-      "50" = "#FA0000",  # Built-up
-      "60" = "#B4B4B4",  # Bare / sparse vegetation
-      "70" = "#F0F0F0",  # Snow and Ice
-      "80" = "#0064C8",  # Permanent water bodies
-      "90" = "#009696",  # Herbaceous wetland
-      "95" = "#00CF75",  # Mangroves
-      "100" = "#FAE6A0"  # Moss and lichen
-    ),  # Use the specified color palette
-    name = "Landcover Categories",  # Improved legend title
-    limits = c(10, 100),  # Set limits for the color scale
-    breaks = c(10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100),  # Custom breaks
-    labels = c(
-      "Tree cover", 
-      "Shrubland", 
-      "Grassland", 
-      "Cropland", 
-      "Built-up", 
-      "Bare / sparse \nvegetation", 
-      "Snow and Ice", 
-      "Permanent water \nbodies", 
-      "Herbaceous \nwetland", 
-      "Mangroves", 
-      "Moss and lichen"
-    ),  # Custom legend labels
-    na.value = "transparent"  # Set NA values to transparent
+# Get unique categories present in the data
+present_categories <- levels(land_cover)[[1]]$ID
+
+# Define full set of colors and labels
+colors <- c(
+  "10" = "#006400",  # Tree cover
+  "20" = "#FFBB22",  # Shrubland
+  "30" = "#FFFF4C",  # Grassland
+  "40" = "#F096FF",  # Cropland
+  "50" = "#FA0000",  # Built-up
+  "60" = "#B4B4B4",  # Bare / sparse vegetation
+  "70" = "#F0F0F0",  # Snow and Ice
+  "80" = "#0064C8",  # Permanent water bodies
+  "90" = "#009696",  # Herbaceous wetland
+  "95" = "#00CF75",  # Mangroves
+  "100" = "#FAE6A0"  # Moss and lichen
+)
+
+labels <- c(
+  "10" = "Tree cover", 
+  "20" = "Shrubland", 
+  "30" = "Grassland", 
+  "40" = "Cropland", 
+  "50" = "Built-up", 
+  "60" = "Bare / sparse vegetation", 
+  "70" = "Snow and Ice", 
+  "80" = "Permanent water bodies", 
+  "90" = "Herbaceous wetland", 
+  "95" = "Mangroves", 
+  "100" = "Moss and lichen"
+)
+
+# Filter only the present categories
+filtered_colors <- colors[names(colors) %in% present_categories]
+filtered_labels <- labels[names(labels) %in% present_categories]
+
+autoplot(land_cover, alpha = 0.6) + 
+  scale_fill_manual(
+    values = filtered_colors,  # Correct mapping of colors for discrete categories
+    name = "Landcover Categories",
+    labels = filtered_labels,
+    na.translate = F,
+    na.value = "transparent"  # Still keep NA as transparent in the plot
   ) +
-  geom_sf(data = contour_lines, color = "black", size = 0.3) +  # Add DEM contour lines directly
-  geom_sf(data = health_facilities, aes(color = "Health Facilities"), shape = 23, size = 6, fill = "blue") +  # Changed shape and added fill
+  geom_sf(data = contour_lines, color = "black", size = 0.3) +
+  geom_sf(data = health_facilities, aes(color = "Health Facilities"), shape = 23, size = 6, fill = "blue") +
   scale_color_manual(values = c("Health Facilities" = "red")) +
   theme_minimal() +
   theme(
-    legend.position = c(0.02, 0.15),  # Position legend inside the plot (adjust as needed)
-    legend.justification = "left",  # Align legend at the specified position
-    legend.title = element_text(size = 20),  # Increase legend title font size
-    legend.text = element_text(size = 16),  # Increase legend label font size
-    legend.key.width = unit(1.5, "cm"),  # Adjust width of legend keys (smaller)
-    legend.key.height = unit(0.75, "cm"),  # Adjust height of legend keys (smaller)
-    legend.spacing.x = unit(0.5, 'cm'),  # Adjust spacing between legend items
-    legend.box = "vertical",  # Stack the legends vertically
-    legend.background = element_rect(color = "black", fill = NA),  # Add box around the legend
-    axis.text = element_blank(),  # Remove axis text
-    axis.title = element_blank(),  # Remove axis titles
-    panel.grid.major = element_line(color = "gray80", size = 0.5),  # Add major gridlines
-    panel.grid.minor = element_line(color = "gray90", size = 0.25),  # Add minor gridlines
-    strip.background = element_rect(fill = "white"),  # Add white background to facet labels
-    plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),  # Center and enlarge title
-    panel.border = element_rect(color = "black", fill = NA, size = 1)  # Add a box around the plot
+    legend.position = c(0.02, 0.15),
+    legend.justification = "left",
+    legend.title = element_text(size = 20),
+    legend.text = element_text(size = 16),
+    legend.key.width = unit(1.5, "cm"),
+    legend.key.height = unit(0.75, "cm"),
+    legend.spacing.x = unit(0.5, 'cm'),
+    legend.box = "vertical",
+    legend.background = element_rect(color = "black", fill = NA),
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid.major = element_line(color = "gray80", size = 0.5),
+    panel.grid.minor = element_line(color = "gray90", size = 0.25),
+    strip.background = element_rect(fill = "white"),
+    plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),
+    panel.border = element_rect(color = "black", fill = NA, size = 1)
   ) +
   guides(
-    fill = guide_legend(title.position = "top", nrow = 7, byrow = TRUE),  # Move legend title to top and arrange items
-    color = guide_legend(title = NULL)  # Remove the "colour" title for Health Facilities
+    fill = guide_legend(title.position = "top", byrow = TRUE),
+    color = guide_legend(title = NULL)
   ) +
   ggtitle("Landcover Map of Kampala with Health Facilities")
-
 
 ```

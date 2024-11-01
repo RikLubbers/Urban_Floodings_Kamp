@@ -23,6 +23,8 @@ library(terra)
 library(Spatial.align)
 library(patchwork)
 library(sf)
+library(biscale)
+library(classInt)
 ```
 
 # Script
@@ -47,7 +49,6 @@ delta_tt_list <- lapply(delta_tt_list, function(delta_tt_raster) {
   delta_tt_raster <- Spatial.align::align(delta_tt_raster, pop_density_raster, show_plot = FALSE)
   return(delta_tt_raster)
 })
-
 
 # Step 1: Iterate through each delta_tt_raster in delta_tt_list and multiply by population density raster
 weighted_delta_tt_list <- lapply(delta_tt_list, function(delta_tt_raster) {
@@ -82,64 +83,181 @@ for (i in seq_along(weighted_delta_tt_list)) {
     original_name <- names(weighted_delta_tt_list)[i]
     parish_boundaries[[paste0("Average_Weighted_Delta_TT_", original_name)]] <- parish_boundaries[[paste0("Weighted_delta_tt_", original_name)]] / parish_boundaries$Population_Sum
 }
+```
 
+# Create a bivariate map of accessibility reduction and population sum
+```{r}
 # Step 5: Plot 
-# List of column names that will be used for the fill
+# Convert SpatVector to sf object
+parish_boundaries_sf <- st_as_sf(parish_boundaries)
+
+# Change negative values to positives for better visualization
+parish_boundaries_sf$Average_Weighted_Delta_TT_100_3600_pos <- abs(parish_boundaries_sf$Average_Weighted_Delta_TT_100_3600)
+
+# Create custom breaks for `Weighted_delta_tt_100_3600` with three categories
+parish_boundaries_sf$Weighted_bin <- cut(
+    parish_boundaries_sf$Average_Weighted_Delta_TT_100_3600_pos,  # Using absolute values to make positive
+    breaks = c(0, 30, 60, Inf),  # Custom break points
+    include.lowest = TRUE,
+    labels = c("0-30", "30-60", "60+")
+)
+
+# Custom breaks for `Population_Sum` with inverted order
+# Create the `Population_bin` with the desired breaks
+parish_boundaries_sf$Population_bin <- cut(
+    parish_boundaries_sf$Population_Sum,
+    breaks = c(0, 10000, 30000, Inf),
+    include.lowest = TRUE,
+    labels = c("Low", "Medium", "High")
+)
+
+# Convert `Population_bin` to a factor with levels in the desired inverted order
+parish_boundaries_sf$Population_bin <- factor(
+    parish_boundaries_sf$Population_bin, 
+    levels = c("High", "Medium", "Low")
+)
+
+# Manually create labels with inverted order for the legend
+labels <- list(
+    bi_x = c("0-30", "30-60", "60+"),
+    bi_y = c("30000+", "10000-30000", "0-10000")  # Inverted order for Population Sum
+)
+
+# Apply bivariate classification with custom breaks
+parish_boundaries_bi <- bi_class(
+    parish_boundaries_sf,
+    x = "Weighted_bin",
+    y = "Population_bin",
+    dim = 3
+)
+
+# Create the map without the legend
+map <- ggplot() +
+    geom_sf(data = parish_boundaries_bi, mapping = aes(fill = bi_class), color = "white", size = 0.1, show.legend = FALSE) +
+    bi_scale_fill(pal = "DkViolet", dim = 3, flip_axes = FALSE) +
+    labs(
+        title = "Bivariate Map of Accessibility Reduction\nand Population Sum",
+        subtitle = "Parishes"
+    ) +
+    bi_theme()
+
+# Create the legend with formatted custom labels and inverted order
+legend <- bi_legend(
+    pal = "DkViolet",
+    dim = 3,
+    xlab = "Travel Time Decrease (min.)",
+    ylab = "Population Sum",
+    size = 10, 
+    breaks = labels,    # Use manually formatted labels with inverted Population Sum
+    flip_axes = FALSE,
+    arrows = FALSE
+)
+
+# Combine the map and legend using patchwork
+final_plot <- map + inset_element(legend, left = 0.1, bottom = 0.1, right = 0.3, top = 0.3)
+
+# Display the final plot
+print(final_plot)
+
+############################################################################################
+# Convert SpatVector to sf object
+parish_boundaries_sf <- st_as_sf(parish_boundaries)
+
+# Make all negative values positive for better visualization
+for (col in names(parish_boundaries)[grepl("Average_Weighted_Delta_TT_", names(parish_boundaries))]) {
+  parish_boundaries[[col]] <- abs(parish_boundaries[[col]])
+}
+
+# Extract scenario columns from the parish boundaries data frame
 scenario_columns <- grep("Average_Weighted_Delta_TT_", names(parish_boundaries), value = TRUE)
 
-# Create an empty list to store the plots
-plot_list <- list()
-
-# Determine the global range for the impacted weighted delta travel time
-global_range <- range(unlist(lapply(scenario_columns, function(col) parish_boundaries[[col]])), na.rm = TRUE)
-
-# Reorder scenario_columns to start with 20, 40, 60, 80, 100 and also by 1, 3, 6 hours
+# Reorder scenario columns to start with 20, 40, 60, 80, 100 and also by 1, 3, 6 hours
 scenario_columns_ordered <- scenario_columns[order(
   as.numeric(sub(".*_(\\d+)_.*", "\\1", scenario_columns)),   # Sort by mm
   as.numeric(sub(".*_(\\d+)$", "\\1", sub(".*_\\d+_", "", scenario_columns)))  # Sort by seconds (3600, 10800, etc.)
 )]
-# Loop through the reordered scenario columns and create the plots
+
+# Prepare population bin as a consistent factor across all scenarios
+parish_boundaries_sf$Population_bin <- cut(
+    parish_boundaries_sf$Population_Sum,
+    breaks = c(0, 10000, 30000, Inf),
+    include.lowest = TRUE,
+    labels = c("Low", "Medium", "High")
+)
+
+parish_boundaries_sf$Population_bin <- factor(
+    parish_boundaries_sf$Population_bin, 
+    levels = c("High", "Medium", "Low")
+)
+
+# Manually create legend labels
+labels <- list(
+    bi_x = c("0-30", "30-60", "60+"),
+    bi_y = c("30000+", "10000-30000", "0-10000")
+)
+
+# Initialize an empty list to store individual plots
+plot_list <- list()
+
+# Loop through each scenario column and create a bivariate map
 for (i in seq_along(scenario_columns_ordered)) {
-    # Extract the two numbers from the scenario column name
-    numbers <- sub(".*_(\\d+)_(\\d+)$", "\\1 \\2", scenario_columns_ordered[i])
+    scenario_col <- scenario_columns_ordered[i]
+
+    # Extract the scenario numbers for the title
+    numbers <- sub(".*_(\\d+)_(\\d+)$", "\\1 \\2", scenario_col)
     numbers_split <- unlist(strsplit(numbers, " "))
-    
-    # Convert the second number from seconds to hours (3600 seconds = 1 hour)
+    mm <- numbers_split[1]
     hours <- as.numeric(numbers_split[2]) / 3600
-    
-    # Create the formatted title: "X mm x Y hours"
-    title_part <- paste(numbers_split[1], "mm x", hours, "hour")
-    
-    # Dynamically create the plot for each fill
+    title_part <- paste(mm, "mm x", hours, "hour")
+
+    # Classify data using the current scenario column and Population_bin
+    parish_boundaries_sf$Weighted_bin <- cut(
+        parish_boundaries_sf[[scenario_col]],
+        breaks = c(0, 30, 60, Inf),
+        include.lowest = TRUE,
+        labels = c("0-30", "30-60", "60+")
+    )
+
+    parish_boundaries_bi <- bi_class(
+        parish_boundaries_sf,
+        x = "Weighted_bin",
+        y = "Population_bin",
+        dim = 3
+    )
+
+    # Generate the bivariate plot for the current scenario
     p <- ggplot() +
-        geom_spatvector(data = parish_boundaries, aes(fill = .data[[scenario_columns_ordered[i]]])) +  # Dynamic fill
-        scale_fill_viridis_c(
-            option = "magma",  # Use the magma color palette
-            name = "Delta Travel\nTime Decrease",  # Legend title
-            na.value = "transparent",  # Hide NAs by making them transparent
-            limits = global_range  # Standardize the scale
+        geom_sf(data = parish_boundaries_bi, mapping = aes(fill = bi_class), color = "white", size = 0.1, show.legend = FALSE) +
+        bi_scale_fill(pal = "DkViolet", dim = 3, flip_axes = FALSE) +
+        labs(
+            title = title_part
         ) +
-        theme_minimal() +
-        ggtitle(paste("Scenario", title_part)) +  # Use the formatted title
+        bi_theme() +
         theme(
-            legend.position = "bottom",  # Move the legend to the bottom
-            legend.title = element_text(size = 12),  # Increase legend title font size
-            legend.text = element_text(size = 10),  # Increase legend label font size
-            axis.text = element_blank(),  # Remove axis text
-            axis.title = element_blank(),  # Remove axis titles
-            panel.grid.major = element_line(color = "gray80", size = 0.5),  # Add major gridlines
-            panel.grid.minor = element_line(color = "gray90", size = 0.25),  # Add minor gridlines
-            strip.background = element_rect(fill = "white")  # Add white background to facet labels
+            plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
+            legend.position = "none"
         )
 
     # Store the plot in the list
     plot_list[[i]] <- p
 }
 
-# Combine the plots in a grid layout using patchwork and add a shared legend
-final_plot <- wrap_plots(plot_list, ncol = 3) + 
+# Create the shared legend separately
+legend <- bi_legend(
+    pal = "DkViolet",
+    dim = 3,
+    xlab = "Travel Time Decrease (min.)",
+    ylab = "Population Sum",
+    size = 30,
+    breaks = labels,
+    flip_axes = FALSE,
+    arrows = FALSE
+)
+
+# Combine all scenario plots and add the shared legend at the bottom
+final_plot <- wrap_plots(plot_list, ncol = 3) +
     plot_layout(guides = "collect") & 
-    theme(legend.position = "right") & 
+    theme(legend.position = "bottom") & 
     plot_annotation(
         title = "Average Population Weighted Delta Travel Time Scenarios per Parish",
         theme = theme(
@@ -147,8 +265,14 @@ final_plot <- wrap_plots(plot_list, ncol = 3) +
         )
     )
 
-# Display the combined plot
+# Display the combined plot with the shared legend at the bottom
 print(final_plot)
+print(legend)
+
+```
+
+# Create a combined plot for specific scenarios (20mm x 6hr and 100mm x 1hr) for a poster
+```{r}	
 
 # Filter the specific scenarios for 20mm x 6hr and 100mm x 1hr
 specific_scenarios <- c("Average_Weighted_Delta_TT_20_21600", "Average_Weighted_Delta_TT_100_3600")

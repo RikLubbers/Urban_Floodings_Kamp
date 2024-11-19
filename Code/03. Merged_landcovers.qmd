@@ -58,6 +58,7 @@ library(tidyterra)
 library(cowplot)
 library(patchwork)
 library(Spatial.align)
+library(ggspatial)
 ```
 
 # Create merged landcover layer for AccessMod
@@ -202,11 +203,6 @@ legend_names <- c(
 # Create list of MLC names
 MLC_names <- c(MLC_flood_20_3600, MLC_flood_20_10800, MLC_flood_20_21600, MLC_flood_40_3600, MLC_flood_40_10800, MLC_flood_40_21600, MLC_flood_60_3600, MLC_flood_60_10800, MLC_flood_60_21600, MLC_flood_80_3600, MLC_flood_80_10800, MLC_flood_80_21600, MLC_flood_100_3600, MLC_flood_100_10800, MLC_flood_100_21600)
 
-MLC_names <- lapply(MLC_names, function(r) {
-  # Convert each raster to a factor
-  as.factor(r)
-})
-
 # Create a data frame to define levels
 levels_df <- data.frame(
   ID = legend_colour$value,   # Values in raster
@@ -219,7 +215,15 @@ MLC_names <- lapply(MLC_names, function(r) {
   r
 })
 
+MLC_names <- lapply(MLC_names, function(r) {
+  # Convert each raster to a factor
+  as.factor(r)
+})
+
 names(MLC_names) <- c("20 mm / 1hr", "20 mm / 3hr", "20 mm / 6hr", "40 mm / 1hr", "40 mm / 3hr", "40 mm / 6hr", "60 mm / 1hr", "60 mm / 3hr", "60 mm / 6hr", "80 mm / 1hr", "80 mm / 3hr", "80 mm / 6hr", "100 mm / 1hr", "100 mm / 3hr", "100 mm / 6hr")
+
+# Define color_mapping
+color_mapping <- setNames(legend_colour$color, legend_colour$value)
 ```
 
 
@@ -233,27 +237,68 @@ health_facilities <- align(health_facilities, MLC_flood_20_3600, show_plot = FAL
 
 # Plot
 ```{r}
-# Generate individual plots
+# Define the output folder
+output_folder <- "C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Figures/MLC_floodings"  # Specify the folder to save plots
+dir.create(output_folder, showWarnings = FALSE, recursive = TRUE)  # Create the folder automatically if it doesn't exist
+
+# Generate and save plots
 plots <- lapply(seq_along(MLC_names), function(i) {
-    autoplot(MLC_names[[i]]) +
-        geom_sf(data = health_facilities, color = "black", size = 2, shape = 21, fill = "purple") +  # Add health facilities
+    # Generate the plot
+    plot <- autoplot(MLC_names[[i]]) +
+        geom_sf(data = health_facilities, color = "black", size = 5, shape = 21, fill = "purple") +  # Add health facilities
         scale_fill_manual(
-            values = color_mapping,
+            values = setNames(legend_colour$color, legend_colour$value),  # Map colors to values
+            labels = legend_names,  # Use correct legend names
             name = "Landcover Type",
             na.translate = FALSE,
             na.value = "transparent"
         ) +
+        # Add scale bar
+        annotation_scale(
+            location = "bl", 
+            width_hint = 0.3,
+            text_cex = 2,  # Increase text size
+            pad_y = unit(11, "cm"),  # Move scale bar up
+            pad_x = unit(1, "cm")   # Move scale bar right
+        ) +
+        # Add north arrow
+        annotation_north_arrow(
+            location = "tr", 
+            which_north = "true",
+            style = north_arrow_fancy_orienteering,  # Fancy orienteering style
+            height = unit(4, "cm"),  # Increase size
+            width = unit(4, "cm")
+        ) +
+        # Add source annotation
+        annotate(
+            "text", 
+            x = Inf, y = -Inf, 
+            label = "Source: Authors", 
+            hjust = 1.1, vjust = -0.5,  # Adjust position
+            size = 5, fontface = "italic"
+        ) +
         labs(title = names(MLC_names)[i]) +  # Use object name as title
         theme_minimal() +
         theme(
-            legend.position = "bottom",  # Legend placed at the bottom
-            axis.title.x = element_blank(),
-            axis.title.y = element_blank(),
-            axis.text.x = element_blank(),
-            axis.text.y = element_blank(),
-            axis.ticks = element_blank(),
-            plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
+            axis.text = element_blank(),
+            axis.title = element_blank(),
+            legend.position = c(0.25, 0.13),  # Bottom-left corner (normalized coordinates)
+            legend.title = element_text(size = 20, face = "bold"),
+            legend.text = element_text(size = 18),
+            plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),
+            legend.background = element_rect(fill = "white", color = "black", linewidth = 0.5),  # Add box around legend
+            panel.border = element_rect(color = "black", fill = NA, linewidth = 1)  # Add border around the plot
         )
+    
+    # Rename the title to replace `/` with `X` and remove extra spaces
+    original_title <- names(MLC_names)[i]
+    renamed_title <- gsub(" / ", "X", trimws(original_title))  # Replace " / " with "X" and trim spaces
+    
+    # Save the plot as a file
+    file_name <- paste0(output_folder, "/", renamed_title, ".png")  # Construct file name
+    ggsave(filename = file_name, plot = plot, width = 24, height = 16, dpi = 1000)  # Save the plot as PNG
+    
+    return(plot)  # Return the plot object if needed
 })
 
 # Split plots into three groups

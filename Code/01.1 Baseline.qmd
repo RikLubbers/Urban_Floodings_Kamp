@@ -23,6 +23,7 @@ library(terra)
 library(Spatial.align)
 library(rasterVis)
 library(ggspatial)
+library(leaflet)
 ```
 
 # Load the data
@@ -75,7 +76,7 @@ contour_lines <- terra::as.contour(dem, levels = seq(minmax(dem)[1], minmax(dem)
 roads <- align(roads, parish_boundaries, show_plot = FALSE)
 ```
 
-# Clean the data
+# Clean & Prepare the data
 ```{r}	
 health_facilities <- health_facilities %>%
   rename_with(~ gsub(" ", "_", .))
@@ -91,39 +92,6 @@ health_facilities$Facility_t <- factor(
     "National Referral Hospital"
   )
 )
-
-# Clean the roads
-# Define the road types to keep
-road_types_to_keep <- c("motorway", "motorway_link",
-            "secondary", "secondary_link", "tertiary", 
-            "tertiary_link", "trunk", "trunk_link", 
-            "primary", "primary_link")
-
-# Filter the SpatVector by the road types
-# Replace 'type_column_name' with the actual column name in your dataset
-filtered_roads <- roads[roads$highway %in% road_types_to_keep, ]
-
-# Reclassify link roads to their main categories
-filtered_roads$highway <- gsub("_link", "", filtered_roads$highway)
-
-filtered_roads$highway <- factor(
-  filtered_roads$highway,
-  levels = c("trunk", "motorway", "primary", "secondary", "tertiary")
-)
-
-# Split the filtered roads into two groups
-# Group 1: Trunk and Motorway roads
-trunk_motorway_roads <- filtered_roads[filtered_roads$highway %in% c("trunk", "motorway"), ]
-
-# Group 2: Other road types (primary, secondary, tertiary)
-other_roads <- filtered_roads[!filtered_roads$highway %in% c("trunk", "motorway"), ]
-
-# Subset roads for black outline (trunk, motorway, primary)
-outlined_roads <- trunk_motorway_roads[trunk_motorway_roads$highway %in% c("trunk", "motorway", "primary"), ]
-```
-
-# Plot the data
-```{r}
 # Get unique categories present in the data
 present_categories <- levels(land_cover)[[1]]$ID
 
@@ -186,6 +154,39 @@ combined_labels <- c(
   "National Referral Hospital"
 )
 
+# Clean the roads
+# Define the road types to keep
+road_types_to_keep <- c("motorway", "motorway_link",
+            "secondary", "secondary_link", "tertiary", 
+            "tertiary_link", "trunk", "trunk_link", 
+            "primary", "primary_link")
+
+# Filter the SpatVector by the road types
+# Replace 'type_column_name' with the actual column name in your dataset
+filtered_roads <- roads[roads$highway %in% road_types_to_keep, ]
+
+# Reclassify link roads to their main categories
+filtered_roads$highway <- gsub("_link", "", filtered_roads$highway)
+
+filtered_roads$highway <- factor(
+  filtered_roads$highway,
+  levels = c("trunk", "motorway", "primary", "secondary", "tertiary")
+)
+
+# Split the filtered roads into two groups
+# Group 1: Trunk and Motorway roads
+trunk_motorway_roads <- filtered_roads[filtered_roads$highway %in% c("trunk", "motorway"), ]
+
+# Group 2: Other road types (primary, secondary, tertiary)
+other_roads <- filtered_roads[!filtered_roads$highway %in% c("trunk", "motorway"), ]
+
+# Subset roads for black outline (trunk, motorway, primary)
+outlined_roads <- trunk_motorway_roads[trunk_motorway_roads$highway %in% c("trunk", "motorway", "primary"), ]
+```
+
+# Plot the data
+## Landcover baseline
+```{r}
 autoplot(land_cover, alpha = 0.5) + 
   scale_fill_manual(
     values = combined_colors,  # Updated combined colors
@@ -253,8 +254,10 @@ autoplot(land_cover, alpha = 0.5) +
     fill = guide_legend(title.position = "top", byrow = FALSE, ncol = 2)
   ) +
   ggtitle("Landcover Map of Kampala with Public Health Facilities")
+```
 
-
+## Roads baseline
+```{r}
 # Plot the roads
 ## Define the updated color scheme
 road_colors <- c(
@@ -335,4 +338,30 @@ ggplot() +
   ) +
   ggtitle("Roads Map of Kampala with Different Road Types")
 
+```
+
+## Healtlhcare facilites interactive map
+```{r}
+# Create the interactive map with plet
+plet_map <- plet(
+  x = parish_boundaries,                # Parish boundaries as SpatVector
+  col = "gray95",                       # Boundary fill color
+  border = "black",                     # Boundary border color
+  fill = 0.5,                           # Transparency of the polygon fill
+  main = "Parish Boundaries",           # Map title for boundaries
+  tiles = c("Streets", "Esri.WorldImagery"),  # Base map options
+  popup = TRUE                          # Enable pop-ups for polygons
+)
+
+# Add healthcare facilities to the map
+plet_map <- points(
+  x = plet_map,                         # Use the existing map
+  y = health_facilities,                # Healthcare facilities as SpatVector
+  col = "blue",                         # Point color
+  cex = 1.5,                            # Point size magnifier
+  popup = TRUE                          # Enable pop-ups for healthcare points
+)
+
+# View the interactive map
+plet_map
 ```

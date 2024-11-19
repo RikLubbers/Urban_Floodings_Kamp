@@ -22,6 +22,7 @@ renv::restore()
 library(terra)
 library(Spatial.align)
 library(rasterVis)
+library(inAccessMod)
 ```
 
 # Load the data
@@ -34,12 +35,31 @@ land_cover <- rast("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_A
 health_facilities <- vect("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Facilities/suhsharan_health_facilities_UG/UG_HF_all.shp")
 
 dem <- rast("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/DEM/Uganda_SRTM30m/Uganda_SRTM30meters.tif")
+
+roads = vect("C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vRoads/20240308172748/raw/vRoads_geofabrik_uganda-latest.shp")
 ```
 
 # Align the data
 ```{r}
 # Align the land cover data to the parish boundaries
 land_cover <- align(land_cover, parish_boundaries, show_plot = FALSE)
+
+# Reclassify values directly
+reclass_matrix <- matrix(c(
+  0, 19, 10,
+  20, 29, 20,
+  30, 39, 30,
+  40, 49, 40,
+  50, 59, 50,
+  60, 69, 60,
+  70, 79, 70,
+  80, 89, 80,
+  90, 94, 90,
+  95, 99, 95,
+  100, 999, 100
+), ncol = 3, byrow = TRUE)
+
+land_cover <- classify(land_cover, reclass_matrix)
 
 # Ensure the land_cover is treated as categorical
 land_cover <- as.factor(land_cover)
@@ -51,37 +71,41 @@ health_facilities <- align(health_facilities, parish_boundaries, show_plot = FAL
 dem <- align(dem, parish_boundaries, show_plot = FALSE)
 contour_lines <- terra::as.contour(dem, levels = seq(minmax(dem)[1], minmax(dem)[2], by = 50))  # Contour interval set to 50
 
+# Align the roads data to the parish boundaries
+roads <- align(roads, parish_boundaries, show_plot = FALSE)
+```
+
+# Clean the data
+```{r}	
+health_facilities <- health_facilities %>%
+  rename_with(~ gsub(" ", "_", .))
+
+health_facilities$Facility_t <- factor(
+  health_facilities$Facility_t,
+  levels = c(
+    "Health Centre II",
+    "Health Centre III",
+    "Health Centre IV",
+    "Hospital",
+    "Regional Referral Hospital",
+    "National Referral Hospital"
+  )
+)
+
+# Clean the roads
+# Define the road types to keep
+road_types_to_keep <- c("motorway", "motorway_link",
+            "secondary", "secondary_link", "tertiary", 
+            "tertiary_link", "trunk", "trunk_link", 
+            "primary", "primary_link")
+
+# Filter the SpatVector by the road types
+# Replace 'type_column_name' with the actual column name in your dataset
+filtered_roads <- roads[roads$highway %in% road_types_to_keep, ]
 ```
 
 # Plot the data
 ```{r}
-# Plot using GGplot
-ggplot() +
-  # Plot parish boundaries with transparent fill and black borders
-  geom_sf(data = parish_boundaries, fill = "transparent", color = "black", size = 0.5) +
-  # Plot health facilities with red color
-  geom_sf(data = health_facilities, aes(color = "Health Facilities"), size = 2) +
-  # Define custom color for health facilities
-  scale_color_manual(values = c("Health Facilities" = "red")) +
-  # Add labels and titles
-  labs(
-    title = "Spatial Distribution of Health Facilities in Kampala",
-    subtitle = "Aligned with Parish Boundaries",
-    x = "Longitude",
-    y = "Latitude",
-    caption = "Data Source: PhD_Undernutrition_Uganda_Physical_Accessbility"
-  ) +
-  # Apply minimal theme
-  theme_minimal() +
-  # Customize theme elements
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),  # Center and style title
-    plot.subtitle = element_text(hjust = 0.5, size = 12),  # Center subtitle
-    legend.position = "bottom",  # Position legend at the bottom
-    legend.title = element_text(size = 10),  # Style legend title
-    legend.text = element_text(size = 8)  # Style legend text
-  )
-
 # Get unique categories present in the data
 present_categories <- levels(land_cover)[[1]]$ID
 
@@ -106,9 +130,9 @@ labels <- c(
   "30" = "Grassland", 
   "40" = "Cropland", 
   "50" = "Built-up", 
-  "60" = "Bare / sparse vegetation", 
+  "60" = "Bare / sparse\nvegetation", 
   "70" = "Snow and Ice", 
-  "80" = "Permanent water bodies", 
+  "80" = "Permanent water\nbodies", 
   "90" = "Herbaceous wetland", 
   "95" = "Mangroves", 
   "100" = "Moss and lichen"
@@ -118,20 +142,51 @@ labels <- c(
 filtered_colors <- colors[names(colors) %in% present_categories]
 filtered_labels <- labels[names(labels) %in% present_categories]
 
-autoplot(land_cover, alpha = 0.6) + 
+# Facility colors
+facility_colors <- c(
+  # Blue to Purple for Health Centers
+  "Health Centre II" = "#ADD8E6",       # Light Blue
+  "Health Centre III" = "#6495ED",     # Medium Blue
+  "Health Centre IV" = "#4B0082",      # Indigo
+
+  # Green to Brown for Hospitals
+  "Hospital" = "#98FB98",              # Pale Green
+  "Regional Referral Hospital" = "#6B8E23",  # Olive Drab
+  "National Referral Hospital" = "#8B4513"   # Saddle Brown
+)
+
+combined_colors <- c(filtered_colors, facility_colors)
+
+# Define reordered labels
+combined_labels <- c(
+  filtered_labels,  # Landcover labels
+  "Health Centre II",
+  "Health Centre III",
+  "Health Centre IV",
+  "Hospital",
+  "Regional Referral Hospital",
+  "National Referral Hospital"
+)
+
+# Plot
+autoplot(land_cover, alpha = 0.5) + 
   scale_fill_manual(
-    values = filtered_colors,  # Correct mapping of colors for discrete categories
-    name = "Landcover Categories",
-    labels = filtered_labels,
-    na.translate = F,
-    na.value = "transparent"  # Still keep NA as transparent in the plot
+    values = combined_colors,  # Updated combined colors
+    name = "Landcover and Facility Types",
+    labels = combined_labels,
+    na.translate = FALSE,
+    na.value = "transparent"
   ) +
   geom_sf(data = contour_lines, color = "black", size = 0.3) +
-  geom_sf(data = health_facilities, aes(color = "Health Facilities"), shape = 23, size = 6, fill = "blue") +
-  scale_color_manual(values = c("Health Facilities" = "red")) +
+  geom_sf(
+    data = health_facilities,
+    aes(fill = Facility_t),  # Use combined fill scale
+    shape = 23, 
+    size = 6
+  ) +
   theme_minimal() +
   theme(
-    legend.position = c(0.02, 0.15),
+    legend.position = c(0.01, 0.13),
     legend.justification = "left",
     legend.title = element_text(size = 20),
     legend.text = element_text(size = 16),
@@ -139,19 +194,63 @@ autoplot(land_cover, alpha = 0.6) +
     legend.key.height = unit(0.75, "cm"),
     legend.spacing.x = unit(0.5, 'cm'),
     legend.box = "vertical",
-    legend.background = element_rect(color = "black", fill = NA),
+    legend.background = element_rect(color = "black", fill = "white"),
     axis.text = element_blank(),
     axis.title = element_blank(),
-    panel.grid.major = element_line(color = "gray80", size = 0.5),
-    panel.grid.minor = element_line(color = "gray90", size = 0.25),
+    panel.grid.major = element_line(color = "gray80", linewidth = 0.5),
+    panel.grid.minor = element_line(color = "gray90", linewidth = 0.25),
     strip.background = element_rect(fill = "white"),
     plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),
-    panel.border = element_rect(color = "black", fill = NA, size = 1)
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1)
   ) +
   guides(
-    fill = guide_legend(title.position = "top", byrow = TRUE),
-    color = guide_legend(title = NULL)
+    fill = guide_legend(title.position = "top", byrow = FALSE, ncol = 2)
   ) +
-  ggtitle("Landcover Map of Kampala with Health Facilities")
+  ggtitle("Landcover Map of Kampala with Public Health Facilities")
 
+# Plot the roads
+## Define road colors
+road_colors <- c(
+  "motorway" = "#FF0000",       # Red
+  "motorway_link" = "#FF0000",  # Red
+  "secondary" = "#00FF00",      # Green
+  "secondary_link" = "#00FF00", # Green
+  "tertiary" = "#0000FF",       # Blue
+  "tertiary_link" = "#0000FF",  # Blue
+  "trunk" = "#FFFF00",          # Yellow
+  "trunk_link" = "#FFFF00",     # Yellow
+  "primary" = "#FF00FF",        # Magenta
+  "primary_link" = "#FF00FF"    # Magenta
+)
+
+# Use parish boundaries as base layer
+autoplot(parish_boundaries) +
+  geom_sf(data = filtered_roads, aes(color = highway), size = 0.5) +
+  scale_color_manual(
+    values = road_colors,
+    name = "Road Types",
+    labels = c(
+      "motorway" = "Motorway",
+      "motorway_link" = "Motorway Link",
+      "secondary" = "Secondary",
+      "secondary_link" = "Secondary Link",
+      "tertiary" = "Tertiary",
+      "tertiary_link" = "Tertiary Link",
+      "trunk" = "Trunk",
+      "trunk_link" = "Trunk Link",
+      "primary" = "Primary",
+      "primary_link" = "Primary Link"
+    )
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid.major = element_line(color = "gray80", linewidth = 0.5),
+    panel.grid.minor = element_line(color = "gray90", linewidth = 0.25),
+    strip.background = element_rect(fill = "white"),
+    plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1)
+  ) +
+  ggtitle("Roads Map of Kampala with Different Road Types")
 ```

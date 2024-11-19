@@ -22,7 +22,7 @@ renv::restore()
 library(terra)
 library(Spatial.align)
 library(rasterVis)
-library(inAccessMod)
+library(ggspatial)
 ```
 
 # Load the data
@@ -102,6 +102,24 @@ road_types_to_keep <- c("motorway", "motorway_link",
 # Filter the SpatVector by the road types
 # Replace 'type_column_name' with the actual column name in your dataset
 filtered_roads <- roads[roads$highway %in% road_types_to_keep, ]
+
+# Reclassify link roads to their main categories
+filtered_roads$highway <- gsub("_link", "", filtered_roads$highway)
+
+filtered_roads$highway <- factor(
+  filtered_roads$highway,
+  levels = c("trunk", "motorway", "primary", "secondary", "tertiary")
+)
+
+# Split the filtered roads into two groups
+# Group 1: Trunk and Motorway roads
+trunk_motorway_roads <- filtered_roads[filtered_roads$highway %in% c("trunk", "motorway"), ]
+
+# Group 2: Other road types (primary, secondary, tertiary)
+other_roads <- filtered_roads[!filtered_roads$highway %in% c("trunk", "motorway"), ]
+
+# Subset roads for black outline (trunk, motorway, primary)
+outlined_roads <- trunk_motorway_roads[trunk_motorway_roads$highway %in% c("trunk", "motorway", "primary"), ]
 ```
 
 # Plot the data
@@ -168,7 +186,6 @@ combined_labels <- c(
   "National Referral Hospital"
 )
 
-# Plot
 autoplot(land_cover, alpha = 0.5) + 
   scale_fill_manual(
     values = combined_colors,  # Updated combined colors
@@ -177,13 +194,42 @@ autoplot(land_cover, alpha = 0.5) +
     na.translate = FALSE,
     na.value = "transparent"
   ) +
+  # Contour lines
   geom_sf(data = contour_lines, color = "black", size = 0.3) +
+  # Health facilities
   geom_sf(
     data = health_facilities,
     aes(fill = Facility_t),  # Use combined fill scale
     shape = 23, 
     size = 6
   ) +
+  # Add scale bar
+  annotation_scale(
+    location = "bl", 
+    width_hint = 0.3,
+    text_cex = 2, # Adjust text size
+    pad_y = unit(9, "cm"), # Move scale bar up
+    pad_x = unit(0.5, "cm") # Adjust horizontal padding
+  ) +
+  # Add north arrow
+  annotation_north_arrow(
+    location = "tr", 
+    which_north = "true",
+    style = north_arrow_fancy_orienteering,
+    height = unit(4, "cm"),  # Adjust north arrow size
+    width = unit(4, "cm")    # Adjust north arrow size
+  ) +
+  # Add source annotation
+  annotate(
+    "text", 
+    x = Inf, y = -Inf, # Place in bottom-right corner
+    label = "Source: ESA WorldCover \n& Maina et al., 2019", 
+    hjust = 1.1, vjust = -0.5, # Align text
+    size = 5, # Smaller text size
+    fontface = "italic", # Italic font
+    color = "gray30" # Subtle gray color
+  ) +
+  # Improve theme
   theme_minimal() +
   theme(
     legend.position = c(0.01, 0.13),
@@ -208,49 +254,85 @@ autoplot(land_cover, alpha = 0.5) +
   ) +
   ggtitle("Landcover Map of Kampala with Public Health Facilities")
 
+
 # Plot the roads
-## Define road colors
+## Define the updated color scheme
 road_colors <- c(
-  "motorway" = "#FF0000",       # Red
-  "motorway_link" = "#FF0000",  # Red
-  "secondary" = "#00FF00",      # Green
-  "secondary_link" = "#00FF00", # Green
-  "tertiary" = "#0000FF",       # Blue
-  "tertiary_link" = "#0000FF",  # Blue
-  "trunk" = "#FFFF00",          # Yellow
-  "trunk_link" = "#FFFF00",     # Yellow
-  "primary" = "#FF00FF",        # Magenta
-  "primary_link" = "#FF00FF"    # Magenta
+  "trunk" = "red4",            # Trunk roads (dark red)
+  "motorway" = "red",          # Motorway (red)
+  "primary" = "sienna1",       # Primary roads (sienna)
+  "secondary" = "orange",      # Secondary roads (orange)
+  "tertiary" = "tan"           # Tertiary roads (tam)
 )
 
-# Use parish boundaries as base layer
-autoplot(parish_boundaries) +
-  geom_sf(data = filtered_roads, aes(color = highway), size = 0.5) +
-  scale_color_manual(
-    values = road_colors,
-    name = "Road Types",
-    labels = c(
-      "motorway" = "Motorway",
-      "motorway_link" = "Motorway Link",
-      "secondary" = "Secondary",
-      "secondary_link" = "Secondary Link",
-      "tertiary" = "Tertiary",
-      "tertiary_link" = "Tertiary Link",
-      "trunk" = "Trunk",
-      "trunk_link" = "Trunk Link",
-      "primary" = "Primary",
-      "primary_link" = "Primary Link"
-    )
+ggplot() +
+  # Parish boundaries
+  geom_spatvector(
+    data = parish_boundaries,
+    fill = "gray95",
+    color = "black",
+    linewidth = 0.7 # Adjust line thickness
   ) +
+  # Outlined roads (black outline first)
+  geom_spatvector(
+    data = outlined_roads,
+    color = "black", # Black outline
+    linewidth = 3.5 # Slightly thicker than the colored line for visibility
+  ) +
+  # Other road types (no outline)
+  geom_spatvector(
+    data = other_roads,
+    aes(color = highway),
+    linewidth = 1.0, # Thinner lines for other roads
+    show.legend = "line"
+  ) +
+  # Outlined roads (color on top)
+  geom_spatvector(
+    data = outlined_roads,
+    aes(color = highway),
+    linewidth = 2.0, # Thinner than the outline
+    show.legend = "line"
+  ) +
+  # Custom scale for road colors
+  scale_color_manual(
+    values = road_colors, # Ensure road_colors is predefined
+    name = "Road Types",
+    breaks = c("trunk", "motorway", "primary", "secondary", "tertiary") # Define the order
+  ) +
+  annotation_scale(
+    location = "bl", 
+    width_hint = 0.3,
+    text_cex = 2, # Increase text size
+    pad_y = unit(1, "cm"), # Move scalebar up by 1 cm
+    pad_x = unit(1, "cm") # Move scalebar right by 1 cm
+  ) +
+  annotation_north_arrow(
+    location = "tr", 
+    which_north = "true",
+    style = north_arrow_fancy_orienteering,
+    height = unit(4, "cm"),  # Increase north arrow size
+    width = unit(4, "cm")    # Increase north arrow size
+  ) +
+  # Add source annotation
+  annotate(
+    "text", 
+    x = Inf, y = -Inf, 
+    label = "Source: OpenStreetMap", 
+    hjust = 1.1, vjust = -0.5, # Adjust position
+    size = 5, fontface = "italic"
+  ) +
+  # Improve theme
   theme_minimal() +
   theme(
     axis.text = element_blank(),
     axis.title = element_blank(),
-    panel.grid.major = element_line(color = "gray80", linewidth = 0.5),
-    panel.grid.minor = element_line(color = "gray90", linewidth = 0.25),
-    strip.background = element_rect(fill = "white"),
+    legend.position = c(0.12, 0.15), # Bottom-left corner (normalized coordinates)
+    legend.title = element_text(size = 20, face = "bold"),
+    legend.text = element_text(size = 16),
     plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),
-    panel.border = element_rect(color = "black", fill = NA, linewidth = 1)
+    legend.background = element_rect(fill = "white", color = "black", linewidth = 0.5), # Add a box around the legend
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1) # Add a border around the plot
   ) +
   ggtitle("Roads Map of Kampala with Different Road Types")
+
 ```

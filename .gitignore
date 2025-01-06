@@ -1,0 +1,36 @@
+# Ignore temporary and data files
+.Rhistory
+.RData
+.Rproj.user/
+.DS_Store
+__pycache__/
+
+# renv (R Dependency Management)
+renv/
+renv.lock
+code/renv
+
+# Data Files
+data/
+Data/
+data/raw/
+Data/raw/
+data/processed/
+Data/processed/
+
+# AccessMod Outputs
+AccessMod/Output/
+AccessMod/InAccessMod/.tmp/
+AccessMod/AMRemote_multi_mergedLC/.tmp/
+AccessMod/
+
+# General Folders
+Figures/
+Manuscripts/
+Presentations/
+
+# Temporary and Backup Files
+*.zip
+*.tmp
+*.log
+*.bak

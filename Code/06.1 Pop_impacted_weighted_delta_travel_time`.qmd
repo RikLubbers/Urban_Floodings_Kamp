@@ -437,12 +437,39 @@ print(top_10_parish_frequency)
 # Create a new column in the parish boundaries data frame to indicate if a parish is in the top 10
 parish_boundaries$Top_10 <- ifelse(parish_boundaries$PName2016 %in% top_10_parish_frequency$Parish_Name, "Top 10", "Not in Top 10")
 
-# Create a color palette for the top 10 parishes
+# Calculate centroids of parishes
+parish_centroids <- centroids(parish_boundaries)
+
+# Convert centroids to a data frame for ggplot
+parish_centroids_df <- as.data.frame(parish_centroids)
+
+# Ensure parish names and Top_10 values are retained
+parish_centroids_df <- parish_centroids_df %>%
+    mutate(PName2016 = parish_boundaries$PName2016,
+           Top_10 = parish_boundaries$Top_10)
+
+# Extract centroids and coordinates
+centroids_coords <- geom(parish_centroids) # Extracts x, y coordinates as columns
+
+# Add coordinates to the parish_centroids_df
+parish_centroids_df <- cbind(as.data.frame(parish_centroids), centroids_coords[, c("x", "y")])
+
+# Create the color palette
 top_10_palette <- c("Top 10" = "red", "Not in Top 10" = "gray")
 
-# Create the plot highlighting the top 10 parishes
 highlighted_plot <- ggplot() +
     geom_spatvector(data = parish_boundaries, aes(fill = Top_10)) +
+    geom_label(
+        data = parish_centroids_df %>% filter(Top_10 == "Top 10"),
+        aes(label = PName2016, x = x, y = y), # Use x and y columns
+        color = "black", # Text color
+        fill = "white",  # Background mask color
+        size = 3,        # Adjust size as needed
+        label.padding = unit(0.2, "lines"),  # Padding around the text
+        label.size = 0.25,                   # Border size of the label box
+        hjust = 0.5,
+        vjust = -0.5
+    ) +
     scale_fill_manual(values = top_10_palette, name = "Top 10 Parishes") +
     theme_minimal() +
     ggtitle("Top 10 Parishes with Highest Travel Time Decrease") +
@@ -457,7 +484,7 @@ highlighted_plot <- ggplot() +
         strip.background = element_rect(fill = "white")
     )
 
-# Display the highlighted plot
+# Display the plot
 print(highlighted_plot)
 ```
 

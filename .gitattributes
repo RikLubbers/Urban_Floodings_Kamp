@@ -1,0 +1,2 @@
+# Ensure HTML files use LF endings
+*.html text eol=lf

@@ -73,7 +73,6 @@ names(x) <- c("20mm / 1hr", "20mm / 3hr", "20mm / 6hr", "40mm / 1hr", "40mm / 3h
 
 ## Plotting the travel time rasters
 ```{r}
-
 # Create a grid of the plots
 gridplot <- panel(x,
     col = data.frame(

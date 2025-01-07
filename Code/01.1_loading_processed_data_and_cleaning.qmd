@@ -24,28 +24,57 @@ library(Spatial.align)
 library(rasterVis)
 library(ggspatial)
 library(leaflet)
+library(here)
+library(tidyterra)
+library(ggplot2)
 ```
 
-# Load the data
+# Load the processed data data
 ```{r}
-# Parish boundaries
-parish_boundaries = vect("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/Processed/Adm_boundaries_parishes/Parishes_Kamp_UTM36N.shp")
+# Define the base data directory
+data_dir <- here("Data", "processed")
 
-land_cover <- rast("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Landcover/terrascope_download_20240305_144418/ESA_WorldCover_10m_2021_v200_N00E030_Map/ESA_WorldCover_10m_2021_v200_N00E030_Map.tif")
+# List of subdirectories containing geospatial data
+folders <- c("Adm_boundaries", "DEM", "Facilities", "Flood_extents", 
+             "Landcover", "OSM_roads", "Rainfall_estimation", 
+             "Waterbodies", "Worldpop_density", "Worldpop_dev_indicators")
 
-health_facilities <- vect("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Facilities/suhsharan_health_facilities_UG/UG_HF_all.shp")
+# Loop through each folder to load files
+for (folder in folders) {
+  folder_path <- file.path(data_dir, folder)
+  
+  # List all files in the folder
+  files <- list.files(folder_path, full.names = TRUE)
+  
+  # Load vector files (e.g., .shp, .geojson, .gpkg)
+  vector_files <- files[grepl("\\.(shp|geojson|gpkg)$", files, ignore.case = TRUE)]
+  if (length(vector_files) == 1) {
+    assign(folder, vect(vector_files[[1]]), envir = .GlobalEnv)
+    print(paste("Loaded single vector data into", folder))
+  } else if (length(vector_files) > 1) {
+    assign(folder, lapply(vector_files, vect), envir = .GlobalEnv)
+    print(paste("Loaded multiple vector data into", folder, "as a list"))
+  }
+  
+  # Load raster files (e.g., .tif, .vrt)
+  raster_files <- files[grepl("\\.(tif|vrt)$", files, ignore.case = TRUE)]
+  if (length(raster_files) == 1) {
+    assign(folder, rast(raster_files[[1]]), envir = .GlobalEnv)
+    print(paste("Loaded single raster data into", folder))
+  } else if (length(raster_files) > 1) {
+    assign(folder, lapply(raster_files, rast), envir = .GlobalEnv)
+    print(paste("Loaded multiple raster data into", folder, "as a list"))
+  }
+}
 
-dem <- rast("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/DEM/Uganda_SRTM30m/Uganda_SRTM30meters.tif")
-
-roads = vect("C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vRoads/20240308172748/raw/vRoads_geofabrik_uganda-latest.shp")
+# Remove redundant temporary objects
+rm(files, vector_files, raster_files, folder_path, folder, data_dir, folders)
 ```
 
-# Align the data
+# Clean the data 
+## Reclassify landcover data
 ```{r}
-# Align the land cover data to the parish boundaries
-land_cover <- align(land_cover, parish_boundaries, show_plot = FALSE)
-
-# Reclassify values directly
+# Reclassify Landcover
 reclass_matrix <- matrix(c(
   0, 19, 10,
   20, 29, 20,
@@ -60,29 +89,21 @@ reclass_matrix <- matrix(c(
   100, 999, 100
 ), ncol = 3, byrow = TRUE)
 
-land_cover <- classify(land_cover, reclass_matrix)
+Landcover <- classify(Landcover, reclass_matrix) # Corrected object name
 
-# Ensure the land_cover is treated as categorical
-land_cover <- as.factor(land_cover)
+# Ensure the landcover is treated as categorical
+Landcover <- as.factor(Landcover)
 
-# Align the health facilities data to the parish boundaries
-health_facilities <- align(health_facilities, parish_boundaries, show_plot = FALSE)
-
-# Align the DEM data to the parish boundaries
-dem <- align(dem, parish_boundaries, show_plot = FALSE)
-contour_lines <- terra::as.contour(dem, levels = seq(minmax(dem)[1], minmax(dem)[2], by = 50))  # Contour interval set to 50
-
-# Align the roads data to the parish boundaries
-roads <- align(roads, parish_boundaries, show_plot = FALSE)
 ```
 
-# Clean & Prepare the data
+## Clean & Prepare the facility data
 ```{r}	
-health_facilities <- health_facilities %>%
+# Clean Health Facilities
+Facilities[[1]] <- Facilities[[1]] %>%
   rename_with(~ gsub(" ", "_", .))
 
-health_facilities$Facility_t <- factor(
-  health_facilities$Facility_t,
+Facilities[[1]]$Facility_t <- factor(
+  Facilities[[1]]$Facility_t,
   levels = c(
     "Health Centre II",
     "Health Centre III",
@@ -92,8 +113,21 @@ health_facilities$Facility_t <- factor(
     "National Referral Hospital"
   )
 )
-# Get unique categories present in the data
-present_categories <- levels(land_cover)[[1]]$ID
+
+Facilities[[2]] <- Facilities[[2]] %>%
+  rename_with(~ gsub(" ", "_", .))
+
+Facilities[[2]]$Facility_t <- factor(
+  Facilities[[2]]$Facility_t,
+  levels = c(
+    "Hospital",
+    "Regional Referral Hospital",
+    "National Referral Hospital"
+  )
+)
+
+# Get unique categories from Landcover
+present_categories <- levels(Landcover)[[1]]$ID
 
 # Define full set of colors and labels
 colors <- c(
@@ -124,7 +158,7 @@ labels <- c(
   "100" = "Moss and lichen"
 )
 
-# Filter only the present categories
+# Filter only present categories for colors and labels
 filtered_colors <- colors[names(colors) %in% present_categories]
 filtered_labels <- labels[names(labels) %in% present_categories]
 
@@ -155,39 +189,31 @@ combined_labels <- c(
 )
 
 # Clean the roads
-# Define the road types to keep
+# Filter OSM Roads
 road_types_to_keep <- c("motorway", "motorway_link",
-            "secondary", "secondary_link", "tertiary", 
-            "tertiary_link", "trunk", "trunk_link", 
-            "primary", "primary_link")
+                        "secondary", "secondary_link", "tertiary", 
+                        "tertiary_link", "trunk", "trunk_link", 
+                        "primary", "primary_link")
 
-# Filter the SpatVector by the road types
-# Replace 'type_column_name' with the actual column name in your dataset
-filtered_roads <- roads[roads$highway %in% road_types_to_keep, ]
+filtered_roads <- OSM_roads[OSM_roads$highway %in% road_types_to_keep, ]
 
-# Reclassify link roads to their main categories
+# Reclassify link roads
 filtered_roads$highway <- gsub("_link", "", filtered_roads$highway)
-
 filtered_roads$highway <- factor(
   filtered_roads$highway,
   levels = c("trunk", "motorway", "primary", "secondary", "tertiary")
 )
 
-# Split the filtered roads into two groups
-# Group 1: Trunk and Motorway roads
+# Split roads
 trunk_motorway_roads <- filtered_roads[filtered_roads$highway %in% c("trunk", "motorway"), ]
-
-# Group 2: Other road types (primary, secondary, tertiary)
 other_roads <- filtered_roads[!filtered_roads$highway %in% c("trunk", "motorway"), ]
-
-# Subset roads for black outline (trunk, motorway, primary)
 outlined_roads <- trunk_motorway_roads[trunk_motorway_roads$highway %in% c("trunk", "motorway", "primary"), ]
 ```
 
-# Plot the data
+### [OPTIONAL] Plot the data ###
 ## Landcover baseline
 ```{r}
-autoplot(land_cover, alpha = 0.5) + 
+autoplot(Landcover, alpha = 0.5) + 
   scale_fill_manual(
     values = combined_colors,  # Updated combined colors
     name = "Landcover and Facility Types",
@@ -195,11 +221,9 @@ autoplot(land_cover, alpha = 0.5) +
     na.translate = FALSE,
     na.value = "transparent"
   ) +
-  # Contour lines
-  geom_sf(data = contour_lines, color = "black", size = 0.3) +
   # Health facilities
   geom_sf(
-    data = health_facilities,
+    data = Facilities[[1]],
     aes(fill = Facility_t),  # Use combined fill scale
     shape = 23, 
     size = 6
@@ -271,7 +295,7 @@ road_colors <- c(
 ggplot() +
   # Parish boundaries
   geom_spatvector(
-    data = parish_boundaries,
+    data = Adm_boundaries,
     fill = "gray95",
     color = "black",
     linewidth = 0.7 # Adjust line thickness
@@ -344,7 +368,7 @@ ggplot() +
 ```{r}
 # Create the interactive map with plet
 plet_map <- plet(
-  x = parish_boundaries,                # Parish boundaries as SpatVector
+  x = Adm_boundaries,                # Parish boundaries as SpatVector
   col = "gray95",                       # Boundary fill color
   border = "black",                     # Boundary border color
   fill = 0.5,                           # Transparency of the polygon fill
@@ -356,7 +380,7 @@ plet_map <- plet(
 # Add healthcare facilities to the map
 plet_map <- points(
   x = plet_map,                         # Use the existing map
-  y = health_facilities,                # Healthcare facilities as SpatVector
+  y = Facilities[[1]],                # Healthcare facilities as SpatVector
   col = "blue",                         # Point color
   cex = 1.5,                            # Point size magnifier
   popup = TRUE                          # Enable pop-ups for healthcare points

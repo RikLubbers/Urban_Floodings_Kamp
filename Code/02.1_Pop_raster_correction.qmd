@@ -32,10 +32,10 @@ library(terra)
 # Load data
 ```{r}
 # Read the population TIFF file
-pop_raster_total <- rast("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rPopulation/20240308161107/raw/UG_total.tif")
+pop_raster_total <- rast(here("Data/processed/Worldpop_density/worldpop_density_kampala.tif"))
 
 ## load the shapefile of the study area
-study_area <- vect("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp")
+study_area <- vect(here("Data/processed/Adm_boundaries/parishes_kampala.shp"))
 ```
 
 # Transform the projection of the population raster
@@ -44,35 +44,18 @@ study_area <- vect("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_A
 study_area <- project(study_area, crs(pop_raster_total))
 ```
 
-# Crop, disaggregate and mask the data to the extent of the study area
+# disaggregate the data to 10x10m resolution
 ```{r}
-# Crop the population raster to the extent of the study area first due to computational limitations
-## Crop the data to the extent of the study area with 2km extra on all sides
-study_area_buffer <- buffer(study_area, width = 2000)
-
-pop_raster_total <- crop(pop_raster_total, study_area_buffer)
-
 # disaggregate population data
 pop_total_10m <- disagg(pop_raster_total, c(10, 10))
 
 # Adjust the values in the 10x10m cells
 # Divide each cell by the number of new cells (10x10 grid = 100 cells)
 pop_total_10m <- pop_total_10m / 100
-
-## Mask the population raster to the extent of the study area
-pop_total_10m <- mask(pop_total_10m, study_area)
-
-# Project the population raster to the same projection as the original study area
-study_area <- vect("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp")
-
-pop_total_10m <- project(pop_total_10m, crs(study_area))
 ```
 
 # Save the data to new TIFF files
 ```{r}
-## Write the disaggregated data to a new TIFF file
-writeRaster(pop_total_10m, "C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rPopulation/20240308161107/processed/UG_total_10m.tif", overwrite = TRUE)
-
-# also save it to the zToAccessMod folder
+# Save it to the zToAccessMod folder
 writeRaster(pop_total_10m, "C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240319094916/UG_total_10m.tif", overwrite = TRUE)
 ```

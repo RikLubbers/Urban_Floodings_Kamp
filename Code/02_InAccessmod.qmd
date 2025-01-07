@@ -1,0 +1,148 @@
+# InAccessmod.qmd Documentation
+
+## Overview
+The `InAccessmod.qmd` file contains the data preparation code for the Accessmod tool.
+
+## Purpose
+The purpose of this file is to preprocess the input data required by the Accessmod tool. It performs various data cleaning, transformation, and aggregation tasks to ensure that the data is in the appropriate format for analysis.
+
+## Usage
+To use this file, follow these steps:
+1. Ensure that the required input data files are available.
+2. Open the `InAccessmod.qmd` file in a compatible code editor or environment.
+3. Review the code and make any necessary modifications based on your specific data requirements.
+4. Execute the code to preprocess the data.
+
+## Dependencies
+This file has dependencies on the `inAccessMod` package. Make sure to install the package using the `devtools::install_github` function before running the code.
+
+## Output
+The output of this file is the preprocessed data that can be used as input for the Accessmod tool.
+
+## Notes
+- It is recommended to review the code and documentation of the Accessmod tool to understand the expected input data format and any additional preprocessing steps that may be required.
+
+## References
+- [Accessmod Tool Documentation](https://www.accessmod.org/)
+
+# Install the inAccessMod package from GitHub & load the library
+```{r}
+# Set up renv for package management
+if (!requireNamespace("renv", quietly = TRUE)) {
+    install.packages("renv")
+} else {
+    message("renv is already installed.")
+}
+
+# Load the renv package
+library(renv)
+
+# Check if renv is already active, activate if not
+if (!renv::status()$synchronized) {
+    renv::activate()
+}
+
+# To restore the environment (for a collaborator)
+renv::restore()
+
+# Load the required libraries
+library(inAccessMod)
+library(terra)
+library(here)
+```
+
+# Initialize the project for Uganda
+```{r}
+# Set the main path for the project
+# This path will be used as the root directory for all input and output files related to the Accessmod tool
+mainPath <- here("AccessMod/InAccessMod")
+
+# Set the country name
+# This variable will be used to specify the country for which the analysis is being performed
+country <- "Uganda"
+```
+
+# Download or process the required input data for AccessMod
+## Administrative boundaries
+```{r}
+# Parish boundaries
+inputPath_adm <- here("C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_test/Data/processed/Adm_boundaries")
+copy_input(mainPath, country, inputPath_adm)
+```
+
+## Population data
+```{r}
+# Total population/women of reproductive age (WRA) population/under 5 population
+inputPath_pop <- here("Data/processed/Worldpop_density/worldpop_density_kampala.tif")
+copy_input(mainPath, country, inputPath_pop)
+```
+
+## Digital Elevation Model (DEM)
+```{r}
+inputPath_DEM <- here("Data/processed/DEM/dem30m_kampala.tif")
+copy_input(mainPath, country, inputPath_DEM)
+```
+
+## Land cover data
+```{r}
+inputPath_LC <- here("Data/processed/Landcover/landcover10m_kampala.tif")
+copy_input(mainPath, country, inputPath_LC)
+```
+
+## Health facilities data
+```{r}
+# Health facilities all/ hospitals only
+inputPath_HF <- here("Data/processed/Facilities")
+copy_input(mainPath, country, inputPath_HF)
+```
+
+## OpenStreetMap (OSM) data
+```{r}
+# Roads data
+inputPath_roads <- here("Data/processed/OSM_roads")
+copy_input(mainPath, country, inputPath_roads)
+```
+
+# Flood data
+```{r}
+inputPath_flood <- here("Data/processed/Flood_extents/Flood_extents_full")
+copy_input(mainPath, country, inputPath_flood)
+```
+
+# Water bodies data
+```{r}
+# Lakes and rivers data
+inputPath_water <- here("Data/processed/Waterbodies")
+copy_input(mainPath, country, inputPath_water)
+```
+
+# Set the projected coordinate reference system
+```{r}
+set_projection(mainPath, country, mostRecent = TRUE, alwaysSet = TRUE, bestCRS = TRUE)
+```
+
+# Process the input data for AccessMod This cannot be done for rasters using the `process_inputs` function as we need to do a manual disaggregation correction for the population data (see 02.pop_raster_correction.qmd.). 
+```{r}
+# Use this function to process the vector data (e.g. administrative boundaries, health facilities, OSM roads and waterbodies). No need to use this function for rasters as they are processed in the next step (therefore no extra settings are provided for rasters in this function).
+process_inputs(mainPath, country, mostRecent = TRUE, alwaysProcess = FALSE)
+
+# Process the population data
+## see 02. pop_raster_correction.qmd for the population data processing
+
+# Move to QGIS
+## Use the align raster tool to align all rasters from the processed data folder to the same crs and resolution as the population data
+
+# In QGIS clip the road data to the study area as this is not done by the process_inputs function
+
+# All these files are then saved from QGIS to the ztoaccessmod folder and can be used for the next steps and for AccessMod
+```
+
+# Compile all processed data for easier import into AccessMod
+```{r}
+# For vector data use the compile_processed_data function
+compile_processed_data(mainPath, country, mostRecent = FALSE)
+
+# For raster data save manually in ZtoAccessMod folder
+writeRaster(dem, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240319094916/DEM_10m.tif", overwrite = TRUE)
+writeRaster(landcover, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240319094916/landcover_10m.tif", overwrite = TRUE)
+```

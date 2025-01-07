@@ -1,0 +1,94 @@
+# This file is responsible for pre-processing all input data.
+# The raw data is transformed into processed data, which is then saved for further use.
+# Specifically, the data is cropped to the Kampala extent and assigned the correct Coordinate Reference System (CRS).
+
+# Load the necessary libraries
+```{r}
+# Set up renv for package management
+if (!requireNamespace("renv", quietly = TRUE)) {
+    install.packages("renv")
+} else {
+    message("renv is already installed.")
+}
+
+# Load the renv package
+library(renv)
+
+# Check if renv is already active, activate if not
+if (!renv::status()$synchronized) {
+    renv::activate()
+}
+
+# To restore the environment (for a collaborator)
+renv::restore()
+
+# Load the required libraries
+library(terra)
+library(here)
+library(Spatial.align)
+```
+
+```{r}
+# Load the raw data
+parishes <- vect(here("Data/raw/Adm_boundaries/PARISHES_2016_UTM_36N.shp"))
+dem30m <- rast(here("Data/raw/DEM/Uganda_SRTM30meters.tif"))
+facilities_all <- vect(here("Data/raw/Facilities/UG_HF_all.shp"))
+facilities_hosp <- vect(here("Data/raw/Facilities/UG_HF_hosp.shp"))
+landcover10m <- rast(here("Data/raw/Landcover/ESA_WorldCover_10m_2021_v200_N00E030_Map.tif"))
+osm_roads <- vect(here("Data/raw/OSM_roads/hotosm_uga_roads_lines.shp"))
+lakes <- vect(here("Data/raw/Waterbodies/HydroLAKES_polys_v10_shp/HydroLAKES_polys_v10.shp"))
+rivers <- vect(here("Data/raw/Waterbodies/HydroRIVERS_v10_af_shp/HydroRIVERS_v10_af.shp"))
+worldpop_density <- list.files(here("Data/raw/Worldpop_density"), pattern = "\\.tif$", full.names = TRUE) %>%
+  lapply(rast) %>%
+  {Reduce(`+`, .)}
+worldpop_dev_indicators <- here("Data/raw/Worldpop_dev_indicators") %>%
+  list.files(pattern = "MEAN\\.tif$", full.names = TRUE, recursive = TRUE) %>%
+  lapply(rast)
+```
+
+# Select only the parishes in Kampala as reference for cropping, crs and extent
+```{r}
+# Select only the parishes in Kampala
+parishes_kamp <- parishes[parishes$DName2016 == "KAMPALA",]
+
+# Save the parish boundaries for Kampala
+writeVector(parishes_kamp, here("Data/processed/Adm_boundaries/parishes_kampala.shp"), overwrite = TRUE)
+```
+
+# Spatial align all the other data to the extent of the parishes in Kampala
+```{r}
+dem30m <- align(dem30m, parishes_kamp)
+facilities_all <- align(facilities_all, parishes_kamp)
+facilities_hosp <- align(facilities_hosp, parishes_kamp)
+landcover10m <- align(landcover10m, parishes_kamp)
+osm_roads <- align(osm_roads, parishes_kamp)
+lakes <- align(lakes, parishes_kamp)
+rivers <- align(rivers, parishes_kamp)
+worldpop_density <- align(worldpop_density, parishes_kamp)
+worldpop_dev_indicators <- lapply(worldpop_dev_indicators, function(x) align(x, parishes_kamp))
+```
+
+# Save the processed data
+```{r}
+# Save the processed data
+# Define the base processed folder path
+processed_dir <- here("Data/processed")
+
+# Save the processed data in the respective subfolders
+writeRaster(dem30m, file.path(processed_dir, "DEM", "dem30m_kampala.tif"), overwrite = TRUE)
+writeVector(facilities_all, file.path(processed_dir, "Facilities", "facilities_all_kampala.shp"), overwrite = TRUE)
+writeVector(facilities_hosp, file.path(processed_dir, "Facilities", "facilities_hosp_kampala.shp"), overwrite = TRUE)
+writeRaster(landcover10m, file.path(processed_dir, "Landcover", "landcover10m_kampala.tif"), overwrite = TRUE)
+writeVector(osm_roads, file.path(processed_dir, "OSM_roads", "osm_roads_kampala.shp"), overwrite = TRUE)
+writeVector(lakes, file.path(processed_dir, "Waterbodies", "lakes_kampala.shp"), overwrite = TRUE)
+writeVector(rivers, file.path(processed_dir, "Waterbodies", "rivers_kampala.shp"), overwrite = TRUE)
+writeRaster(worldpop_density, file.path(processed_dir, "Worldpop_density", "worldpop_density_kampala.tif"), overwrite = TRUE)
+
+# Save each Worldpop development indicator raster in the respective folder based on the name of the raster
+lapply(worldpop_dev_indicators, function(raster) {
+    raster_name <- names(raster)
+    writeRaster(raster, 
+                            file.path(processed_dir, "Worldpop_dev_indicators", paste0(raster_name, "_kampala.tif")), 
+                            overwrite = TRUE)
+})
+```

@@ -1,0 +1,67 @@
+# Install packes
+```{r}
+# Set up renv for package management
+if (!requireNamespace("renv", quietly = TRUE)) {
+    install.packages("renv")
+} else {
+    message("renv is already installed.")
+}
+
+# Load the renv package
+library(renv)
+
+# Check if renv is already active, activate if not
+if (!renv::status()$synchronized) {
+    renv::activate()
+}
+
+# To restore the environment (for a collaborator)
+renv::restore()
+
+# Load the required libraries
+library(terra)
+library(here)
+library(tidyterra)
+```
+
+# Load the processed data data
+```{r}
+# Define the base data directory
+data_dir <- here("Data", "processed")
+
+# List of subdirectories containing geospatial data
+folders <- c("Adm_boundaries", "DEM", "Facilities", "Flood_extents", 
+             "Landcover", "OSM_roads", "Rainfall_estimation", 
+             "water_lines", "Worldpop_density", "Worldpop_dev_indicators")
+
+# Loop through each folder to load files
+for (folder in folders) {
+  folder_path <- file.path(data_dir, folder)
+  
+  # List all files in the folder
+  files <- list.files(folder_path, full.names = TRUE)
+  
+  # Load vector files (e.g., .shp, .geojson, .gpkg)
+  vector_files <- files[grepl("\\.(shp|geojson|gpkg)$", files, ignore.case = TRUE)]
+  if (length(vector_files) == 1) {
+    assign(folder, vect(vector_files[[1]]), envir = .GlobalEnv)
+    print(paste("Loaded single vector data into", folder))
+  } else if (length(vector_files) > 1) {
+    assign(folder, lapply(vector_files, vect), envir = .GlobalEnv)
+    print(paste("Loaded multiple vector data into", folder, "as a list"))
+  }
+  
+  # Load raster files (e.g., .tif, .vrt)
+  raster_files <- files[grepl("\\.(tif|vrt)$", files, ignore.case = TRUE)]
+  if (length(raster_files) == 1) {
+    assign(folder, rast(raster_files[[1]]), envir = .GlobalEnv)
+    print(paste("Loaded single raster data into", folder))
+  } else if (length(raster_files) > 1) {
+    assign(folder, lapply(raster_files, rast), envir = .GlobalEnv)
+    print(paste("Loaded multiple raster data into", folder, "as a list"))
+  }
+}
+
+# Remove redundant temporary objects
+rm(files, vector_files, raster_files, folder_path, folder, data_dir, folders)
+```

@@ -49,6 +49,7 @@ renv::restore()
 library(inAccessMod)
 library(terra)
 library(here)
+library(Spatial.align)
 ```
 
 # Initialize the project for Uganda
@@ -66,13 +67,13 @@ country <- "Uganda"
 ## Administrative boundaries
 ```{r}
 # Parish boundaries
-inputPath_adm <- here("C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_test/Data/processed/Adm_boundaries")
+inputPath_adm <- here("Data/processed/Adm_boundaries")
 copy_input(mainPath, country, inputPath_adm)
 ```
 
 ## Population data
 ```{r}
-# Total population/women of reproductive age (WRA) population/under 5 population
+# Total population
 inputPath_pop <- here("Data/processed/Worldpop_density/worldpop_density_kampala.tif")
 copy_input(mainPath, country, inputPath_pop)
 ```
@@ -91,7 +92,7 @@ copy_input(mainPath, country, inputPath_LC)
 
 ## Health facilities data
 ```{r}
-# Health facilities all/ hospitals only
+# Health facilities all/hospitals only
 inputPath_HF <- here("Data/processed/Facilities")
 copy_input(mainPath, country, inputPath_HF)
 ```
@@ -112,7 +113,7 @@ copy_input(mainPath, country, inputPath_flood)
 # Water bodies data
 ```{r}
 # Lakes and rivers data
-inputPath_water <- here("Data/processed/Waterbodies")
+inputPath_water <- here("Data/processed/Water_lines")
 copy_input(mainPath, country, inputPath_water)
 ```
 
@@ -126,15 +127,21 @@ set_projection(mainPath, country, mostRecent = TRUE, alwaysSet = TRUE, bestCRS =
 # Use this function to process the vector data (e.g. administrative boundaries, health facilities, OSM roads and waterbodies). No need to use this function for rasters as they are processed in the next step (therefore no extra settings are provided for rasters in this function).
 process_inputs(mainPath, country, mostRecent = TRUE, alwaysProcess = FALSE)
 
-# Process the population data
+# Process the population data and other rasters manually
 ## see 02. pop_raster_correction.qmd for the population data processing
 
-# Move to QGIS
-## Use the align raster tool to align all rasters from the processed data folder to the same crs and resolution as the population data
+dem <- rast(here("Data/processed/DEM/dem30m_kampala.tif"))
+landcover <- rast(here("Data/processed/Landcover/landcover10m_kampala.tif"))
 
-# In QGIS clip the road data to the study area as this is not done by the process_inputs function
+# Use crop, crs and res as masking will delete pixels with no data. To create pop_total_10m see 02. pop_raster_correction.qmd
+# Set CRS and crop for DEM and landcover
+crs(dem) <- crs(pop_total_10m)
+dem <- crop(dem, pop_total_10m)
+dem <- resample(dem, pop_total_10m, method = "bilinear")
 
-# All these files are then saved from QGIS to the ztoaccessmod folder and can be used for the next steps and for AccessMod
+crs(landcover) <- crs(pop_total_10m)
+landcover<- crop(landcover, pop_total_10m)
+landcover <- resample(landcover, pop_total_10m, method = "near")
 ```
 
 # Compile all processed data for easier import into AccessMod
@@ -143,6 +150,6 @@ process_inputs(mainPath, country, mostRecent = TRUE, alwaysProcess = FALSE)
 compile_processed_data(mainPath, country, mostRecent = FALSE)
 
 # For raster data save manually in ZtoAccessMod folder
-writeRaster(dem, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240319094916/DEM_10m.tif", overwrite = TRUE)
-writeRaster(landcover, "D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240319094916/landcover_10m.tif", overwrite = TRUE)
+writeRaster(dem, here("AccessMod/InAccessMod/Uganda/data/zToAccessMod/20250108115609/UG_DEM_kamp.tif"), overwrite = TRUE)
+writeRaster(landcover, here("AccessMod/InAccessMod/Uganda/data/zToAccessMod/20250108115609/UG_Landcover_kamp.tif"), overwrite = TRUE)
 ```

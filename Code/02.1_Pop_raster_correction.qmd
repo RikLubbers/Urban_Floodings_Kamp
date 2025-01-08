@@ -57,5 +57,5 @@ pop_total_10m <- pop_total_10m / 100
 # Save the data to new TIFF files
 ```{r}
 # Save it to the zToAccessMod folder
-writeRaster(pop_total_10m, "C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240319094916/UG_total_10m.tif", overwrite = TRUE)
+writeRaster(pop_total_10m, here("AccessMod/InAccessMod/Uganda/data/zToAccessMod/20250108115609/pop_total_10m.tif"), overwrite = TRUE)
 ```

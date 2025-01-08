@@ -26,6 +26,7 @@ renv::restore()
 library(terra)
 library(here)
 library(Spatial.align)
+library(tidyterra)
 ```
 
 ```{r}
@@ -36,8 +37,7 @@ facilities_all <- vect(here("Data/raw/Facilities/UG_HF_all.shp"))
 facilities_hosp <- vect(here("Data/raw/Facilities/UG_HF_hosp.shp"))
 landcover10m <- rast(here("Data/raw/Landcover/ESA_WorldCover_10m_2021_v200_N00E030_Map.tif"))
 osm_roads <- vect(here("Data/raw/OSM_roads/hotosm_uga_roads_lines.shp"))
-lakes <- vect(here("Data/raw/Waterbodies/HydroLAKES_polys_v10_shp/HydroLAKES_polys_v10.shp"))
-rivers <- vect(here("Data/raw/Waterbodies/HydroRIVERS_v10_af_shp/HydroRIVERS_v10_af.shp"))
+water_lines <- vect(here("Data/raw/Water_lines/Kamp_rivers_streams_canals.shp"))
 worldpop_density <- list.files(here("Data/raw/Worldpop_density"), pattern = "\\.tif$", full.names = TRUE) %>%
   lapply(rast) %>%
   {Reduce(`+`, .)}
@@ -62,10 +62,98 @@ facilities_all <- align(facilities_all, parishes_kamp)
 facilities_hosp <- align(facilities_hosp, parishes_kamp)
 landcover10m <- align(landcover10m, parishes_kamp)
 osm_roads <- align(osm_roads, parishes_kamp)
-lakes <- align(lakes, parishes_kamp)
-rivers <- align(rivers, parishes_kamp)
+water_lines <- align(water_lines, parishes_kamp)
 worldpop_density <- align(worldpop_density, parishes_kamp)
 worldpop_dev_indicators <- lapply(worldpop_dev_indicators, function(x) align(x, parishes_kamp))
+```
+
+
+# Clean the data 
+## Clean and prepare landcover data
+```{r}
+# Reclassify Landcover
+reclass_matrix <- matrix(c(
+  0, 19.999999, 10,
+  20, 29.999999, 20,
+  30, 39.999999, 30,
+  40, 49.999999, 40,
+  50, 59.999999, 50,
+  60, 69.999999, 60,
+  70, 79.999999, 70,
+  80, 89.999999, 80,
+  90, 94.999999, 90,
+  95, 99.999999, 95,
+  100, 999.999999, 100
+), ncol = 3, byrow = TRUE)
+
+
+landcover10m <- classify(landcover10m, reclass_matrix)
+
+# Ensure the landcover is treated as categorical
+landcover10m <- as.factor(landcover10m)
+
+# Rename the landcover categories
+levels(landcover10m)[[1]]$ID <- c(
+  "10" = "Tree cover",
+  "20" = "Shrubland",
+  "30" = "Grassland",
+  "40" = "Cropland",
+  "50" = "Built-up",
+  "60" = "Bare / sparse vegetation",
+  "70" = "Snow and Ice",
+  "80" = "Permanent water bodies",
+  "90" = "Herbaceous wetland",
+  "95" = "Mangroves",
+  "100" = "Moss and lichen"
+)
+```
+
+## Clean & Prepare the facility data
+```{r}	
+# Clean Health Facilities
+facilities_all <- facilities_all %>%
+  rename_with(~ gsub(" ", "_", .))
+
+facilities_all$Facility_t <- factor(
+  facilities_all$Facility_t,
+  levels = c(
+    "Health Centre II",
+    "Health Centre III",
+    "Health Centre IV",
+    "Hospital",
+    "Regional Referral Hospital",
+    "National Referral Hospital"
+  )
+)
+
+facilities_hosp <- facilities_hosp %>%
+  rename_with(~ gsub(" ", "_", .))
+
+facilities_hosp$Facility_t <- factor(
+  facilities_hosp$Facility_t,
+  levels = c(
+    "Hospital",
+    "Regional Referral Hospital",
+    "National Referral Hospital"
+  )
+)
+```
+
+## Make selection of OSM roads
+```{r}
+# Select specific categories of highways from OSM roads
+osm_roads <- osm_roads[osm_roads$highway %in% c("motorway", "motorway_link", "primary", "primary_link", 
+                                                "secondary", "secondary_link", "tertiary", "tertiary_link", 
+                                                "trunk", "trunk_link"), ]
+
+# Refactor all links into their respective main road type (e.g., motorway_link -> motorway)
+osm_roads$highway <- factor(gsub("_link", "", osm_roads$highway))
+```
+
+## Make selection of water lines
+```{r}
+# Select only the water lines that are rivers, streams or canals
+water_lines <- water_lines[water_lines$waterway %in% c("river", "stream", "canal"), ]
 ```
 
 # Save the processed data
@@ -80,8 +168,7 @@ writeVector(facilities_all, file.path(processed_dir, "Facilities", "facilities_a
 writeVector(facilities_hosp, file.path(processed_dir, "Facilities", "facilities_hosp_kampala.shp"), overwrite = TRUE)
 writeRaster(landcover10m, file.path(processed_dir, "Landcover", "landcover10m_kampala.tif"), overwrite = TRUE)
 writeVector(osm_roads, file.path(processed_dir, "OSM_roads", "osm_roads_kampala.shp"), overwrite = TRUE)
-writeVector(lakes, file.path(processed_dir, "Waterbodies", "lakes_kampala.shp"), overwrite = TRUE)
-writeVector(rivers, file.path(processed_dir, "Waterbodies", "rivers_kampala.shp"), overwrite = TRUE)
+writeVector(water_lines, file.path(processed_dir, "Water_lines", "water_lines_kamp.shp"), overwrite = TRUE)
 writeRaster(worldpop_density, file.path(processed_dir, "Worldpop_density", "worldpop_density_kampala.tif"), overwrite = TRUE)
 
 # Save each Worldpop development indicator raster in the respective folder based on the name of the raster

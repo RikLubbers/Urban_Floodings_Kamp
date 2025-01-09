@@ -130,12 +130,10 @@ flood_list <- lapply(flood_list, function(x) {
 merged_landcovers <- list()
 
 # Base MLC file path
-MLC0 <- rast("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers/raster_land_cover_merged_MLC0_major_roads_10m/raster_land_cover_merged_MLC0_major_roads_10m.img")
+MLC0 <- rast(here("Data/processed/Merged_landcovers/raster_land_cover_merged_MLC0.img"))
 
 # Load landcover raster to set projection
-landcover <- rast("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/zToAccessMod/20240319094916/landcover_10m.tif")
-
-crs(landcover)
+landcover <- rast(here("AccessMod/InAccessMod/Uganda/data/zToAccessMod/20250108115609/UG_Landcover_kamp.tif"))
 
 crs(MLC0) <- crs(landcover)
 
@@ -154,20 +152,36 @@ for (i in 1:length(flood_list)) {
     flood_extent_rast <- terra::rasterize(flood_extent, landcov, "class", touches = TRUE) # rasterize water polygons
     values(flood_extent_rast)[values(flood_extent_rast) == 0] <- NA # make background value NA
     landcover_merge <- terra::merge(flood_extent_rast, landcov) # merge landcover and water raster
-    writeRaster(landcover_merge, paste0("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers/MLC_", flood_extents_names[i], ".tif"), overwrite = T) # write merged landcover to file
+    writeRaster(landcover_merge, here("Data", "processed", "Merged_landcovers", paste0("MLC_", flood_extents_names[i], ".tif")), overwrite = TRUE)
 }
 ```
 
 # Prepare merged landcover layers for plotting
 ```{r}	
 # Load all merged landcovers from the Merged landcovers folder
-merged_landcovers <- list.files(path = "C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers", pattern = "\\.tif$", full.names = TRUE, recursive = TRUE) %>%
+merged_landcovers <- list.files(path = here("Data", "processed", "Merged_landcovers"), pattern = "\\.tif$", full.names = TRUE, recursive = TRUE) %>%
     lapply(terra::rast)
 
 # Name the MLC extents in merged_landcovers based on their subfolder name
-merged_landcovers_names <- list.files(path = "C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers", pattern = "\\.tif$", full.names = F, recursive = TRUE)
+merged_landcovers_names <- list.files(path = here("Data", "processed", "Merged_landcovers"), pattern = "\\.tif$", full.names = FALSE, recursive = TRUE)
 
-merged_landcovers_names <- gsub("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Merged landcovers/MLC_", "", merged_landcovers_names)
+# Order the merged landcovers from low to high (20 to 100 mm)
+# Extract flood depths and durations from file names
+flood_depths <- as.numeric(sub(".*_flood_([0-9]+)_.*", "\\1", merged_landcovers_names))
+durations <- as.numeric(sub(".*_([0-9]+)\\.tif$", "\\1", merged_landcovers_names))
+
+# Replace NA for non-matching files (e.g., "MLC_Flood_extents_full.tif") with a large number
+flood_depths[is.na(flood_depths)] <- Inf
+durations[is.na(durations)] <- Inf
+
+# Reorder the file names based on flood depth and then by duration
+merged_landcovers_names <- merged_landcovers_names[order(flood_depths, durations, merged_landcovers_names)]
+
+# Remove "MLC_Flood_extents_full.tif" and NA from the list
+merged_landcovers_names <- merged_landcovers_names[!grepl("full", merged_landcovers_names) & !is.na(merged_landcovers_names)]
+
+# Reorder the merged_landcovers list based on the same rules
+merged_landcovers <- merged_landcovers[order(flood_depths, durations)]
 
 # Load all merged landcovers as separate objects
 for (i in 1:length(merged_landcovers)) {
@@ -176,8 +190,8 @@ for (i in 1:length(merged_landcovers)) {
 
 # Define legend colours and names
 legend_colour <- data.frame(
-    value = c(1, 2, 3, 10, 20, 30, 40, 50, 60, 80, 90, 1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009),
-    color = c("#169FFB", "#3C3CCF", "#170AA6", "#A8E16E", "#FFB400", "#FFFF1B", "#D7B5D8", "#FF0000", "#30123B", "#0312DC", "#15C44C", "#DE0004", "#CF5052", "#CE0FA4", "#CA0FA4", "#336CE6", "#336CE6", "#34EF05", "#34EF05", "#333333", "#333333")
+    value = c(1, 2, 3, 10, 20, 30, 40, 50, 60, 80, 90, 1001, 1002, 1003, 1004, 1005),
+    color = c("#169FFB", "#3C3CCF", "#170AA6", "#A8E16E", "#FFB400", "#FFFF1B", "#D7B5D8", "#FF0000", "#30123B", "#0312DC", "#15C44C", "#DE0004", "#CE0FA4", "#336CE6", "#34EF05", "#333333")
 )
 
 legend_names <- c(
@@ -193,19 +207,11 @@ legend_names <- c(
     "Water Bodies",
     "Herbaceous wetland",
     "Trunk",
-    "Trunk link",
     "Primary",
-    "Primary Link",
     "Motorway",
-    "Motorway Link",
     "Secondary",
-    "Secondary link",
-    "Tertiary",
-    "Tertiary link"
+    "Tertiary"
 )
-
-# Create list of MLC names
-MLC_names <- c(MLC_flood_20_3600, MLC_flood_20_10800, MLC_flood_20_21600, MLC_flood_40_3600, MLC_flood_40_10800, MLC_flood_40_21600, MLC_flood_60_3600, MLC_flood_60_10800, MLC_flood_60_21600, MLC_flood_80_3600, MLC_flood_80_10800, MLC_flood_80_21600, MLC_flood_100_3600, MLC_flood_100_10800, MLC_flood_100_21600)
 
 # Create a data frame to define levels
 levels_df <- data.frame(
@@ -214,17 +220,17 @@ levels_df <- data.frame(
 )
 
 # Assign levels to the factorized raster
-MLC_names <- lapply(MLC_names, function(r) {
-  levels(r) <- levels_df
-  r
+merged_landcovers <- lapply(merged_landcovers, function(r) {
+    levels(r) <- levels_df
+    r
 })
 
-MLC_names <- lapply(MLC_names, function(r) {
-  # Convert each raster to a factor
-  as.factor(r)
+merged_landcovers <- lapply(merged_landcovers, function(r) {
+    # Convert each raster to a factor
+    as.factor(r)
 })
 
-names(MLC_names) <- c("20 mm / 1hr", "20 mm / 3hr", "20 mm / 6hr", "40 mm / 1hr", "40 mm / 3hr", "40 mm / 6hr", "60 mm / 1hr", "60 mm / 3hr", "60 mm / 6hr", "80 mm / 1hr", "80 mm / 3hr", "80 mm / 6hr", "100 mm / 1hr", "100 mm / 3hr", "100 mm / 6hr")
+names(merged_landcovers) <- c("20 mm / 1hr", "20 mm / 3hr", "20 mm / 6hr", "40 mm / 1hr", "40 mm / 3hr", "40 mm / 6hr", "60 mm / 1hr", "60 mm / 3hr", "60 mm / 6hr", "80 mm / 1hr", "80 mm / 3hr", "80 mm / 6hr", "100 mm / 1hr", "100 mm / 3hr", "100 mm / 6hr")
 
 # Define color_mapping
 color_mapping <- setNames(legend_colour$color, legend_colour$value)
@@ -233,76 +239,50 @@ color_mapping <- setNames(legend_colour$color, legend_colour$value)
 
 # Load and prepare Health Facilities
 ```{r}
-health_facilities <- vect("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/Facilities/suhsharan_health_facilities_UG/UG_HF_all.shp")
-
-# Align the health facilities data to MLC
-health_facilities <- align(health_facilities, MLC_flood_20_3600, show_plot = FALSE)
+# Load health facilities from the processed folder
+hf_all <- vect(here("Data", "processed", "Facilities", "facilities_all_kampala.shp"))
+hf_hosp <- vect(here("Data", "processed", "Facilities", "facilities_hosp_kampala.shp"))
 ```	
 
 # Plot
 ```{r}
 # Define the output folder
-output_folder <- "C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Figures/MLC_floodings"  # Specify the folder to save plots
+output_folder <- here("Figures/MLC_floodings") # Specify the folder to save plots
 dir.create(output_folder, showWarnings = FALSE, recursive = TRUE)  # Create the folder automatically if it doesn't exist
 
 # Generate and save plots
-plots <- lapply(seq_along(MLC_names), function(i) {
+plots <- lapply(seq_along(merged_landcovers), function(i) {
     # Generate the plot
-    plot <- autoplot(MLC_names[[i]]) +
-        geom_sf(data = health_facilities, color = "black", size = 5, shape = 21, fill = "purple") +  # Add health facilities
+    plot <- autoplot(merged_landcovers[[i]]) +
+        geom_sf(data = hf_all, color = "black", size = 5, shape = 21, fill = "purple") +
         scale_fill_manual(
-            values = setNames(legend_colour$color, legend_colour$value),  # Map colors to values
-            labels = legend_names,  # Use correct legend names
+            values = setNames(legend_colour$color, legend_colour$value),
+            labels = legend_names,
             name = "Landcover Type",
             na.translate = FALSE,
             na.value = "transparent"
         ) +
-        # Add scale bar
-        annotation_scale(
-            location = "bl", 
-            width_hint = 0.3,
-            text_cex = 2,  # Increase text size
-            pad_y = unit(11, "cm"),  # Move scale bar up
-            pad_x = unit(1, "cm")   # Move scale bar right
-        ) +
-        # Add north arrow
-        annotation_north_arrow(
-            location = "tr", 
-            which_north = "true",
-            style = north_arrow_fancy_orienteering,  # Fancy orienteering style
-            height = unit(4, "cm"),  # Increase size
-            width = unit(4, "cm")
-        ) +
-        # Add source annotation
-        annotate(
-            "text", 
-            x = Inf, y = -Inf, 
-            label = "Source: Authors", 
-            hjust = 1.1, vjust = -0.5,  # Adjust position
-            size = 5, fontface = "italic"
-        ) +
-        labs(title = names(MLC_names)[i]) +  # Use object name as title
+        annotation_scale(location = "bl", width_hint = 0.3, text_cex = 2, pad_y = unit(11, "cm"), pad_x = unit(1, "cm")) +
+        annotation_north_arrow(location = "tr", which_north = "true", style = north_arrow_fancy_orienteering, height = unit(4, "cm"), width = unit(4, "cm")) +
+        annotate("text", x = Inf, y = -Inf, label = "Source: Authors", hjust = 1.1, vjust = -0.5, size = 5, fontface = "italic") +
+        labs(title = names(merged_landcovers)[i]) +
         theme_minimal() +
         theme(
             axis.text = element_blank(),
             axis.title = element_blank(),
-            legend.position = c(0.25, 0.13),  # Bottom-left corner (normalized coordinates)
+            legend.position = c(0.25, 0.13),
             legend.title = element_text(size = 20, face = "bold"),
             legend.text = element_text(size = 18),
             plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),
-            legend.background = element_rect(fill = "white", color = "black", linewidth = 0.5),  # Add box around legend
-            panel.border = element_rect(color = "black", fill = NA, linewidth = 1)  # Add border around the plot
+            legend.background = element_rect(fill = "white", color = "black", linewidth = 0.5),
+            panel.border = element_rect(color = "black", fill = NA, linewidth = 1)
         )
-    
-    # Rename the title to replace `/` with `X` and remove extra spaces
-    original_title <- names(MLC_names)[i]
-    renamed_title <- gsub(" / ", "X", trimws(original_title))  # Replace " / " with "X" and trim spaces
-    
-    # Save the plot as a file
-    file_name <- paste0(output_folder, "/", renamed_title, ".png")  # Construct file name
-    ggsave(filename = file_name, plot = plot, width = 24, height = 16, dpi = 1000)  # Save the plot as PNG
-    
-    return(plot)  # Return the plot object if needed
+
+    # Save the plot
+    file_name <- paste0(output_folder, "/", gsub(" / ", "X", trimws(names(merged_landcovers)[i])), ".png")
+    ggsave(filename = file_name, plot = plot, width = 24, height = 16, dpi = 1000)
+
+    return(plot)
 })
 
 # Split plots into three groups

@@ -139,19 +139,27 @@ crs(MLC0) <- crs(landcover)
 
 ## Iterate through each flood extent in the flood list and create merged landcover layers for each flood scenario
 for (i in 1:length(flood_list)) {
-    landcov <- MLC0 # load landcover raster
-    flood_extent <- flood_list[[i]] %>% # load water polygons
+    landcov <- MLC0 # Load base landcover raster
+    flood_extent <- flood_list[[i]] %>% # Load water polygons
         mutate(class = case_when(
-            threshold == 0.1 ~ 1,
+            threshold == 0.1 ~ 1, # Assign classes based on thresholds
             threshold == 0.2 ~ 2,
             threshold == 0.3 ~ 3,
             TRUE ~ NA_real_
-        )) %>% # assign classes based on threshold values
-        as(., "Spatial") %>% # convert to sp object
-        vect() # convert to terra object
-    flood_extent_rast <- terra::rasterize(flood_extent, landcov, "class", touches = TRUE) # rasterize water polygons
-    values(flood_extent_rast)[values(flood_extent_rast) == 0] <- NA # make background value NA
-    landcover_merge <- terra::merge(flood_extent_rast, landcov) # merge landcover and water raster
+        )) %>% 
+        as(., "Spatial") %>% # Convert to sp object
+        vect() # Convert to terra object
+
+    # Rasterize flood extent
+    flood_extent_rast <- terra::rasterize(flood_extent, landcov, "class", touches = TRUE)
+
+    # Preserve NA values from the base raster to prevent creating artificial "bridges"
+    flood_extent_rast <- mask(flood_extent_rast, landcov, inverse = FALSE) 
+
+    # Merge landcover and water raster while preserving NAs
+    landcover_merge <- terra::cover(flood_extent_rast, landcov) 
+
+    # Write the merged raster to file
     writeRaster(landcover_merge, here("Data", "processed", "Merged_landcovers", paste0("MLC_", flood_extents_names[i], ".tif")), overwrite = TRUE)
 }
 ```

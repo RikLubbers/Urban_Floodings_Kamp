@@ -153,7 +153,7 @@ base_tt_all %>%
         nr = 5, nc = 3,  # Grid layout (5 rows, 3 columns)
         axes = FALSE,  # Remove axes and labels
         box = TRUE,  # Keep the plot box
-        main = "Baseline Healthcare Accessibility in Travel Time (minutes)",  # Improved title
+        main = "Baseline Healthcare Accessibility in Travel Time (minutes)\n to All Facilities (Public/PNFP)",
         legend = FALSE,
         cex.main = 1.5,  # Adjust title font size
     ) %>%
@@ -172,6 +172,37 @@ base_tt_all %>%
             ncol = 2
         )
     } 
+
+# [OPTIONAL] Save the plot as a PNG.
+# Save the plot as a PNG
+# png(here("Figures/base_tt_all.png"), width = 40, height = 60, units = "cm", res = 1000)
+# base_tt_all %>%
+    plot(
+        col = colorRampPalette(turbo(8))(8),  # Using turbo for stronger contrast
+        breaks = c(0, 15, 30, 45, 60, 90, 120, 180, Inf),  # Define travel time breaks
+        nr = 5, nc = 3,  # Grid layout (5 rows, 3 columns)
+        axes = FALSE,  # Remove axes and labels
+        box = TRUE,  # Keep the plot box
+        main = "Baseline Healthcare Accessibility in Travel Time (minutes)\n to All Facilities (Public/PNFP)",
+        legend = FALSE,
+        cex.main = 1.5,  # Adjust title font size
+    ) %>%
+    { grid(nx = NULL, ny = NULL, col = "lightgray", lty = "dashed", lwd = 0.5) } %>%
+    {
+        legend(
+            x = "bottomleft",  # Reposition legend to bottom left
+            inset = c(0.12, 0.02),  # Slight inset to avoid clipping
+            legend = c( "0-15 min", "15-30 min", "30-45 min", "45-60 min", 
+                        "60-90 min", "90-120 min", "120-180 min", ">180 min"),  # Custom travel time labels
+            fill = colorRampPalette(viridis::turbo(8))(8),  # Matching the turbo color ramp
+            bg = "white",  # Set white background for legend
+            cex = 1.4,  # Adjust text size in the legend
+            x.intersp = 0.6,  # Reduce horizontal space in the legend
+            title = "Travel Time Categories (walking)",  # Improved legend title
+            ncol = 2
+        )
+    } 
+# dev.off()
 
 # Create delta travel time rasters
 delta_tt_all_20_3600 <- base_tt_all - flood_tt_all_20_3600
@@ -204,7 +235,6 @@ rm(list = setdiff(ls(), c("x_delta", "delta_tt_all_100_10800", "delta_tt_all_100
 
 ## Plotting the delta travel time rasters
 ```{r}
-# Create a grid of the plots
 gridplot_delta_tt <- panel(x_delta,
     col = data.frame(
         from = c(-Inf, -180, -120, -90, -60, -45, -30, -15, -0.01),  # Negative time differences
@@ -215,42 +245,54 @@ gridplot_delta_tt <- panel(x_delta,
     axes = FALSE,              # Hide the axes for a cleaner grid
     box = TRUE,                # Add box around each plot for clarity
     grid = TRUE,               # Draw gridlines to distinguish between plots
+    main = names(x_delta),      # Add titles to each plot
+    loc.main = "bottom",          # Position the titles at the top of each plot
 )
 
+# Add a custom legend with a title
+legend("topright", legend = c("-180 to -120", "-120 to -90", "..."),
+       fill = rev(colorRampPalette(turbo(9))(9)), 
+       title = "Time Difference (mins)")
+
+# Add a main title to the grid plot
+mtext("Delta Travel Time Accessibility Analysis for\n All Public/PFNP Facilities under different Flooding Scenarios", side = 3, line = 3, cex = 1.5)
+
 # Plot using ggplot2's autoplot() method from tidyterra
-autoplot(x_delta, nrow = 5, ncol = 3) +
+gridplot_delta_tt = autoplot(x_delta, nrow = 5, ncol = 3) +
     scale_fill_stepsn(
-        colours = viridisLite::magma(8),  # Reversed the magma color palette with 8 steps
-        name = "Delta Travel Time Categories (walking)",  # Improved legend title
+        colours = rev(colorRampPalette(turbo(9))(9)),  # Reversed turbo color palette with 9 steps
+        name = "Delta Travel Time\nCategories (walking)",  # Improved legend title
         breaks = c(-180, -120, -90, -60, -45, -30, -15, 0),  # Custom breaks
-        labels = c(">-180 min", "-120-180 min", "-90-120 min", "-60-90 min", 
-                             "-45-60 min", "-30-45 min", "-15-30 min", "-0-15 min"),  # Custom legend labels
-        na.value = "transparent"  # Hide NAs by making them transparent
+        labels = c(">-180 min", "-180 to -120 min", "-120 to -90 min", 
+                   "-90 to -60 min", "-60 to -45 min", "-45 to -30 min", 
+                   "-30 to -15 min", "-15 to 0 min"),  # Legend labels
+        na.value = "transparent",  # Hide NAs by making them transparent
+        limits = c(-180, 0),  # Explicitly set limits to match breaks
     ) +
     theme_minimal() +
     theme(
-        legend.position = "bottom",  # Move the legend to the bottom
+        legend.position = "right",  # Move the legend to the bottom
         legend.title = element_text(size = 12),  # Increase legend title font size
         legend.text = element_text(size = 10),  # Increase legend label font size
         legend.key.width = unit(1.5, "cm"),  # Adjust width of legend keys
         legend.key.height = unit(0.5, "cm"),  # Adjust height of legend keys
-        legend.spacing.x = unit(1.5, 'cm'),  # Increase spacing between legend items to avoid overlap
+        legend.spacing.x = unit(1.5, 'cm'),  # Increase spacing between legend items
         axis.text = element_blank(),  # Remove axis text
         axis.title = element_blank(),  # Remove axis titles
         panel.grid.major = element_line(color = "gray80", size = 0.5),  # Add major gridlines
         panel.grid.minor = element_line(color = "gray90", size = 0.25),  # Add minor gridlines
         strip.background = element_rect(fill = "white")  # Add white background to facet labels
-        ) +
-        guides(
-        fill = guide_legend(title.position = "top", nrow = 3, byrow = FALSE),  # Move legend title to top and arrange items
-        ) +
-    ggtitle("Delta Travel Time Accessibility Analysis")
+    ) +
+    guides(
+        fill = guide_coloursteps(title.position = "top", nrow = 3, byrow = FALSE)  # Use guide_coloursteps for binned scales
+    ) +
+    ggtitle("Delta Travel Time Accessibility Analysis for All Public/PFNP Facilities under different Flooding Scenarios")
 
 
 # [OPTIONAL] save the gridplot as a png
-    # png(here("Plots/delta_tt_all_scenarios.png"), width = 40, height = 60, units = "cm", res = 1000)
-    # print(gridplot_delta_tt)
-    # dev.off()
+   # png(here("Figures/delta_tt_all_scenarios.png"), width = 40, height = 60, units = "cm", res = 1000)
+   # print(gridplot_delta_tt)
+   # dev.off()
 
 # Selected scenarios only (20mm x 6 hours and 100 mm x 1hour)
 x_selected <- c(delta_tt_all_20_21600, delta_tt_all_100_3600)
@@ -403,6 +445,35 @@ rm(list = setdiff(ls(), c("x_hosp", "flood_tt_hosp_100_10800", "flood_tt_hosp_10
 # Load base hospital travel time raster
 base_tt_hosp <- rast(here("AccessMod/Output/Base/raster_travel_time_Base_hosp/raster_travel_time_Base_hosp.img"))
 
+# Plot the SpatRaster with no axis labels or tick marks, but with a box
+base_tt_hosp %>%
+    plot(
+        col = colorRampPalette(turbo(8))(8),  # Using turbo for stronger contrast
+        breaks = c(0, 15, 30, 45, 60, 90, 120, 180, Inf),  # Define travel time breaks
+        nr = 5, nc = 3,  # Grid layout (5 rows, 3 columns)
+        axes = FALSE,  # Remove axes and labels
+        box = TRUE,  # Keep the plot box
+        main = "Baseline Healthcare Accessibility in Travel Time (minutes) to Public/PNFP Hospitals",
+        legend = FALSE,
+        cex.main = 1.5,  # Adjust title font size
+    ) %>%
+    { grid(nx = NULL, ny = NULL, col = "lightgray", lty = "dashed", lwd = 0.5) } %>%
+    {
+        legend(
+            x = "bottomleft",  # Reposition legend to bottom left
+            inset = c(0.12, 0.02),  # Slight inset to avoid clipping
+            legend = c( "0-15 min", "15-30 min", "30-45 min", "45-60 min", 
+                        "60-90 min", "90-120 min", "120-180 min", ">180 min"),  # Custom travel time labels
+            fill = colorRampPalette(viridis::turbo(8))(8),  # Matching the turbo color ramp
+            bg = "white",  # Set white background for legend
+            cex = 1.4,  # Adjust text size in the legend
+            x.intersp = 0.6,  # Reduce horizontal space in the legend
+            title = "Travel Time Categories (walking)",  # Improved legend title
+            ncol = 2
+        )
+    }
+
+
 # Create delta travel time rasters for hospitals only
 delta_tt_hosp_20_3600 <- base_tt_hosp - flood_tt_hosp_20_3600
 delta_tt_hosp_20_10800 <- base_tt_hosp - flood_tt_hosp_20_10800
@@ -431,18 +502,56 @@ names(x_hosp) <- c("20mm / 1hr", "20mm / 3hr", "20mm / 6hr", "40mm / 1hr", "40mm
 # Create a grid of the plots
 gridplot_delta_tt_hosp <- panel(x_hosp,
     col = data.frame(
-        from = c(-Inf, -180, -120, -90, -60, -45, -30, -15, -0.01),
-        to = c(-180, -120, -90, -60, -45, -30, -15, -1, 0),
-        color = rev(colorRampPalette(turbo(9))(9))
+        from = c(-Inf, -180, -120, -90, -60, -45, -30, -15, -0.01),  # Negative time differences
+        to = c(-180, -120, -90, -60, -45, -30, -15, -1, 0),          # Matching the color breaks
+        color = rev(colorRampPalette(turbo(9))(9))                   # Matching the turbo color palette
     ),
-    nr = 5, nc = 3,
-    axes = FALSE
+    nr = 5, nc = 3,            # Define number of rows and columns
+    axes = FALSE,              # Hide the axes for a cleaner grid
+    box = TRUE,                # Add box around each plot for clarity
+    grid = TRUE,               # Draw gridlines to distinguish between plots
+    main = names(x_hosp),      # Add titles to each plot
+    loc.main = "bottom",       # Position the titles at the bottom of each plot
 )
 
+# Add a main title to the grid plot
+mtext("Delta Travel Time Accessibility Analysis for\n Public/PNFP Hospitals under different Flooding Scenarios", side = 3, line = 3, cex = 1.5)
+
+# Plot using ggplot2's autoplot() method from tidyterra
+gridplot_delta_tt_hosp = autoplot(x_hosp, nrow = 5, ncol = 3) +
+    scale_fill_stepsn(
+        colours = rev(colorRampPalette(turbo(9))(9)),  # Reversed turbo color palette with 9 steps
+        name = "Delta Travel Time\nCategories (walking)",  # Improved legend title
+        breaks = c(-180, -120, -90, -60, -45, -30, -15, 0),  # Custom breaks
+        labels = c(">-180 min", "-180 to -120 min", "-120 to -90 min", 
+                   "-90 to -60 min", "-60 to -45 min", "-45 to -30 min", 
+                   "-30 to -15 min", "-15 to 0 min"),  # Legend labels
+        na.value = "transparent",  # Hide NAs by making them transparent
+        limits = c(-180, 0),  # Explicitly set limits to match breaks
+    ) +
+    theme_minimal() +
+    theme(
+        legend.position = "right",  # Move the legend to the right
+        legend.title = element_text(size = 12),  # Increase legend title font size
+        legend.text = element_text(size = 10),  # Increase legend label font size
+        legend.key.width = unit(1.5, "cm"),  # Adjust width of legend keys
+        legend.key.height = unit(0.5, "cm"),  # Adjust height of legend keys
+        legend.spacing.x = unit(1.5, 'cm'),  # Increase spacing between legend items
+        axis.text = element_blank(),  # Remove axis text
+        axis.title = element_blank(),  # Remove axis titles
+        panel.grid.major = element_line(color = "gray80", size = 0.5),  # Add major gridlines
+        panel.grid.minor = element_line(color = "gray90", size = 0.25),  # Add minor gridlines
+        strip.background = element_rect(fill = "white")  # Add white background to facet labels
+    ) +
+    guides(
+        fill = guide_coloursteps(title.position = "top", nrow = 3, byrow = FALSE)  # Use guide_coloursteps for binned scales
+    ) +
+    ggtitle("Delta Travel Time Accessibility Analysis for Public/PNFP Hospitals under different Flooding Scenarios")
+
 # [OPTINAL] Save the gridplot as a png
-    # png("D:/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Plots/delta_tt_hosp_scenarios.png", width = 40, height = 60, units = "cm", res = 1000)
-    # print(gridplot_delta_tt_hosp)
-    # dev.off()
+    png(here("Figures/delta_tt_hosp_scenarios.png"), width = 40, height = 60, units = "cm", res = 300)
+    print(gridplot_delta_tt_hosp)
+    dev.off()
 
 # Remove redundant objects from the environment
 rm(list = setdiff(ls(), c("x_hosp", "delta_tt_hosp_100_10800", "delta_tt_hosp_100_21600", "delta_tt_hosp_100_3600", "delta_tt_hosp_20_10800", "delta_tt_hosp_20_21600", "delta_tt_hosp_20_3600", "delta_tt_hosp_40_10800", "delta_tt_hosp_40_21600", "delta_tt_hosp_40_3600", "delta_tt_hosp_60_10800", "delta_tt_hosp_60_21600", "delta_tt_hosp_60_3600", "delta_tt_hosp_80_10800", "delta_tt_hosp_80_21600", "delta_tt_hosp_80_3600", "gridplot_delta_tt_hosp")))

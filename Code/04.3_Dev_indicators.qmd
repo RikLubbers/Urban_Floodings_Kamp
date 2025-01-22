@@ -29,183 +29,115 @@ library(viridis)
 library(rasterVis)
 library(tidyterra)
 library(patchwork)
+library(here)
 ```
 
 ## Data Loading and Handling
 
 ```{r}
-# {r} code block for loading and handling data
-# Set the directory path
-folder_path_dev <- "C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/World_Pop_development_indicators/UGA_Maternal_and_child_health"
-folder_path_dev1 <- "C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/World_Pop_development_indicators/UGA_Maternal_and_child_socioeconomic"
-folder_path_pop <- "C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/RAW/WorldPop_density/Inaccessmod"
+# Define folder path and load raster files
+folder_path_dev <- here("Data", "processed", "Worldpop_dev_indicators")
+tif_files_dev <- list.files(folder_path_dev, pattern = "\\.tif$", full.names = TRUE)
 
-# List all .tif files in the directory
-tif_files_dev <- list.files(path = folder_path_dev, pattern = "\\.tif$", full.names = TRUE)
-tif_files_dev1 <- list.files(path = folder_path_dev1, pattern = "\\.tif$", full.names = TRUE)
-tif_files_pop <- list.files(path = folder_path_pop, pattern = "\\.tif$", full.names = TRUE)
+# Load the mean raster files
+raster_data_mean <- c(
+  rast(tif_files_dev[grep("ANC_MEAN", tif_files_dev)]),
+  rast(tif_files_dev[grep("INSURANCE_MEAN", tif_files_dev)]),
+  rast(tif_files_dev[grep("MALNUTRITION_MEAN", tif_files_dev)]),
+  rast(tif_files_dev[grep("PNC_MEAN", tif_files_dev)]),
+  rast(tif_files_dev[grep("SBA_MEAN", tif_files_dev)]),
+  rast(tif_files_dev[grep("TT_MEAN", tif_files_dev)]),
+  rast(tif_files_dev[grep("DECISION_MEAN", tif_files_dev)]),
+  rast(tif_files_dev[grep("HWEALTH_MEAN", tif_files_dev)]),
+  rast(tif_files_dev[grep("MEDUCATION_MEAN", tif_files_dev)])
+)
 
 # Load all raster layers  using the rast function
 raster_data_dev <- lapply(tif_files_dev, rast)
 raster_data_dev1 <- lapply(tif_files_dev1, rast)
 raster_data_pop <- lapply(tif_files_pop, rast)
 
-raster_data_all_dev <- c(raster_data_dev, raster_data_dev1)
+# Load population raster file
+KAMP_POPULATION_10m <- rast(here("Data", "processed", "Worldpop_density", "pop_total_10m.tif"))
 
-# Load and handle the administrative boundary of Kampala
-kampala_extent <- vect("C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp")
-
-# Reproject the vector data to the same projection as the raster data for faster processing (WGS 84)
-kampala_extent <- project(kampala_extent, "+proj=longlat +datum=WGS84")
-
-# Reproject the raster data to the same projection as the vector data (WGS 84) (The raster data already had WGS84 projection but was not assigned to the raster object)
-raster_data_all_dev <- lapply(raster_data_all_dev, function(x) project(x, crs(kampala_extent)))
-raster_data_pop <- lapply(raster_data_pop, function(x) project(x, crs(kampala_extent)))
-
-# Crop the raster data to the extent of Kampala
-raster_data_all_dev <- lapply(raster_data_all_dev, function(x) crop(x, kampala_extent))
-raster_data_pop <- lapply(raster_data_pop, function(x) crop(x, kampala_extent))
-
-# Mask the raster data to the extent of Kampala
-raster_data_all_dev <- lapply(raster_data_all_dev, function(x) mask(x, kampala_extent))
-raster_data_pop <- lapply(raster_data_pop, function(x) mask(x, kampala_extent))
-
-# Set the projection of the raster data to the original kampala_extent projection
-kampala_extent <- vect("C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/vBorders/20240308161055/processed/20240308162043/vBorders_Processed.shp")
-
-raster_data_all_dev <- lapply(raster_data_all_dev, function(x) project(x, crs(kampala_extent)))
-raster_data_pop <- lapply(raster_data_pop, function(x) project(x, crs(kampala_extent)))
-
-# Resample the development indicator rasters data to the resolution of the population raster using nearest neighbor method
-raster_data_all_dev <- lapply(raster_data_all_dev, function(x) resample(x, raster_data_pop[[1]], method = "near"))
-
-# Set the extent of the raster data to the extent of Kampala
-raster_data_all_dev <- lapply(raster_data_all_dev, function(x) {
-    ext(x) <- ext(kampala_extent)
-    return(x)
+# Normalize each layer individually
+normalized_rasters <- lapply(1:nlyr(raster_data_mean), function(i) {
+  layer <- raster_data_mean[[i]]  # Extract individual layer
+  layer_min <- as.numeric(global(layer, fun = "min", na.rm = TRUE)[1])  # Layer-specific min
+  layer_max <- as.numeric(global(layer, fun = "max", na.rm = TRUE)[1])  # Layer-specific max
+  (layer - layer_min) / (layer_max - layer_min)  # Normalize
 })
 
-raster_data_pop <- lapply(raster_data_pop, function(x) {
-    ext(x) <- ext(kampala_extent)
-    return(x)
-})
+# Combine normalized layers back into a single SpatRaster
+normalized_rasters_stack <- rast(normalized_rasters)
 
-# Load all rasters as separate objects
-UGA_ANC_MEAN <- raster_data_all_dev[[1]]
-UGA_ANC_SD <- raster_data_all_dev[[2]]
-UGA_INSURANCE_MEAN <- raster_data_all_dev[[3]]
-UGA_INSURANCE_SD <- raster_data_all_dev[[4]]
-UGA_MALNUTRITION_MEAN <- raster_data_all_dev[[5]]
-UGA_MALNUTRITION_SD <- raster_data_all_dev[[6]]
-UGA_PNC_MEAN <- raster_data_all_dev[[7]]
-UGA_PNC_SD <- raster_data_all_dev[[8]]
-UGA_SBA_MEAN <- raster_data_all_dev[[9]]
-UGA_SBA_SD <- raster_data_all_dev[[10]]
-UGA_TT_MEAN <- raster_data_all_dev[[11]]
-UGA_TT_SD <- raster_data_all_dev[[12]]
-UGA_DECISION_MEAN <- raster_data_all_dev[[13]]
-UGA_DECISION_SD <- raster_data_all_dev[[14]]
-UGA_HWEALTH_MEAN <- raster_data_all_dev[[15]]
-UGA_HWEALTH_SD <- raster_data_all_dev[[16]]
-UGA_MEDUCATION_MEAN <- raster_data_all_dev[[17]]
-UGA_MEDUCATION_SD <- raster_data_all_dev[[18]]
+# Calculate the equal-weighted index (mean of all layers)
+equal_index <- app(normalized_rasters_stack, fun = mean, na.rm = TRUE)
 
-# Load all population rasters as separate objects
-UGA_POPULATION_TOTAL <- raster_data_pop[[1]]
-UGA_POPULATION_U5 <- raster_data_pop[[2]]
-UGA_POPULATION_WRA <- raster_data_pop[[3]]
+# Align all rasters to the population raster
+# Align the normalized rasters to the population raster
+aligned_rasters_normalized <- Spatial.align::align(
+  normalized_rasters_stack, 
+  KAMP_POPULATION_10m, 
+  resample_method = "near"
+)
 
-# Set the names of the raster layers
-names(UGA_ANC_MEAN) <- "ANC - Proportion of children aged 12 to 23 months born to mothers who did not attend antenatal care (Mean)"
-names(UGA_ANC_SD) <- "ANC - Proportion of children aged 12 to 23 months born to mothers who did not attend antenatal care (SD)"
-names(UGA_INSURANCE_MEAN) <- "Insurance - Proportion of children aged 12 to 23 months who had no health insurance (Mean)"
-names(UGA_INSURANCE_SD) <- "Insurance - Proportion of children aged 12 to 23 months who had no health insurance (SD)"
-names(UGA_MALNUTRITION_MEAN) <- "Malnutrition - Proportion of children aged 12 to 23 months who were underweight (Mean)"
-names(UGA_MALNUTRITION_SD) <- "Malnutrition - Proportion of children aged 12 to 23 months who were underweight (SD)"
-names(UGA_PNC_MEAN) <- "PNC - Proportion of children aged 12 to 23 months who did not receive (or recall) post-natal care within 2 months after birth (Mean)"
-names(UGA_PNC_SD) <- "PNC - Proportion of children aged 12 to 23 months who did not receive (or recall) post-natal care within 2 months after birth (SD)"
-names(UGA_SBA_MEAN) <- "SBA - Proportion of children aged 12 to 23 months who were not delivered by a skilled birth attendant (Mean)"
-names(UGA_SBA_SD) <- "SBA - Proportion of children aged 12 to 23 months who were not delivered by a skilled birth attendant (SD)"
-names(UGA_TT_MEAN) <- "TT - Proportion of children aged 12 to 23 months who had no tetanus toxoid injections before birth (Mean)"
-names(UGA_TT_SD) <- "TT - Proportion of children aged 12 to 23 months who had no tetanus toxoid injections before birth (SD)"
-names(UGA_HWEALTH_MEAN) <- "HWEALTH - Proportion of children aged 12 to 23 months born to the poorest / poorer households (Mean)"
-names(UGA_HWEALTH_SD) <- "HWEALTH - Proportion of children aged 12 to 23 months born to the poorest / poorer households (SD)"
-names(UGA_MEDUCATION_MEAN) <- "MEDUCATION - Proportion of children aged 12 to 23 months born to mothers who had no formal education (Mean)"
-names(UGA_MEDUCATION_SD) <- "MEDUCATION - Proportion of children aged 12 to 23 months born to mothers who had no formal education (SD)"
-names(UGA_DECISION_MEAN) <- "DECISION - Proportion of women aged 15 to 49 years\n who did not participate in decision-making\n in their households (Mean)"
-names(UGA_DECISION_SD) <- "DECISION - Proportion of women aged 15 to 49 years\n who did not participate in decision-making\n in their households (SD)"
+# Align the mean raster to the population raster
+aligned_rasters_mean <- Spatial.align::align(
+  raster_data_mean, 
+  KAMP_POPULATION_10m, 
+  resample_method = "near"
+)
 
-names(UGA_POPULATION_TOTAL) <- "Total Population"
-names(UGA_POPULATION_U5) <- "Population under 5 years"
-names(UGA_POPULATION_WRA) <- "Population Women of Reproductive Age"
-
-# Create a list of the mean and SD rasters
-raster_data_mean <- c(UGA_ANC_MEAN, UGA_INSURANCE_MEAN, UGA_MALNUTRITION_MEAN, UGA_PNC_MEAN, UGA_SBA_MEAN, UGA_TT_MEAN, UGA_DECISION_MEAN, UGA_HWEALTH_MEAN, UGA_MEDUCATION_MEAN)
-raster_data_sd <- c(UGA_ANC_SD, UGA_INSURANCE_SD, UGA_MALNUTRITION_SD, UGA_PNC_SD, UGA_SBA_SD, UGA_TT_SD, UGA_DECISION_SD, UGA_HWEALTH_SD, UGA_MEDUCATION_SD)
-raster_data_all_dev <- c(raster_data_mean, raster_data_sd)
-
-raster_data_pop <- c(UGA_POPULATION_TOTAL, UGA_POPULATION_U5, UGA_POPULATION_WRA)
-
-# Delete unnecessary objects
-rm(tif_files_dev, tif_files_dev1, tif_files_pop, raster_data_dev, raster_data_dev1, folder_path_dev, folder_path_dev1, folder_path_pop)
-```
+# Align the index raster to the population raster
+aligned_index <- Spatial.align::align(
+  equal_index, 
+  KAMP_POPULATION_10m, 
+  resample_method = "near"
+)
 
 
-## Checking Raster Properties
-```{r}
-# Function to check extent, crs and resolution of two rasters match
-# Function to check extent, crs and resolution of two rasters match
-check_raster_properties <- function(raster1, raster2) {
-    # Initialize a message list
-    messages <- list()
+autoplot(aligned_rasters_normalized$UGA_HWEALTH_MEAN) +
+  scale_fill_viridis_c(option = "magma", direction = -1) + # Using magma color scale with reversed direction
+  labs(title = "Normalized Household Wealth Mean", fill = "Normalized Value") +
+  theme_minimal() +
+  theme(
+    legend.position = "right", # Adjust legend position as needed
+    plot.title = element_text(hjust = 0.5), # Center the title horizontally
+    plot.margin = unit(c(1, 1, 1, 1), "lines"),
+    plot.background = element_rect(fill = "white"), # Set plot background color to white
+    panel.background = element_rect(fill = "white"), # Set panel background color to white
+    panel.grid.major = element_blank(), # Remove major grid lines
+    panel.grid.minor = element_blank(), # Remove minor grid lines
+    axis.line = element_line(color = "black"), # Set axis line color to black
+    axis.text = element_text(color = "black"), # Set axis text color to black
+    axis.title = element_text(color = "black") # Set axis title color to black
+  )
 
-    # Check if extents match using all.equal for numerical tolerance
-    if (!isTRUE(all.equal(ext(raster1), ext(raster2)))) {
-        messages$extent <- sprintf(
-            "Extents do not match:\n  Raster 1: %s\n  Raster 2: %s",
-            paste(ext(raster1), collapse = ", "),
-            paste(ext(raster2), collapse = ", ")
-        )
-    }
+autoplot(aligned_index) +
+    scale_fill_viridis_c(option = "magma", direction = -1) + # Using magma color scale with reversed direction
+    labs(title = "Aligned Equal-Weighted Index", fill = "Normalized Value") +
+    theme_minimal() +
+    theme(
+      legend.position = "right", # Adjust legend position as needed
+      plot.title = element_text(hjust = 0.5), # Center the title horizontally
+      plot.margin = unit(c(1, 1, 1, 1), "lines"),
+      plot.background = element_rect(fill = "white"), # Set plot background color to white
+      panel.background = element_rect(fill = "white"), # Set panel background color to white
+      panel.grid.major = element_blank(), # Remove major grid lines
+      panel.grid.minor = element_blank(), # Remove minor grid lines
+      axis.line = element_line(color = "black"), # Set axis line color to black
+      axis.text = element_text(color = "black"), # Set axis text color to black
+      axis.title = element_text(color = "black") # Set axis title color to black
+    )
 
-    # Check if CRS match
-    if (crs(raster1) != crs(raster2)) {
-        messages$crs <- sprintf(
-            "CRS do not match:\n  Raster 1: %s\n  Raster 2: %s",
-            crs(raster1),
-            crs(raster2)
-        )
-    }
 
-    # Check if resolutions match
-    res1 <- res(raster1)
-    res2 <- res(raster2)
-    if (!isTRUE(all.equal(res1, res2))) {
-        messages$resolution <- sprintf(
-            "Resolutions do not match:\n  Raster 1: %s (rows x cols = %dx%d)\n  Raster 2: %s (rows x cols = %dx%d)",
-            paste(res1, collapse = " x "), nrow(raster1), ncol(raster1),
-            paste(res2, collapse = " x "), nrow(raster2), ncol(raster2)
-        )
-    }
+# Delete redundant objects from the environment
 
-    # Output messages if there are any mismatches
-    if (length(messages) > 0) {
-        cat("Differences found:\n")
-        for (msg in messages) {
-            cat(msg, "\n\n")
-        }
-    } else {
-        cat("All properties (extent, CRS, resolution) match.\n")
-    }
-}
-
-check_raster_properties(UGA_POPULATION_TOTAL, UGA_ANC_MEAN)
 ```
 
 ## Plotting
-
 ```{r}
-# {r} code block for plotting
 # Function to create a ggplot for each raster with an individual legend
 create_plot <- function(raster_layer, title) {
     # Insert a line break specifically after 'months'
@@ -230,36 +162,18 @@ create_plot <- function(raster_layer, title) {
         ) # Adjust margins around the plots
     return(p)
 }
-
 # Create a list of plots
 plots_mean <- lapply(raster_data_mean, function(x) create_plot(x, names(x)))
-plots_sd <- lapply(raster_data_sd, function(x) create_plot(x, names(x)))
-plots_all <- lapply(raster_data_all_dev, function(x) create_plot(x, names(x)))
-
-plots_pop <- lapply(raster_data_pop, function(x) create_plot(x, names(x)))
 
 # Use patchwork to combine and arrange all plots
 plot_layout_mean <- wrap_plots(plots_mean, ncol = 2) # Adjust the number of columns as needed
-plot_layout_sd <- wrap_plots(plots_sd, ncol = 2) # Adjust the number of columns as needed
-plot_layout_all <- wrap_plots(plots_all, ncol = 2) # Adjust the number of columns as needed
-
-plot_layout_pop <- wrap_plots(plots_pop, ncol = 2) # Adjust the number of columns as needed
 
 # Print the plot layouts
 print(plot_layout_mean)
-print(plot_layout_sd)
-print(plot_layout_all)
-
-print(plot_layout_pop)
-
-# Delete unnecessary objects
-rm(plots_mean, plots_sd, plots_all, plots_pop)
 ```
 
 ## Analysis
-
 ```{r}
-# {r} code block for analysis
 # Function to multiply each mean raster by the total population raster
 multiply_by_population <- function(mean_rasters, population_raster) {
     # Apply the multiplication operation across all rasters in the list
@@ -290,6 +204,16 @@ names(affected_population_rasters) <- paste("pop_affected",
     ),
     sep = "_"
 )
+
+# plot
+# Create a list of plots for the affected population rasters
+plots_affected_population <- lapply(affected_population_rasters, function(x) create_plot(x, names(x)))
+
+# Use patchwork to combine and arrange all plots
+plot_layout_affected_population <- wrap_plots(plots_affected_population, ncol = 2) # Adjust the number of columns as needed
+
+# Print the plot layout
+print(plot_layout_affected_population)
 
 ```
 

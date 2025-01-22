@@ -58,4 +58,7 @@ pop_total_10m <- pop_total_10m / 100
 ```{r}
 # Save it to the zToAccessMod folder
 writeRaster(pop_total_10m, here("AccessMod/InAccessMod/Uganda/data/zToAccessMod/20250108115609/pop_total_10m.tif"), overwrite = TRUE)
+
+# Save it to the Data/processed/Worldpop_density folder
+writeRaster(pop_total_10m, here("Data/processed/Worldpop_density/pop_total_10m.tif"), overwrite = TRUE)
 ```

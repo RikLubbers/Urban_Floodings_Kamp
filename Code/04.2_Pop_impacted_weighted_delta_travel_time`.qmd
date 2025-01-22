@@ -25,6 +25,9 @@ library(patchwork)
 library(sf)
 library(biscale)
 library(classInt)
+library(here)
+library(ggplot2)
+library(tidyterra)
 ```
 
 # Script
@@ -36,19 +39,10 @@ library(classInt)
 delta_tt_list <- mget(ls(pattern = "delta_tt_all"))
 
 ## Load population distribution
-pop_density_raster <- rast("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/InAccessmod/Uganda/data/rPopulation/20240308161107/processed/UG_total_10m.tif")
+pop_density_raster <- rast(here("AccessMod", "InAccessMod", "Uganda", "data", "zToAccessMod", "20250108115609", "pop_total_10m.tif"))
 
 # Load the SpatVector for parish boundaries
-parish_boundaries = vect("C:/Users/rikib/Onedrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Flooding_Analysis/Data/Processed/Adm_boundaries_parishes/Parishes_Kamp_UTM36N.shp")
-
-# Align the population density raster and the delta travel time rasters 
-parish_boundaries <- Spatial.align::align(parish_boundaries, pop_density_raster, show_plot = FALSE)
-
-# Align the delta travel time rasters to the parish boundaries
-delta_tt_list <- lapply(delta_tt_list, function(delta_tt_raster) {
-  delta_tt_raster <- Spatial.align::align(delta_tt_raster, pop_density_raster, show_plot = FALSE)
-  return(delta_tt_raster)
-})
+parish_boundaries <- vect(here("Data", "processed", "Adm_boundaries", "parishes_kampala.shp"))
 
 # Step 1: Iterate through each delta_tt_raster in delta_tt_list and multiply by population density raster
 weighted_delta_tt_list <- lapply(delta_tt_list, function(delta_tt_raster) {
@@ -147,14 +141,14 @@ legend <- bi_legend(
     dim = 3,
     xlab = "Travel Time Decrease (min.)",
     ylab = "Population Sum",
-    size = 10, 
+    size = 15, 
     breaks = labels,    # Use manually formatted labels with inverted Population Sum
     flip_axes = FALSE,
     arrows = FALSE
 )
 
 # Combine the map and legend using patchwork
-final_plot <- map + inset_element(legend, left = 0.1, bottom = 0.1, right = 0.3, top = 0.3)
+final_plot <- map + inset_element(legend, left = 0.05, bottom = 0.05, right = 0.35, top = 0.35)
 
 # Display the final plot
 print(final_plot)
@@ -273,7 +267,6 @@ print(legend)
 
 # Create a combined plot for specific scenarios (20mm x 6hr and 100mm x 1hr) for a poster
 ```{r}	
-
 # Filter the specific scenarios for 20mm x 6hr and 100mm x 1hr
 specific_scenarios <- c("Average_Weighted_Delta_TT_20_21600", "Average_Weighted_Delta_TT_100_3600")
 
@@ -302,7 +295,7 @@ for (i in seq_along(specific_scenarios)) {
             option = "magma",  # Use the magma color palette
             name = "Delta Travel\nTime Decrease",  # Legend title
             na.value = "transparent",  # Hide NAs by making them transparent
-            limits = global_range  # Standardize the scale
+            limits = range(unlist(parish_boundaries_df[specific_scenarios]), na.rm = TRUE)  # Standardize the scale
         ) +
         theme_minimal() +
         ggtitle(paste("Scenario", title_part)) +  # Use the formatted title

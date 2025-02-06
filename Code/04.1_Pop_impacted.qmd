@@ -174,7 +174,7 @@ plot_list[[1]]
 #}
 
 # Create a plot list for each scenario
-plot_list_per_scenario <- lapply(names(pop_coverage_all_diff), function(scenario_name) {
+plot_list_per_scenario_all <- lapply(names(pop_coverage_all_diff), function(scenario_name) {
   # Get data for the current scenario
   scenario_data <- pop_coverage_all_diff[[scenario_name]]
   
@@ -209,7 +209,9 @@ plot_list_per_scenario <- lapply(names(pop_coverage_all_diff), function(scenario
         axis.text.x = element_text(angle = 45, hjust = 1, size = 6),
         axis.text.y = element_text(size = 8),
         legend.position = "right",
-        plot.title = element_text(size = 12, hjust = 0.5)
+        plot.title = element_text(size = 12, hjust = 0.5),
+        panel.background = element_rect(fill = "white", colour = "white"),
+        plot.background = element_rect(fill = "white", colour = "white")
       )
   })
   
@@ -219,10 +221,36 @@ plot_list_per_scenario <- lapply(names(pop_coverage_all_diff), function(scenario
 })
 
 # Name the plot list by scenarios for easy reference
-names(plot_list_per_scenario) <- names(pop_coverage_all_diff)
+names(plot_list_per_scenario_all) <- names(pop_coverage_all_diff)
 
 # Example: Access the plot for a specific scenario and time category
-plot_list_per_scenario[["MLC_100_10800_all"]][["Time_15"]]
+plot_list_per_scenario_all[["MLC_100_10800_all"]][["Time_15"]]
+
+# [OPTIONAL] Save all the plots as PNG files in the new subfolder
+output_dir <- here("Figures", "pop_coverage_all_diff_plots_per_scenario")
+if (!dir.exists(output_dir)) {
+   dir.create(output_dir, recursive = TRUE)
+}
+
+# Create a subfolder for each MLC scenario
+for (scenario_name in names(plot_list_per_scenario_all)) {
+  scenario_dir <- file.path(output_dir, scenario_name)
+  if (!dir.exists(scenario_dir)) {
+    dir.create(scenario_dir, recursive = TRUE)
+  }
+  
+  # Save all the plots as PNG files in the new subfolder
+  for (time_category in names(plot_list_per_scenario_all[[scenario_name]])) {
+    ggsave(
+      filename = file.path(scenario_dir, paste0("pop_coverage_all_diff_", scenario_name, "_", time_category, ".png")),
+      plot = plot_list_per_scenario_all[[scenario_name]][[time_category]],
+      width = 30.48,
+      height = 20.32,
+      units = "cm",
+      dpi = 300
+    )
+  }
+}
 ```
 
 # Load pop_impacted hospitals only
@@ -399,7 +427,9 @@ plot_list_hosp_per_scenario <- lapply(names(pop_coverage_hosp_diff), function(sc
         axis.text.x = element_text(angle = 45, hjust = 1, size = 6),
         axis.text.y = element_text(size = 8),
         legend.position = "right",
-        plot.title = element_text(size = 12, hjust = 0.5)
+        plot.title = element_text(size = 12, hjust = 0.5),
+        panel.background = element_rect(fill = "white", colour = "white"),
+        plot.background = element_rect(fill = "white", colour = "white")
       )
   })
   
@@ -413,4 +443,31 @@ names(plot_list_hosp_per_scenario) <- names(pop_coverage_hosp_diff)
 
 # Example: Access the plot for a specific scenario and time category
 plot_list_hosp_per_scenario[["MLC_100_3600_hosp"]][["Time_30"]]
+
+# [OPTIONAL] Save all the plots as PNG files in the new subfolder for hosp-only scenario
+output_dir_hosp <- here("Figures", "pop_coverage_hosp_diff_plots_per_scenario")
+if (!dir.exists(output_dir_hosp)) {
+  dir.create(output_dir_hosp, recursive = TRUE)
+}
+
+# Create a subfolder for each MLC scenario
+for (scenario_name in names(plot_list_hosp_per_scenario)) {
+  scenario_dir <- file.path(output_dir_hosp, scenario_name)
+  if (!dir.exists(scenario_dir)) {
+   dir.create(scenario_dir, recursive = TRUE)
+  }
+  
+  # Save all the plots as PNG files in the new subfolder
+  for (time_category in names(plot_list_hosp_per_scenario[[scenario_name]])) {
+   ggsave(
+    filename = file.path(scenario_dir, paste0("pop_coverage_hosp_diff_", scenario_name, "_", time_category, ".png")),
+    plot = plot_list_hosp_per_scenario[[scenario_name]][[time_category]],
+    width = 30.48,
+    height = 20.32,
+    units = "cm",
+    dpi = 300
+   )
+  }
+}
+
 ```

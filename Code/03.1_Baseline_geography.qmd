@@ -1,0 +1,148 @@
+# Baseline geography
+
+## Load libraries
+```{r}
+# Set up renv for package management
+if (!requireNamespace("renv", quietly = TRUE)) {
+    install.packages("renv")
+} else {
+    message("renv is already installed.")
+}
+
+# Load the renv package
+library(renv)
+
+# Check if renv is already active, activate if not
+if (!renv::status()$synchronized) {
+    renv::activate()
+}
+
+# To restore the environment (for a collaborator)
+renv::restore()
+
+# Load the required libraries
+library(terra)
+library(tidyterra)
+library(here)
+library(viridis)
+```
+
+## Load data
+```{r}
+# Load data
+## To load the data run 01.1_loading_processed_data.qmd
+```
+
+## Plot the geography of Kampala
+```{r}
+# Define the color palette and class names
+landcover_colors <- c(
+  "10" = "#006400",  # Tree cover
+  "20" = "#ffbb22",  # Shrubland
+  "30" = "#ffff4c",  # Grassland
+  "40" = "#f096ff",  # Cropland
+  "50" = "#fa0000",  # Built-up
+  "60" = "#b4b4b4",  # Bare/sparse vegetation
+  "70" = "#f0f0f0",  # Snow and Ice
+  "80" = "#0064c8",  # Permanent water bodies
+  "90" = "#0096a0",  # Herbaceous wetland
+  "95" = "#00cf75",  # Mangroves
+  "100" = "#fae6a0", # Moss and lichen
+  "0" = NA           # No data
+)
+
+landcover_classes <- c(
+  "10" = "Tree cover",
+  "20" = "Shrubland",
+  "30" = "Grassland",
+  "40" = "Cropland",
+  "50" = "Built-up",
+  "60" = "Bare/Sparse vegetation",
+  "70" = "Snow and Ice",
+  "80" = "Permanent water bodies",
+  "90" = "Herbaceous wetland",
+  "95" = "Mangroves",
+  "100" = "Moss and lichen",
+  "0" = "No data"
+)
+
+# Filter landcover colors and classes to include only those present in the data
+unique_classes <- sort(unique(values(Landcover)))  # Get unique values in the raster and sort them in ascending order
+
+# Remove snow and ice as it is not present in the data
+unique_classes <- unique_classes[unique_classes != 70]
+
+# Filter the color and class vectors
+filtered_landcover_colors <- landcover_colors[names(landcover_colors) %in% unique_classes]
+filtered_landcover_classes <- landcover_classes[names(landcover_classes) %in% unique_classes]
+
+# Generate slope and aspect from the DEM
+slope <- terrain(DEM, "slope")       # Calculate slope
+aspect <- terrain(DEM, "aspect")     # Calculate aspect
+
+# Generate hillshade
+hillshade <- shade(slope, aspect, angle = 45, direction = 315)  # Customize lighting
+
+# Filter facilities data into HC facilities and hospitals
+facilities = Facilities[[1]]  # Filter healthcare facilities
+
+# Group the facilities into different categories
+hospitals <- facilities[facilities$Facility_t %in% c("National Referral Hospital", "Hospital", "Regional Referral Hospital"), ]
+health_centres <- facilities[facilities$Facility_t %in% c("Health Centre III", "Health Centre II", "Health Centre IV"), ]
+
+# Set tighter margins for the legend
+par(oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0))  # Outer and inner margins reduced
+
+
+# Plot the landcover map
+Landcover %>%
+plot(
+  col = filtered_landcover_colors,  # Use filtered colors
+  legend = FALSE,  # Disable automatic legend
+  axes = FALSE,  # Remove axes and labels
+  box = TRUE,  # Keep the plot box
+  main = "Geographical Features of Kampala with Location of Health Centers and Hospitals",  # Add a title 
+  cex.main = 1.5  # Adjust title font size
+) %>%
+{
+  # Overlay the hillshade
+  plot(hillshade, col = gray.colors(100, start = 0.3, end = 1, alpha = 0.4), legend = FALSE, add = TRUE)
+  # Overlay the OSM roads
+  lines(OSM_roads, col = "black", lwd = 1.5, lty = 1)
+  # Overlay the water lines
+  lines(water_lines, col = "blue", lwd = 1, lty = 2)
+  # Add hospitals
+  points(hospitals, pch = 23, col = "black", bg = "blue", cex = 2)
+  # Add health centers
+  points(health_centres, pch = 21, col = "black", bg = "green", cex = 2)
+  # Add the Legend
+  legend(
+    x = "bottomleft",
+    inset = c(0.09, 0.01),  # Adjust inset to fit the map
+    legend = c(filtered_landcover_classes, "Rivers", "Roads"),  # Filtered class names, rivers, roads
+    fill = c(filtered_landcover_colors, "blue", "black"),  # Matching filtered colors, blue for rivers, black for roads
+    border = "white",  # Legend border
+    bg = "white",  # Legend background
+    cex = 1.5,  # Adjust text size
+    title = "Landcover Classes",
+    ncol = 2,
+    x.intersp = 0.1,  # Decrease spacing between columns
+    y.intersp = 0.7,  # Decrease spacing between rows
+    text.width = NA  # Adjust text width
+  )
+  legend(
+    x = "bottomleft",
+    inset = c(0.09, 0.175),  # Adjust inset to fit above the landcover legend
+    legend = c("Hospitals", "Health Centers"),  # Legend for hospitals and health centers
+    pch = c(23, 21),  # Symbols for hospitals and health centers
+    col = "black",  # Black border for symbols
+    pt.bg = c("blue", "green"),  # Fill colors for hospitals and health centers
+    pt.cex = 2,  # Adjust point size
+    title = "Healthcare Facilities",
+    bg = "white",  # Legend background
+    cex = 1.5,  # Adjust text size
+    x.intersp = 0.5,  # Adjust spacing between symbols and text
+    y.intersp = 0.8  # Adjust spacing between rows
+  )
+}
+```

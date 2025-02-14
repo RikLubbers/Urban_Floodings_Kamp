@@ -1,0 +1,374 @@
+# Analysis of Flood Impact on Population and Development Indicators
+
+## Loading packages
+
+```{r}
+# Set up renv for package management
+if (!requireNamespace("renv", quietly = TRUE)) {
+    install.packages("renv")
+} else {
+    message("renv is already installed.")
+}
+
+# Load the renv package
+library(renv)
+
+# Check if renv is already active, activate if not
+if (!renv::status()$synchronized) {
+    renv::activate()
+}
+
+# To restore the environment (for a collaborator)
+renv::restore()
+
+# Load packages
+library(terra)
+library(ggplot2)
+library(dplyr)
+library(viridis)
+library(rasterVis)
+library(tidyterra)
+library(patchwork)
+library(here)
+library(FactoMineR)
+library(factoextra)
+library(psych)
+library(car)
+library(GPArotation) # For additional PCA rotation options
+```
+
+## Data Loading and Handling
+
+```{r}
+# Define folder path and load raster files
+folder_path_dev <- here("Data", "processed", "Worldpop_dev_indicators")
+tif_files_dev <- list.files(folder_path_dev, pattern = "\\.tif$", full.names = TRUE)
+
+# Load the mean raster files
+raster_data_mean <- c(
+  rast(tif_files_dev[grep("ANC_MEAN", tif_files_dev)]),
+  rast(tif_files_dev[grep("INSURANCE_MEAN", tif_files_dev)]),
+  rast(tif_files_dev[grep("MALNUTRITION_MEAN", tif_files_dev)]),
+  rast(tif_files_dev[grep("PNC_MEAN", tif_files_dev)]),
+  rast(tif_files_dev[grep("SBA_MEAN", tif_files_dev)]),
+  rast(tif_files_dev[grep("TT_MEAN", tif_files_dev)]),
+  rast(tif_files_dev[grep("DECISION_MEAN", tif_files_dev)]),
+  rast(tif_files_dev[grep("HWEALTH_MEAN", tif_files_dev)]),
+  rast(tif_files_dev[grep("MEDUCATION_MEAN", tif_files_dev)]),
+  rast(tif_files_dev[grep("UGA_HSIZE_MEAN", tif_files_dev)])
+)
+
+# Load all raster layers  using the rast function
+raster_data_dev <- lapply(tif_files_dev, rast)
+
+# Load population raster file
+KAMP_POPULATION_10m <- rast(here("Data", "processed", "Worldpop_density", "pop_total_10m.tif"))
+```
+
+## Aligning Rasters to Population Data and Naming
+```{r}
+# Align the rasters to the population raster
+aligned_rasters <- lapply(raster_data_dev, function(r) {
+  Spatial.align::align(r, KAMP_POPULATION_10m, resample_method = "near")
+})
+
+# Extract names of each SpatRaster and assign them to the list
+raster_names <- sapply(aligned_rasters, names)
+
+# Assign these names to the list
+names(aligned_rasters) <- raster_names
+
+# Removed HSIZE as a PCA without it was more interpretable
+aligned_rasters <- aligned_rasters[-grep("UGA_HSIZE_MEAN", raster_names)]
+
+# Remove redundant objects
+# rm(raster_data_dev, tif_files_dev, KAMP_POPULATION_10m, folder_path_dev, raster_names)
+```
+
+## Plotting Histograms and Rasters of Development Indicators
+```{r}
+# Set up a plotting layout (adjust nrows and ncols as needed)
+par(mfrow = c(3, 3))  # Example: 3x3 grid for 9 histograms
+
+# Loop through the list and plot histograms with all raster values and names
+for (i in seq_along(aligned_rasters)) {
+  hist(aligned_rasters[[i]], 
+       main = paste("Histogram of", raster_names[i]), 
+       col = "skyblue", border = "black", maxcell = Inf)
+}
+
+# Loop through the rasters and plot each one
+for (i in seq_along(aligned_rasters)) {
+  plot(aligned_rasters[[i]], 
+       main = paste("Raster", raster_names[i]), 
+       col = terrain.colors(100))
+}
+
+# Reset plotting layout to default
+par(mfrow = c(1, 1))
+```
+
+# PCA Analysis
+```{r}
+# #################### Step 1: Convert Rasters to Dataframe ####################
+# Convert aligned SpatRaster objects into a single raster stack
+vulnerability_stack <- rast(aligned_rasters)
+
+df <- as.data.frame(vulnerability_stack, xy = TRUE, na.rm = TRUE)
+
+# Store XY coordinates separately
+xy_coords <- df[, c("x", "y")]
+
+# Remove XY coordinates from the dataframe before analysis
+df <- df[, !(colnames(df) %in% c("x", "y"))]
+
+# #################### Step 2: Visualize Outliers Using Boxplots ####################
+# boxplot(df, main = "Boxplots of Variables")  
+
+# #################### Step 3: Perform KMO Test and Remove Low-MSA Variables ####################
+perform_kmo <- function(df, max_iterations = 10) {
+  iteration <- 0
+  thresholds <- seq(0.1, 0.5, by = 0.1)  # Gradually increase the threshold
+
+  for (threshold in thresholds) {
+    repeat {
+      kmo_results <- KMO(df)
+      print(kmo_results)
+
+      message("Iteration: ", iteration, " | Threshold: ", threshold)
+      print(kmo_results$MSAi)
+
+      if (all(kmo_results$MSAi >= threshold)) break
+
+      vars_to_remove <- names(kmo_results$MSAi)[kmo_results$MSAi < threshold]
+      df <- df[, !(colnames(df) %in% vars_to_remove)]
+
+      message("Removing variables with MSAi < ", threshold, ": ", paste(vars_to_remove, collapse = ", "))
+
+      iteration <- iteration + 1
+      if (iteration >= max_iterations) break
+    }
+  }
+  return(df)
+}
+
+# Apply KMO filtering
+df <- perform_kmo(df)
+
+# #################### Step 4: Compute Correlation Matrix ####################
+cor_matrix <- cor(df, use = "pairwise.complete.obs")
+print(cor_matrix)
+
+# Conduct Bartlett's test for sphericity (ensures PCA is valid)
+bartlett_test <- cortest.bartlett(cor_matrix, n = nrow(df))
+print(bartlett_test)
+
+# #################### Step 5: Check Multicollinearity ####################
+# Check determinant of correlation matrix (should not be close to 0)
+det_value <- det(cor_matrix)
+print(det_value)  
+
+# Compute Variance Inflation Factor (VIF) to detect multicollinearity
+df <- as.data.frame(df)  # Convert to data frame
+
+vif_values <- apply(df, 2, function(x) {
+  lm_model <- lm(x ~ ., data = df)
+  return(vif(lm_model))
+})
+print(vif_values)
+
+# #################### Step 6: Conduct PCA with Oblimin Rotation and Kaiser Normalization ####################
+# Run PCA with oblimin rotation and Kaiser normalization
+pca_result_1 <- principal(df, 
+              nfactors = 1,    # Choose based on eigenvalues >1 or scree plot
+              rotate = "oblimin", 
+              scores = TRUE, 
+              normalize = TRUE) # Applies Kaiser normalization
+
+# Print PCA results
+print(pca_result_1)
+
+pca_result_2 <- principal(df, 
+              nfactors = 2, 
+              rotate = "oblimin", 
+              scores = TRUE, 
+              normalize = TRUE)
+
+print(pca_result_2)
+
+pca_result_3 <- principal(df, 
+              nfactors = 3, 
+              rotate = "oblimin", 
+              scores = TRUE, 
+              normalize = TRUE)
+
+print(pca_result_3)
+
+# Merge XY coordinates back to the PCA scores
+pca_scores_with_xy <- cbind(xy_coords, as.data.frame(pca_result_3$scores))
+
+# Convert PCA scores back into a raster stack
+pca_raster <- rast(pca_scores_with_xy)
+
+autoplot(pca_raster, main = "PCA Scores (3 Components)")
+
+# #################### Interpretation ####################
+
+# Variable Selection Based on KMO and Variance:
+# - The Kaiser-Meyer-Olkin (KMO) test was performed iteratively to ensure factorability.
+# - Variables with MSA (Measure of Sampling Adequacy) < 0.5 were removed.
+# - The final retained variables for PCA analysis are:
+#   - UGA_INSURANCE_MEAN (KMO = 0.58)
+#   - UGA_MALNUTRITION_MEAN (KMO = 0.89)
+#   - UGA_MEDUCATION_MEAN (KMO = 0.87)
+#   - UGA_SBA_MEAN (KMO = 0.58)
+
+# Multicollinearity Check:
+# - The determinant of the correlation matrix is 0.235, indicating an acceptable level of collinearity.
+# - Variance Inflation Factor (VIF) values:
+#   - UGA_INSURANCE_MEAN: 3.44
+#   - UGA_MALNUTRITION_MEAN: 1.22
+#   - UGA_MEDUCATION_MEAN: 1.07
+#   - UGA_SBA_MEAN: 3.29
+# - Since all VIF values are below 5, no severe multicollinearity is detected.
+
+# PCA Results:
+# - **1-Component Model:**
+#   - Explains 55% of the variance.
+#   - High loadings on UGA_INSURANCE_MEAN (0.92) and UGA_SBA_MEAN (0.90).
+#   - RMSR = 0.14, suggesting a moderate fit.
+
+# - **2-Component Model:**
+#   - Explains 78% of the variance cumulatively.
+#   - Component 1 (TC1) is linked to **financial and maternal health services**.
+#   - Component 2 (TC2) is associated with **education and decision-making**.
+#   - The component correlation (0.16) indicates mild interdependence.
+
+# - **3-Component Model:**
+#   - Explains 96% of the variance cumulatively.
+#   - The components align clearly:
+#     - **TC1:** Healthcare access (UGA_INSURANCE_MEAN, UGA_SBA_MEAN).
+#     - **TC2:** Educational status (UGA_MEDUCATION_MEAN).
+#     - **TC3:** Nutritional vulnerability (UGA_MALNUTRITION_MEAN).
+#   - RMSR = 0.03, suggesting a very good model fit.
+
+# Interpretation of Rotated Components (Oblimin Rotation):
+# - **Component 1 (Healthcare & Financial Accessibility):**
+#   - Strongly associated with **UGA_INSURANCE_MEAN (0.94)** and **UGA_SBA_MEAN (0.97)**.
+#   - Represents **access to health insurance and skilled birth attendance**.
+# 
+# - **Component 2 (Education & Decision-Making):**
+#   - Driven by **UGA_MEDUCATION_MEAN (1.00)**.
+#   - Reflects **higher maternal education and its influence on decision-making**.
+#
+# - **Component 3 (Nutritional Status & Vulnerability):**
+#   - Captured solely by **UGA_MALNUTRITION_MEAN (1.00)**.
+#   - Highlights **malnutrition as a distinct factor in vulnerability**.
+# ########################################################
+```
+
+## Computing the PCA-based index
+```{r}
+# Define updated weights based on variance explained
+weights <- c(0.48, 0.26, 0.26)  # Weights for PC1, PC2, PC3
+
+# Compute weighted index as a linear combination of PCA scores
+pca_index <- (weights[1] * pca_result_3$scores[, 1]) +
+             (weights[2] * pca_result_3$scores[, 2]) +
+             (weights[3] * pca_result_3$scores[, 3])
+
+# Convert PCA index to a data frame
+pca_index_df <- data.frame(xy_coords, pca_index)
+
+# Convert PCA index back to a raster
+pca_index <- rast(pca_index_df)
+
+# Plot the PCA-Based Vulnerability Index with turbo color scheme
+ggplot() +
+  geom_spatraster(data = pca_index, na.rm = TRUE) +
+  scale_fill_viridis_c(option = "turbo", name = "PCA Index", na.value = "transparent") +
+  labs(title = "PCA-Based Vulnerability Index",
+       subtitle = "Computed from Principal Component Analysis",
+       caption = "Data Source: Worldpop Development Indicators") +
+  theme_minimal() +
+  theme(legend.position = "right",
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5, size = 12),
+        plot.caption = element_text(hjust = 1, size = 8),
+        panel.grid.major = element_line(color = "grey80"),
+        panel.grid.minor = element_line(color = "grey90")) +
+  guides(fill = guide_colorbar(barwidth = 1, barheight = 20))
+
+# Define quantile breaks (5 equal groups)
+quantile_breaks <- quantile(pca_index_df$pca_index, probs = seq(0, 1, length.out = 6), na.rm = TRUE)
+
+# Assign each raster cell to a quantile category
+pca_index_df$quantile <- cut(pca_index_df$pca_index, breaks = quantile_breaks, labels = FALSE, include.lowest = TRUE)
+
+# Convert quantile column back to raster
+pca_quantile_raster <- rast(pca_index_df[, c("x", "y", "quantile")])
+
+# factorize
+pca_quantile_raster <- as.factor(pca_quantile_raster)
+
+ggplot() +
+  geom_spatraster(data = pca_quantile_raster, na.rm = TRUE) +
+  scale_fill_manual(values = c(
+    "1" = "#1a9850",  # Very Low Vulnerability (Green)
+    "2" = "#66bd63",  # Low Vulnerability (Light Green)
+    "3" = "#ffffbf",  # Vulnerable (Yellow)
+    "4" = "#fdae61",  # Moderately Vulnerable (Orange)
+    "5" = "#d7191c"   # Highly Vulnerable (Red)
+  ), 
+  labels = c(
+    "1" = "Very Low Vulnerability", 
+    "2" = "Low Vulnerability", 
+    "3" = "Vulnerable", 
+    "4" = "Moderately Vulnerable", 
+    "5" = "Highly Vulnerable"
+  ), 
+  name = "Vulnerability Scale", na.value = "transparent") +
+  labs(title = "PCA-Based Vulnerability Index (Likert Scale)") +
+  theme_minimal() +
+  theme(legend.position = "right", 
+        axis.title.x = element_blank(), 
+        axis.title.y = element_blank()) +
+  theme(panel.grid.major = element_line(color = "grey80"), 
+        panel.grid.minor = element_line(color = "grey90")) +
+  guides(fill = guide_legend(override.aes = list(na.translate = FALSE)))
+
+# load the administrative boundaries by running 01.1_loading_processed_data.qmd
+# Plot the PCA-based vulnerability index with administrative boundaries
+plot_quantile_parishes_index = ggplot() +
+  geom_spatraster(data = pca_quantile_raster, na.rm = TRUE) +
+  geom_spatvector(data = Adm_boundaries, color = "black", fill = NA) +
+  geom_spatvector_text(data = Adm_boundaries, aes(label = PName2016), 
+                       size = 3, color = "black", check_overlap = TRUE) +
+  scale_fill_manual(values = c(
+    "1" = "#1a9850",  # Very Low Vulnerability (Green)
+    "2" = "#66bd63",  # Low Vulnerability (Light Green)
+    "3" = "#ffffbf",  # Vulnerable (Yellow)
+    "4" = "#fdae61",  # Moderately Vulnerable (Orange)
+    "5" = "#d7191c"   # Highly Vulnerable (Red)
+  ), 
+  labels = c(
+    "1" = "Very Low Vulnerability", 
+    "2" = "Low Vulnerability", 
+    "3" = "Vulnerable", 
+    "4" = "Moderately Vulnerable", 
+    "5" = "Highly Vulnerable"
+  ), 
+  name = "Vulnerability Scale", na.value = "transparent") +
+  labs(title = "PCA-Based Vulnerability Index (Likert Scale)") +
+  theme_minimal() +
+  theme(legend.position = "right", 
+        axis.title.x = element_blank(), 
+        axis.title.y = element_blank(),
+        panel.background = element_rect(fill = "white", color = NA),
+        plot.background = element_rect(fill = "white", color = NA)) + # Ensure full white background
+  theme(panel.grid.major = element_line(color = "grey80"), 
+        panel.grid.minor = element_line(color = "grey90")) +
+  guides(fill = guide_legend(override.aes = list(na.translate = FALSE)))
+```

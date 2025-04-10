@@ -44,6 +44,8 @@ worldpop_density <- list.files(here("Data/raw/Worldpop_density"), pattern = "\\.
 worldpop_dev_indicators <- here("Data/raw/Worldpop_dev_indicators") %>%
   list.files(pattern = "MEAN\\.tif$", full.names = TRUE, recursive = TRUE) %>%
   lapply(rast)
+malaria <- rast(here("Data/raw/Worldpop_dev_indicators/Malaria/2024_GBD2023_Global_Pf_Incidence_Rate_2016.tif")) 
+malaria <- malaria[["Data"]]
 ```
 
 # Select only the parishes in Kampala as reference for cropping, crs and extent
@@ -65,6 +67,7 @@ osm_roads <- align(osm_roads, parishes_kamp)
 water_lines <- align(water_lines, parishes_kamp)
 worldpop_density <- align(worldpop_density, parishes_kamp)
 worldpop_dev_indicators <- lapply(worldpop_dev_indicators, function(x) align(x, parishes_kamp))
+malaria = align(malaria, parishes_kamp)
 ```
 
 
@@ -178,4 +181,6 @@ lapply(worldpop_dev_indicators, function(raster) {
                             file.path(processed_dir, "Worldpop_dev_indicators", paste0(raster_name, "_kampala.tif")), 
                             overwrite = TRUE)
 })
+
+writeRaster(malaria, file.path(processed_dir, "Worldpop_dev_indicators", "malaria_kampala.tif"), overwrite = TRUE)
 ```

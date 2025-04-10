@@ -33,7 +33,7 @@ library(tidyterra)
 # Weighted Delta Travel Time Calculation for scenarios with All Facilities
 ```{r}
 # Load delta travel time and population distribution
-## For delta travel time go to script 05. maps_tt_and_delta_TT
+## For delta travel time go to script 03.3 maps_tt_and_delta_TT
 ### After doing so make a list using the following code:
 
 delta_tt_list_all <- mget(ls(pattern = "delta_tt_all"))

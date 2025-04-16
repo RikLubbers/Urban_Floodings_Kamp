@@ -219,7 +219,10 @@ plot_direct_parishes_index <- ggplot() +
 # ----------- 5. Display Plot -----------
 plot_direct_parishes_index
 
+# ===============================================================================================================
 # ======================================= Same indicators as PCA analysis =======================================
+# ===============================================================================================================
+
 # ----------- Filter aligned_rasters to match PCA selection -----------
 excluded_vars <- c("UGA_PNC_MEAN", "UGA_TT_MEAN", "UGA_DTP1_MEAN", 
                    "UGA_MCV1_MEAN", "UGA_HSIZE_MEAN", "UGA_MEDUCATION_MEAN")
@@ -488,6 +491,9 @@ pca_scores_with_xy <- cbind(xy_coords, as.data.frame(pca_result_3$scores))
 # Convert PCA scores back into a raster stack
 pca_raster <- rast(pca_scores_with_xy)
 
+# Set CRS
+crs(pca_raster) <- crs(aligned_rasters[[1]]) 
+
 autoplot(pca_raster, main = "PCA Scores (3 Components)")
 
 ```
@@ -516,6 +522,11 @@ names(pca_index_df)[3] <- "pca_index"
 # Convert back to raster
 pca_index_raster <- rast(pca_index_df, crs = crs(KAMP_POPULATION_10m))
 names(pca_index_raster) <- "PCA_Index"
+
+# Save PCA results
+#writeRaster(pca_index_raster, 
+#             filename = here("Data", "processed", "PCA_index.tif"), 
+#             overwrite = TRUE)
 
 # ----- 5. Classify into 5 quantiles (Likert scale) -----
 quantile_breaks <- quantile(pca_index_df$pca_index, probs = seq(0, 1, length.out = 6), na.rm = TRUE)
@@ -953,5 +964,228 @@ theme(
   legend.text = element_text(size = 10),
   plot.caption = element_text(size = 9, hjust = 0)
 )
+
+```
+
+
+
+# ----------------- Comparison with quartiles map -----------------
+```{r}
+# Quartile breaks
+quartile_breaks <- quantile(values(VI_direct_raster_scaled), probs = seq(0, 1, 0.25), na.rm = TRUE)
+
+# Classify into 4 quartiles
+VI_direct_class <- classify(VI_direct_raster_scaled, rcl = matrix(c(
+  -Inf, quartile_breaks[2], 1,
+  quartile_breaks[2], quartile_breaks[3], 2,
+  quartile_breaks[3], quartile_breaks[4], 3,
+  quartile_breaks[4], Inf, 4
+), ncol = 3, byrow = TRUE))
+
+# Set factor labels
+VI_direct_class <- as.factor(VI_direct_class)
+levels(VI_direct_class) <- data.frame(
+  value = 1:4,
+  label = c(
+    "Low Vulnerability (0–25%)",
+    "Moderately Low (25–50%)",
+    "Moderately High (50–75%)",
+    "High Vulnerability (75–100%)"
+  )
+)
+
+quartile_breaks <- quantile(pca_index_df$pca_index, probs = seq(0, 1, length.out = 5), na.rm = TRUE)
+
+pca_index_df$quartile <- cut(
+  pca_index_df$pca_index,
+  breaks = quartile_breaks,
+  labels = FALSE,
+  include.lowest = TRUE
+)
+
+pca_quantile_raster <- rast(pca_index_df[, c("x", "y", "quartile")])
+pca_quantile_raster <- as.factor(pca_quantile_raster)
+
+levels(pca_quantile_raster) <- data.frame(
+  value = 1:4,
+  label = c(
+    "Low Vulnerability (0–25%)",
+    "Moderately Low (25–50%)",
+    "Moderately High (50–75%)",
+    "High Vulnerability (75–100%)"
+  )
+)
+
+# Align CRS and rasters
+crs(pca_quantile_raster) <- "EPSG:32636"
+crs(VI_direct_class) <- "EPSG:32636"
+pca_quantile_aligned <- Spatial.align::align(pca_quantile_raster, VI_direct_class, resample_method = "near")
+
+# Convert to dataframe for comparison
+quantile_df <- c(pca_quantile_aligned, VI_direct_class)
+quantile_df <- as.data.frame(quantile_df, xy = TRUE, na.rm = TRUE)
+quantile_df <- na.omit(quantile_df)
+colnames(quantile_df) <- c("x", "y", "pca_class", "direct_class")
+
+# Assign same quartile labels
+quartile_labels <- c(
+  "Low Vulnerability (0–25%)",
+  "Moderately Low (25–50%)",
+  "Moderately High (50–75%)",
+  "High Vulnerability (75–100%)"
+)
+
+quantile_df$pca_class <- factor(
+  as.numeric(quantile_df$pca_class),
+  levels = 1:4,
+  labels = quartile_labels
+)
+
+quantile_df$direct_class <- factor(
+  quantile_df$direct_class,
+  levels = quartile_labels
+)
+
+conf_matrix <- caret::confusionMatrix(quantile_df$pca_class, quantile_df$direct_class)
+print(conf_matrix)
+
+directional_diff_raster <- pca_quantile_aligned - VI_direct_class
+names(directional_diff_raster) <- "Directional_Misclassification"
+
+directional_diff_factor <- as.factor(directional_diff_raster)
+levels(directional_diff_factor) <- data.frame(
+  value = -3:3,
+  label = c(
+    "-3 - PCA much lower (3-class underestimation)",
+    "-2 - PCA lower (2-class underestimation)",
+    "-1 - PCA slightly lower (1-class underestimation)",
+    "0 - Full agreement",
+    "1 - PCA slightly higher (1-class overestimation)",
+    "2 - PCA higher (2-class overestimation)",
+    "3 - PCA much higher (3-class overestimation)"
+  )
+)
+
+ggplot() +
+  geom_spatraster(data = pca_quantile_raster, na.rm = TRUE) +
+  geom_spatvector(data = Adm_boundaries, color = "black", fill = NA) +
+  geom_spatvector_text(
+    data = Adm_boundaries,
+    aes(label = PName2016),
+    size = 3, color = "black", check_overlap = TRUE
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Low Vulnerability (0–25%)" = "#1a9850",
+      "Moderately Low (25–50%)" = "#a6d96a",
+      "Moderately High (50–75%)" = "#fdae61",
+      "High Vulnerability (75–100%)" = "#d7191c"
+    ),
+    name = "Vulnerability Scale",
+    na.value = "transparent"
+  ) +
+  labs(
+    title = "PCA-Based Vulnerability Index (Quartiles)",
+    subtitle = "Based on Rescaled Weighted PCA Components (0–100)",
+    caption = "Source: WorldPop Development Indicators | Method: PCA (3 components, weighted)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 10),
+    axis.title = element_blank(),
+    axis.text = element_text(size = 9),
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    plot.caption = element_text(hjust = 1, size = 9),
+    panel.grid = element_line(color = "grey90"),
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  ) +
+  guides(fill = guide_legend(override.aes = list(na.translate = FALSE)))
+
+ggplot() +
+  geom_spatraster(data = VI_direct_class, na.rm = TRUE) +
+  geom_spatvector(data = Adm_boundaries, color = "black", fill = NA) +
+  geom_spatvector_text(
+    data = Adm_boundaries,
+    aes(label = PName2016),
+    size = 3, color = "black", check_overlap = TRUE
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Low Vulnerability (0–25%)" = "#1a9850",
+      "Moderately Low (25–50%)" = "#a6d96a",
+      "Moderately High (50–75%)" = "#fdae61",
+      "High Vulnerability (75–100%)" = "#d7191c"
+    ),
+    name = "Vulnerability Scale",
+    na.value = "transparent"
+  ) +
+  labs(
+    title = "Direct Vulnerability Index (Quartiles)",
+    subtitle = "Computed Using Equal Weights on Rescaled Development Indicators",
+    caption = "Source: WorldPop Development Indicators | Method: Direct Index (Equal Weights)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 10),
+    axis.title = element_blank(),
+    axis.text = element_text(size = 9),
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    plot.caption = element_text(hjust = 1, size = 9),
+    panel.grid = element_line(color = "grey90"),
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  ) +
+  guides(fill = guide_legend(override.aes = list(na.translate = FALSE)))
+
+ggplot() +
+  geom_spatraster(data = directional_diff_factor, na.rm = TRUE) +
+  geom_spatvector(data = Adm_boundaries, color = "black", fill = NA) +
+  scale_fill_manual(
+    values = c(
+      "-3 - PCA much lower (3-class underestimation)" = "#2166ac",
+      "-2 - PCA lower (2-class underestimation)" = "#67a9cf",
+      "-1 - PCA slightly lower (1-class underestimation)" = "#d1e5f0",
+      "0 - Full agreement" = "#f7f7f7",
+      "1 - PCA slightly higher (1-class overestimation)" = "#fddbc7",
+      "2 - PCA higher (2-class overestimation)" = "#f4a582",
+      "3 - PCA much higher (3-class overestimation)" = "#b2182b"
+    ),
+    name = "Misclassification Type",
+    na.value = "transparent",
+    na.translate = FALSE
+  ) +
+  labs(
+    title = "Directional Misclassification Map (Quartile-Based)",
+    subtitle = "Signed Difference in Vulnerability Classification (PCA - Direct)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.box = "vertical",
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 10),
+    legend.key.width = unit(1, "cm"),
+    legend.key.height = unit(0.5, "cm"),
+    legend.spacing.x = unit(0.5, "cm"),
+    legend.spacing.y = unit(0.5, "cm"),
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    plot.caption = element_text(size = 9)
+  ) +
+  guides(
+    fill = guide_legend(
+      title = "Misclassification Type",
+      ncol = 2
+    )
+  )
+
 
 ```

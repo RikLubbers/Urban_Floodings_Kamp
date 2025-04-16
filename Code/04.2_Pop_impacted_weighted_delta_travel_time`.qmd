@@ -42,243 +42,154 @@ delta_tt_list_all <- mget(ls(pattern = "delta_tt_all"))
 pop_density_raster <- rast(here("AccessMod", "InAccessMod", "Uganda", "data", "zToAccessMod", "20250108115609", "pop_total_10m.tif"))
 
 # Load the SpatVector for parish boundaries
-parish_boundaries <- vect(here("Data", "processed", "Adm_boundaries", "parishes_kampala.shp"))
+parish_boundaries_all <- vect(here("Data", "processed", "Adm_boundaries", "parishes_kampala.shp"))
 
 # Step 1: Iterate through each delta_tt_raster in delta_tt_list_all and multiply by population density raster
-weighted_delta_tt_list <- lapply(delta_tt_list_all, function(delta_tt_raster) {
-    # Multiply each delta_tt_raster by the population density raster
-    weighted_delta_tt_raster <- delta_tt_raster * pop_density_raster
-    return(weighted_delta_tt_raster)
+# Create weighted delta TT list for all facilities
+weighted_delta_tt_list_all <- lapply(delta_tt_list_all, function(delta_tt_raster) {
+    delta_tt_raster * pop_density_raster
+})
+names(weighted_delta_tt_list_all) <- sapply(names(weighted_delta_tt_list_all), function(name) {
+    parts <- strsplit(name, "_")[[1]]
+    paste(tail(parts, 2), collapse = "_")
 })
 
-# Assign new names to the weighted_delta_tt_list
-names(weighted_delta_tt_list) <- sapply(names(weighted_delta_tt_list), function(name) {
-        parts <- strsplit(name, "_")[[1]]
-        paste(tail(parts, 2), collapse = "_")
-})
-
-# Step 2: Perform zonal statistics to sum the weighted delta travel time for each parish and save to parish_boundaries object
-# Loop through each weighted delta travel time raster and perform zonal statistics
-for (i in seq_along(weighted_delta_tt_list)) {
-        # Perform zonal statistics to sum the weighted delta travel time for each parish
-        sum_weighted_delta_tt <- zonal(weighted_delta_tt_list[[i]], parish_boundaries, fun = "sum", na.rm = TRUE)
-        # Save the result to the parish_boundaries object using the original name
-        original_name <- names(weighted_delta_tt_list)[i]
-        parish_boundaries[[paste0("Weighted_delta_tt_", original_name)]] <- sum_weighted_delta_tt[, 1]
+# Step 2: Zonal stats for all facilities
+for (i in seq_along(weighted_delta_tt_list_all)) {
+    sum_weighted_delta_tt <- zonal(weighted_delta_tt_list_all[[i]], parish_boundaries_all, fun = "sum", na.rm = TRUE)
+    original_name <- names(weighted_delta_tt_list_all)[i]
+    parish_boundaries_all[[paste0("Weighted_delta_tt_", original_name)]] <- sum_weighted_delta_tt[, 1]
 }
 
-# Step 3: Sum population density across all cells in each parish and save it in the parish_boundaries object
-parish_boundaries$Population_Sum <- zonal(pop_density_raster, parish_boundaries, fun = "sum", na.rm = TRUE)
+# Step 3: Sum population per parish for all facilities
+parish_boundaries_all$Population_Sum <- zonal(pop_density_raster, parish_boundaries_all, fun = "sum", na.rm = TRUE)
 
-# Step 4: Calculate the impacted weighted delta travel time for each parish
-# Loop through each scenario and calculate the impacted weighted delta travel time for each parish
-for (i in seq_along(weighted_delta_tt_list)) {
-        # Calculate the impacted weighted delta travel time for each parish
-        original_name <- names(weighted_delta_tt_list)[i]
-        parish_boundaries[[paste0("Average_Weighted_Delta_TT_", original_name)]] <- parish_boundaries[[paste0("Weighted_delta_tt_", original_name)]] / parish_boundaries$Population_Sum
+# Step 4: Calculate average weighted delta TT
+for (i in seq_along(weighted_delta_tt_list_all)) {
+    original_name <- names(weighted_delta_tt_list_all)[i]
+    parish_boundaries_all[[paste0("Average_Weighted_Delta_TT_", original_name)]] <-
+        parish_boundaries_all[[paste0("Weighted_delta_tt_", original_name)]] / parish_boundaries_all$Population_Sum
 }
+
 ```
 
 # Create a bivariate map of accessibility reduction and population sum for all facilities
 ```{r}	
-# Step 5: Plot 
-# Convert SpatVector to sf object
-parish_boundaries_sf <- st_as_sf(parish_boundaries)
+# Step 5: Plot bivariate map for ALL FACILITIES
+# STEP: Prepare sf object for ALL FACILITIES
+parish_boundaries_all_sf <- st_as_sf(parish_boundaries_all)
 
-# Make all negative values positive for better visualization
-for (col in names(parish_boundaries)[grepl("Average_Weighted_Delta_TT_", names(parish_boundaries))]) {
-    parish_boundaries[[col]] <- abs(parish_boundaries[[col]])
+# STEP: Make negative values positive for visualization
+for (col in names(parish_boundaries_all_sf)[grepl("Average_Weighted_Delta_TT_", names(parish_boundaries_all_sf))]) {
+    parish_boundaries_all_sf[[col]] <- abs(parish_boundaries_all_sf[[col]])
 }
 
-# Extract scenario columns from the parish boundaries data frame
-scenario_columns <- grep("Average_Weighted_Delta_TT_", names(parish_boundaries), value = TRUE)
-
-# Reorder scenario columns to start with 20, 40, 60, 80, 100 and also by 1, 3, 6 hours
-scenario_columns_ordered <- scenario_columns[order(
-    as.numeric(sub(".*_(\\d+)_.*", "\\1", scenario_columns)),   # Sort by mm
-    as.numeric(sub(".*_(\\d+)$", "\\1", sub(".*_\\d+_", "", scenario_columns)))  # Sort by seconds (3600, 10800, etc.)
+# STEP: Extract and reorder scenario columns
+scenario_columns_all <- grep("Average_Weighted_Delta_TT_", names(parish_boundaries_all_sf), value = TRUE)
+scenario_columns_ordered_all <- scenario_columns_all[order(
+    as.numeric(sub(".*_(\\d+)_.*", "\\1", scenario_columns_all)),
+    as.numeric(sub(".*_(\\d+)$", "\\1", sub(".*_\\d+_", "", scenario_columns_all)))
 )]
 
-# Prepare population bin as a consistent factor across all scenarios
-parish_boundaries_sf$Population_bin <- cut(
-        parish_boundaries_sf$Population_Sum,
-        breaks = c(0, 10000, 30000, Inf),
-        include.lowest = TRUE,
-        labels = c("Low", "Medium", "High")
+# STEP: Create consistent population bin
+parish_boundaries_all_sf$Population_bin <- factor(cut(
+    parish_boundaries_all_sf$Population_Sum,
+    breaks = c(0, 10000, 30000, Inf),
+    include.lowest = TRUE,
+    labels = c("Low", "Medium", "High")
+), levels = c("High", "Medium", "Low"))
+
+# STEP: Define bivariate legend labels
+labels_all <- list(
+    bi_x = c("0-30", "30-60", "60+"),
+    bi_y = c("30000+", "10000-30000", "0-10000")
 )
 
-parish_boundaries_sf$Population_bin <- factor(
-        parish_boundaries_sf$Population_bin, 
-        levels = c("High", "Medium", "Low")
-)
+# STEP: Create plots for each scenario
+plot_list_all <- list()
 
-# Manually create legend labels
-labels <- list(
-        bi_x = c("0-30", "30-60", "60+"),
-        bi_y = c("30000+", "10000-30000", "0-10000")
-)
+for (i in seq_along(scenario_columns_ordered_all)) {
+    scenario_col <- scenario_columns_ordered_all[i]
 
-# Initialize an empty list to store individual plots
-plot_list <- list()
-
-# Loop through each scenario column and create a bivariate map
-for (i in seq_along(scenario_columns_ordered)) {
-        scenario_col <- scenario_columns_ordered[i]
-
-        # Extract the scenario numbers for the title
-        numbers <- sub(".*_(\\d+)_(\\d+)$", "\\1 \\2", scenario_col)
-        numbers_split <- unlist(strsplit(numbers, " "))
-        mm <- numbers_split[1]
-        hours <- as.numeric(numbers_split[2]) / 3600
-        title_part <- paste(mm, "mm x", hours, "hour")
-
-        # Classify data using the current scenario column and Population_bin
-        parish_boundaries_sf$Weighted_bin <- cut(
-                parish_boundaries_sf[[scenario_col]],
-                breaks = c(0, 30, 60, Inf),
-                include.lowest = TRUE,
-                labels = c("0-30", "30-60", "60+")
-        )
-
-        parish_boundaries_bi <- bi_class(
-                parish_boundaries_sf,
-                x = "Weighted_bin",
-                y = "Population_bin",
-                dim = 3
-        )
-
-        # Generate the bivariate plot for the current scenario
-        p <- ggplot() +
-                geom_sf(data = parish_boundaries_bi, mapping = aes(fill = bi_class), color = "white", size = 0.1, show.legend = FALSE) +
-                bi_scale_fill(pal = "DkViolet", dim = 3, flip_axes = FALSE) +
-                labs(
-                        title = title_part
-                ) +
-                bi_theme() +
-                theme(
-                        plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
-                        legend.position = "none"
-                )
-
-        # Store the plot in the list
-        plot_list[[i]] <- p
-}
-
-# Create the shared legend separately
-legend <- bi_legend(
-        pal = "DkViolet",
-        dim = 3,
-        xlab = "Travel Time Decrease (min.)",
-        ylab = "Population Sum",
-        size = 30,
-        breaks = labels,
-        flip_axes = FALSE,
-        arrows = FALSE
-)
-
-# Combine all scenario plots and add the shared legend at the bottom
-weighted_delta_TT_all <- wrap_plots(plot_list, ncol = 3) +
-        plot_layout(guides = "collect") & 
-        theme(legend.position = "bottom") & 
-        plot_annotation(
-                title = "Average Population Weighted Delta Travel Time Scenarios per Parish",
-                theme = theme(
-                        plot.title = element_text(hjust = 0.5, size = 16, face = "bold")
-                )
-        )
-
-# Display the combined plot with the shared legend at the bottom
-print(weighted_delta_TT_all)
-
-# [OPTIONAL] Save the plot to a file
-# ggsave(here("Figures", "Weighted_delta_TT", "weighted_delta_TT_all_portrait.png"), plot = weighted_delta_TT_all, width = 10, height = 15, dpi = 300)
-# ggsave(here("Figures", "Weighted_delta_TT", "legend_portrait.png"), plot = legend, width = 5, height = 5, dpi = 300)
-```
-
-# Create a combined plot for specific scenarios (20mm x 6hr and 100mm x 1hr) for a poster
-```{r}	
-# Filter the specific scenarios for 20mm x 6hr and 100mm x 1hr
-specific_scenarios <- c("Average_Weighted_Delta_TT_20_21600", "Average_Weighted_Delta_TT_100_3600")
-
-# Create an empty list to store the specific scenario plots
-specific_plot_list <- list()
-
-# Loop through the specific scenarios and create the plots
-for (i in seq_along(specific_scenarios)) {
-    # Extract the column name for the current scenario
-    scenario_col <- specific_scenarios[i]
-    
-    # Extract the two numbers from the scenario column name
+    # Extract mm and hour values
     numbers <- sub(".*_(\\d+)_(\\d+)$", "\\1 \\2", scenario_col)
-    numbers_split <- unlist(strsplit(numbers, " "))
-    
-    # Convert the second number from seconds to hours (3600 seconds = 1 hour)
-    hours <- as.numeric(numbers_split[2]) / 3600
-    
-    # Create the formatted title: "X mm x Y hours"
-    title_part <- paste(numbers_split[1], "mm x", hours, "hour")
-    
-    # Dynamically create the plot for each fill
+    mm <- unlist(strsplit(numbers, " "))[1]
+    hours <- as.numeric(unlist(strsplit(numbers, " "))[2]) / 3600
+    title_text <- paste(mm, "mm x", hours, "hour")
+
+    # Create weighted bin
+    parish_boundaries_all_sf$Weighted_bin <- factor(cut(
+        parish_boundaries_all_sf[[scenario_col]],
+        breaks = c(0, 30, 60, Inf),
+        include.lowest = TRUE,
+        labels = c("0-30", "30-60", "60+")
+    ), levels = c("0-30", "30-60", "60+"))
+
+    # Create bivariate classification
+    parish_boundaries_bi_all <- bi_class(
+        parish_boundaries_all_sf,
+        x = "Weighted_bin",
+        y = "Population_bin",
+        dim = 3
+    )
+
+    # Create plot
     p <- ggplot() +
-        geom_spatvector(data = parish_boundaries, aes(fill = .data[[scenario_col]])) +  # Dynamic fill
-        scale_fill_viridis_c(
-            option = "magma",  # Use the magma color palette
-            name = "Delta Travel\nTime Decrease",  # Legend title
-            na.value = "transparent",  # Hide NAs by making them transparent
-            limits = range(unlist(parish_boundaries_df[specific_scenarios]), na.rm = TRUE)  # Standardize the scale
-        ) +
-        theme_minimal() +
-        ggtitle(paste("Scenario", title_part)) +  # Use the formatted title
+        geom_sf(data = parish_boundaries_bi_all, aes(fill = bi_class), color = "white", size = 0.1, show.legend = FALSE) +
+        bi_scale_fill(pal = "DkViolet", dim = 3, flip_axes = FALSE) +
+        labs(title = title_text) +
+        bi_theme() +
         theme(
-            legend.position = "bottom",  # Move the legend to the bottom
-            legend.title = element_text(size = 12),  # Increase legend title font size
-            legend.text = element_text(size = 10),  # Increase legend label font size
-            axis.text = element_blank(),  # Remove axis text
-            axis.title = element_blank(),  # Remove axis titles
-            panel.grid.major = element_line(color = "gray80", size = 0.5),  # Add major gridlines
-            panel.grid.minor = element_line(color = "gray90", size = 0.25),  # Add minor gridlines
-            strip.background = element_rect(fill = "white")  # Add white background to facet labels
+            plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
+            legend.position = "none"
         )
 
-    # Store the plot in the list
-    specific_plot_list[[i]] <- p
+    plot_list_all[[i]] <- p
 }
 
-# Combine the specific scenario plots in a grid layout using patchwork
-specific_final_plot <- wrap_plots(specific_plot_list, ncol = 2) + 
-    plot_layout(guides = "collect") & 
-    theme(legend.position = "right") & 
+# STEP: Create shared legend
+legend_all <- bi_legend(
+    pal = "DkViolet",
+    dim = 3,
+    xlab = "Travel Time Increase (min.)",
+    ylab = "Population Sum",
+    size = 30,
+    breaks = labels_all,
+    flip_axes = FALSE,
+    arrows = FALSE
+)
+
+# STEP: Combine all plots
+weighted_delta_TT_all <- wrap_plots(plot_list_all, ncol = 3) +
+    plot_layout(guides = "collect") &
+    theme(legend.position = "bottom") &
     plot_annotation(
-        title = "Average Population Weighted Delta Travel Time for Specific Scenarios per Parish",
+        title = "Average Population Weighted Delta Travel Time Scenarios (All Facilities)",
         theme = theme(
             plot.title = element_text(hjust = 0.5, size = 16, face = "bold")
         )
     )
 
-# Display the combined specific scenario plot
-print(specific_final_plot)
+# STEP: Display plot
+print(weighted_delta_TT_all)
 
+# OPTIONAL: Save the combined plot and legend
+# ggsave(here("Figures", "Weighted_delta_TT", "weighted_delta_TT_all.png"), plot = weighted_delta_TT_all, width = 10, height = 15, dpi = 300)
+# ggsave(here("Figures", "Weighted_delta_TT", "legend_all.png"), plot = legend_all, width = 5, height = 5, dpi = 300)
 ```
 
 # Highlight parishes with the highest decrease in travel time for each scenario for all facilities
 ```{r}	
-# Function to format scenario titles (e.g., "100_21600" -> "100 mm x 6 hours")
+# Format scenario titles (e.g., "100_21600" → "100 mm x 6 hours")
 format_scenario_title <- function(scenario) {
-    # Extract the two numbers from the scenario name
     numbers <- sub(".*_(\\d+)_(\\d+)$", "\\1 \\2", scenario)
     numbers_split <- unlist(strsplit(numbers, " "))
-    
-    # Convert the second number from seconds to hours (3600 seconds = 1 hour)
     hours <- as.numeric(numbers_split[2]) / 3600
-    
-    # Format the title as "X mm x Y hours"
-    formatted_title <- paste(numbers_split[1], "mm x", hours, "hours")
-    
-    return(formatted_title)
+    paste(numbers_split[1], "mm x", hours, "hours")
 }
 
-# Define the list of columns for the 15 Average Weighted Delta TT scenarios
-scenario_columns_ordered <- c(
+# Scenario column names for ALL facilities
+scenario_columns_ordered_all <- c(
     "Average_Weighted_Delta_TT_20_3600", "Average_Weighted_Delta_TT_20_10800", "Average_Weighted_Delta_TT_20_21600",
     "Average_Weighted_Delta_TT_40_3600", "Average_Weighted_Delta_TT_40_10800", "Average_Weighted_Delta_TT_40_21600",
     "Average_Weighted_Delta_TT_60_3600", "Average_Weighted_Delta_TT_60_10800", "Average_Weighted_Delta_TT_60_21600",
@@ -286,116 +197,74 @@ scenario_columns_ordered <- c(
     "Average_Weighted_Delta_TT_100_3600", "Average_Weighted_Delta_TT_100_10800", "Average_Weighted_Delta_TT_100_21600"
 )
 
-# Convert the SpatVector object to a data frame
-parish_boundaries_df <- as.data.frame(parish_boundaries)
+# Convert to data frame for analysis
+parish_boundaries_all_df <- as.data.frame(parish_boundaries_all)
 
-# Create an empty list to store the top parishes for each scenario
-top_parishes_list <- list()
+# Identify top 10 parishes for each scenario
+top_parishes_list_all <- list()
 
-for (i in seq_along(scenario_columns_ordered)) {
-    # Extract the column name for the current scenario
-    scenario_col <- scenario_columns_ordered[i]
-    
-    # Check if the column exists in the data frame
-    if (scenario_col %in% names(parish_boundaries_df)) {
-        # Access the travel time values in the current scenario column
-        travel_times <- parish_boundaries_df[[scenario_col]]
-        
-        # Check if 'travel_times' is numeric and proceed
+for (scenario_col in scenario_columns_ordered_all) {
+    if (scenario_col %in% names(parish_boundaries_all_df)) {
+        travel_times <- parish_boundaries_all_df[[scenario_col]]
         if (!any(is.na(travel_times))) {
-            # Find the top 10 parishes with the lowest travel time decrease for the current scenario
-            top_parishes <- parish_boundaries_df[order(travel_times), ][1:10, ]  # Sort in ascending order
-            
-            # Store the top parishes in the list, including the parish names and travel time
-            top_parishes_list[[scenario_col]] <- data.frame(
+            top_parishes <- parish_boundaries_all_df[order(travel_times), ][1:10, ]
+            top_parishes_list_all[[scenario_col]] <- data.frame(
                 Parish_Name = top_parishes$PName2016,
-                Travel_Time_Decrease = top_parishes[[scenario_col]],  # Use the values from the scenario column
+                Travel_Time_Increase = top_parishes[[scenario_col]],
                 Scenario = scenario_col
             )
         } else {
-            warning(paste("Scenario column", scenario_col, "contains non-numeric data. Skipping."))
+            warning(paste("Scenario column", scenario_col, "contains NAs. Skipping."))
         }
     } else {
-        warning(paste("Scenario column", scenario_col, "not found in data. Skipping."))
+        warning(paste("Scenario column", scenario_col, "not found in all dataset."))
     }
 }
 
-# Print the top 10 parishes for each scenario with clearer formatting
-for (scenario in names(top_parishes_list)) {
-    formatted_title <- format_scenario_title(scenario)
-    
+# Print each scenario's top 10
+for (scenario in names(top_parishes_list_all)) {
     cat("\n\n============================\n")
-    cat("Top 10 Parishes for Scenario:", formatted_title, "\n")
+    cat("Top 10 Parishes for Scenario:", format_scenario_title(scenario), "\n")
     cat("============================\n\n")
-    
-    # Print the table for the current scenario without the 'Scenario' column
-    print(top_parishes_list[[scenario]][, c("Parish_Name", "Travel_Time_Decrease")])
-    
-    cat("\n")  # Add extra spacing between scenarios
+    print(top_parishes_list_all[[scenario]][, c("Parish_Name", "Travel_Time_Increase")])
+    cat("\n")
 }
 
-# Create an overall table showing the frequency of each parish in the top 10
-parish_frequency <- table(unlist(lapply(top_parishes_list, function(df) df$Parish_Name)))
+# Create frequency table across all scenarios
+parish_frequency_all <- table(unlist(lapply(top_parishes_list_all, function(df) df$Parish_Name)))
+parish_frequency_all_df <- as.data.frame(parish_frequency_all)
+colnames(parish_frequency_all_df) <- c("Parish_Name", "Frequency")
+parish_frequency_all_df$Frequency <- as.numeric(parish_frequency_all_df$Frequency)
+parish_frequency_all_df <- parish_frequency_all_df[order(-parish_frequency_all_df$Frequency), ]
+top_10_parish_frequency_all <- head(parish_frequency_all_df, 10)
 
-# Convert the table to a data frame
-parish_frequency_df <- as.data.frame(parish_frequency)
+cat("\n\nTop 10 Parishes by Frequency in Top 10 Lists (All Facilities):\n")
+print(top_10_parish_frequency_all)
 
-# Rename the columns appropriately (Var1 is the parish name, Freq is the frequency)
-colnames(parish_frequency_df) <- c("Parish_Name", "Frequency")
+# Highlight top 10 on map
+parish_boundaries_all$Top_10 <- ifelse(parish_boundaries_all$PName2016 %in% top_10_parish_frequency_all$Parish_Name, "Top 10", "Not in Top 10")
 
-# Ensure the Frequency column is numeric
-parish_frequency_df$Frequency <- as.numeric(parish_frequency_df$Frequency)
+# Centroids
+parish_centroids_all <- centroids(parish_boundaries_all)
+centroids_coords_all <- geom(parish_centroids_all)
+parish_centroids_all_df <- as.data.frame(parish_centroids_all) %>%
+    mutate(PName2016 = parish_boundaries_all$PName2016,
+           Top_10 = parish_boundaries_all$Top_10) %>%
+    cbind(centroids_coords_all[, c("x", "y")])
 
-# Order the frequency table by Frequency in descending order
-parish_frequency_df <- parish_frequency_df[order(-parish_frequency_df$Frequency), ]
-
-# Limit the output to the top 10 parishes
-top_10_parish_frequency <- head(parish_frequency_df, 10)
-
-# Print the top 10 parishes based on their frequency
-cat("\n\nTop 10 Parishes by Frequency in Top 10 Lists:\n")
-print(top_10_parish_frequency)
-
-# Highlight the top 10 parishes on a map 
-# Create a new column in the parish boundaries data frame to indicate if a parish is in the top 10
-parish_boundaries$Top_10 <- ifelse(parish_boundaries$PName2016 %in% top_10_parish_frequency$Parish_Name, "Top 10", "Not in Top 10")
-
-# Calculate centroids of parishes
-parish_centroids <- centroids(parish_boundaries)
-
-# Convert centroids to a data frame for ggplot
-parish_centroids_df <- as.data.frame(parish_centroids)
-
-# Ensure parish names and Top_10 values are retained
-parish_centroids_df <- parish_centroids_df %>%
-    mutate(PName2016 = parish_boundaries$PName2016,
-           Top_10 = parish_boundaries$Top_10)
-
-# Extract centroids and coordinates
-centroids_coords <- geom(parish_centroids) # Extracts x, y coordinates as columns
-
-# Add coordinates to the parish_centroids_df
-parish_centroids_df <- cbind(as.data.frame(parish_centroids), centroids_coords[, c("x", "y")])
-
-# Create the color palette
-top_10_palette <- c("Top 10" = "red", "Not in Top 10" = "gray")
-
-highlighted_plot <- ggplot() +
-    geom_spatvector(data = parish_boundaries, aes(fill = Top_10)) +
+# Plot
+highlighted_plot_all <- ggplot() +
+    geom_spatvector(data = parish_boundaries_all, aes(fill = Top_10)) +
     geom_label(
-        data = parish_centroids_df %>% filter(Top_10 == "Top 10"),
-        aes(label = PName2016, x = x, y = y), # Use x and y columns
-        color = "black", # Text color
-        fill = "white",  # Background mask color
-        size = 3,        # Adjust size as needed
-        label.padding = unit(0.2, "lines"),  # Padding around the text
-        label.size = 0.25,                   # Border size of the label box
-        hjust = 0.5,
-        vjust = -0.5
+        data = parish_centroids_all_df %>% filter(Top_10 == "Top 10"),
+        aes(label = PName2016, x = x, y = y),
+        color = "black", fill = "white", size = 3,
+        label.padding = unit(0.2, "lines"), label.size = 0.25,
+        hjust = 0.5, vjust = -0.5
     ) +
-    scale_fill_manual(values = top_10_palette, name = "Top 10 Parishes") +
+    scale_fill_manual(values = c("Top 10" = "red", "Not in Top 10" = "gray"), name = "Top 10 Parishes") +
     theme_minimal() +
-    ggtitle("Top 10 Parishes with Highest Travel Time Decrease") +
+    ggtitle("Top 10 Parishes with Lowest Travel Time Increase (All Facilities)") +
     theme(
         legend.position = "bottom",
         legend.title = element_text(size = 12),
@@ -407,14 +276,14 @@ highlighted_plot <- ggplot() +
         strip.background = element_rect(fill = "white")
     )
 
-# Display the plot
-print(highlighted_plot)
+# Display
+print(highlighted_plot_all)
 ```
 
 # Densitiy plots of the average weighted delta travel time for each scenario across all parishes for all facilities 
 ```{r}
-# Define the list of columns for the 15 Average Weighted Delta TT scenarios
-scenario_columns_ordered <- c(
+# Define columns for ALL FACILITIES
+scenario_columns_ordered_all <- c(
     "Average_Weighted_Delta_TT_20_3600", "Average_Weighted_Delta_TT_20_10800", "Average_Weighted_Delta_TT_20_21600",
     "Average_Weighted_Delta_TT_40_3600", "Average_Weighted_Delta_TT_40_10800", "Average_Weighted_Delta_TT_40_21600",
     "Average_Weighted_Delta_TT_60_3600", "Average_Weighted_Delta_TT_60_10800", "Average_Weighted_Delta_TT_60_21600",
@@ -422,33 +291,24 @@ scenario_columns_ordered <- c(
     "Average_Weighted_Delta_TT_100_3600", "Average_Weighted_Delta_TT_100_10800", "Average_Weighted_Delta_TT_100_21600"
 )
 
-# Get the global x and y limits based on all scenario columns
-# Global x limits based on the range of all scenario columns
-x_limits <- range(unlist(parish_boundaries_df[scenario_columns_ordered]))
-
-# You could choose a uniform y-axis limit or calculate it across all scenarios
-# Since we are using density plots, y-limits can vary, so we can calculate it
-y_limits <- c(0, max(sapply(scenario_columns_ordered, function(col) {
-    max(density(parish_boundaries_df[[col]], na.rm = TRUE)$y)
+# Compute global axis limits across all scenarios
+x_limits_all <- range(unlist(parish_boundaries_all_df[scenario_columns_ordered_all]), na.rm = TRUE)
+y_limits_all <- c(0, max(sapply(scenario_columns_ordered_all, function(col) {
+    max(density(parish_boundaries_all_df[[col]], na.rm = TRUE)$y)
 })))
 
-# Create an empty list to store the density plots
-density_plot_list <- list()
+# Generate density plots for each scenario
+density_plot_list_all <- list()
 
-# Loop through each scenario column and create the density plots
-for (i in seq_along(scenario_columns_ordered)) {
-    # Extract the column name for the current scenario
-    scenario_col <- scenario_columns_ordered[i]
-    
-    # Check if the column exists in the data frame
-    if (scenario_col %in% names(parish_boundaries_df)) {
-        # Create the density plot for the current scenario by directly referencing the column
-        p <- ggplot(parish_boundaries_df, aes(x = .data[[scenario_col]])) +  # Reference the column dynamically
+for (i in seq_along(scenario_columns_ordered_all)) {
+    scenario_col <- scenario_columns_ordered_all[i]
+    if (scenario_col %in% names(parish_boundaries_all_df)) {
+        p <- ggplot(parish_boundaries_all_df, aes(x = .data[[scenario_col]])) + 
             geom_density(fill = "blue", color = "black", alpha = 0.7) +
-            xlim(x_limits) +  # Set global x limits
-            ylim(y_limits) +  # Set global y limits
+            xlim(x_limits_all) +
+            ylim(y_limits_all) +
             theme_minimal() +
-            ggtitle(format_scenario_title(scenario_col)) +  # Format the title dynamically
+            ggtitle(format_scenario_title(scenario_col)) +
             xlab("Average Weighted Delta Travel Time") +
             ylab("Density") +
             theme(
@@ -456,88 +316,64 @@ for (i in seq_along(scenario_columns_ordered)) {
                 axis.title = element_text(size = 12),
                 axis.text = element_text(size = 10)
             )
-        
-        # Store the density plot in the list
-        density_plot_list[[i]] <- p
+        density_plot_list_all[[i]] <- p
     }
 }
 
-# Combine the density plots in a grid layout using patchwork
-final_density_plot <- wrap_plots(density_plot_list, ncol = 3) + 
-    plot_layout(guides = "collect") & 
+# Combine all density plots into one grid
+final_density_plot_all <- wrap_plots(density_plot_list_all, ncol = 3) + 
+    plot_layout(guides = "collect") &
     plot_annotation(
-        title = "Density Plots of Average Weighted Delta Travel Time Scenarios per Parish",
+        title = "Density Plots of Average Weighted Delta Travel Time Scenarios (All Facilities)",
         theme = theme(
             plot.title = element_text(hjust = 0.5, size = 16, face = "bold")
         )
     )
 
-# Display the combined density plot
-print(final_density_plot)
+print(final_density_plot_all)
 
-# Overlayed density plots for different mm but same hours (e.g., 20 -100 x 1 hour) 
-# Create an empty list to store the overlayed plots
-overlayed_plot_list <- list()
-
-# Define the hours and corresponding scenario columns for each group
-hours_list <- c(3600, 10800, 21600)  # 1 hour, 3 hours, 6 hours
-
-# Define the color palette for the mm values
+# Generate overlayed density plots by rainfall duration (1h, 3h, 6h)
+overlayed_plot_list_all <- list()
+hours_list <- c(3600, 10800, 21600)
 color_palette <- c("blue", "green", "orange", "purple", "red")
 
-# Loop through each hour to create overlayed density plots for different mm values
 for (hour in hours_list) {
-    
-    # Filter scenario columns that match the current hour
-    scenarios_for_hour <- grep(paste0("_", hour), scenario_columns_ordered, value = TRUE)
-    
-    # Create an empty data frame to store mm and travel times
+    scenarios_for_hour <- grep(paste0("_", hour), scenario_columns_ordered_all, value = TRUE)
     combined_df <- data.frame()
     
-    # Collect all travel times and corresponding mm values for the current hour
     for (scenario_col in scenarios_for_hour) {
-        # Extract mm from the scenario column
         mm_value <- sub(".*_(\\d+)_\\d+$", "\\1", scenario_col)
-        
-        # Create a temporary data frame with the mm values and travel times
         temp_df <- data.frame(
-            mm = as.numeric(mm_value),  # Ensure mm is numeric for correct ordering
-            travel_times = parish_boundaries_df[[scenario_col]]
+            mm = as.numeric(mm_value),
+            travel_times = parish_boundaries_all_df[[scenario_col]]
         )
-        
-        # Combine this data into the master data frame for this hour
         combined_df <- rbind(combined_df, temp_df)
     }
     
-    # Create the overlayed density plot for the current hour
-    p <- ggplot(combined_df, aes(x = travel_times, color = as.factor(mm))) +  # Color by mm values
+    p <- ggplot(combined_df, aes(x = travel_times, color = as.factor(mm))) + 
         geom_density(fill = NA, alpha = 0.7) +
         theme_minimal() +
         ggtitle(paste(hour / 3600, "hour(s)")) +
         xlab("Average Weighted Delta Travel Time") +
         ylab("Density") +
-        scale_color_manual(values = color_palette, name = "mm Values", breaks = c(20, 40, 60, 80, 100)) +  # Order mm from 20 to 100
+        scale_color_manual(values = color_palette, name = "mm Values", breaks = c(20, 40, 60, 80, 100)) +
         theme(
             plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
             axis.title = element_text(size = 12),
             axis.text = element_text(size = 10)
         )
-    
-    # Store the overlayed plot in the list
-    overlayed_plot_list[[as.character(hour)]] <- p
+    overlayed_plot_list_all[[as.character(hour)]] <- p
 }
 
-# Combine the overlayed plots in a grid layout using patchwork
-final_overlayed_plot <- wrap_plots(overlayed_plot_list, ncol = 1) + 
+final_overlayed_plot_all <- wrap_plots(overlayed_plot_list_all, ncol = 1) +
     plot_annotation(
-        title = "Overlayed Density Plots for Different mm by Hours",
+        title = "Overlayed Density Plots for Different mm by Duration (All Facilities)",
         theme = theme(
             plot.title = element_text(hjust = 0.5, size = 16, face = "bold")
         )
     )
 
-# Display the combined overlayed density plots
-print(final_overlayed_plot)
+print(final_overlayed_plot_all)
 ```
 
 ########################################################
@@ -555,296 +391,229 @@ delta_tt_list_hosp <- mget(ls(pattern = "delta_tt_hosp"))
 pop_density_raster <- rast(here("AccessMod", "InAccessMod", "Uganda", "data", "zToAccessMod", "20250108115609", "pop_total_10m.tif"))
 
 # Load the SpatVector for parish boundaries
-parish_boundaries <- vect(here("Data", "processed", "Adm_boundaries", "parishes_kampala.shp"))
+# Load parish boundaries and rename
+parish_boundaries_hosp <- vect(here("Data", "processed", "Adm_boundaries", "parishes_kampala.shp"))
 
-# Step 1: Iterate through each delta_tt_raster in delta_tt_list_hosp and multiply by population density raster
-weighted_delta_tt_list <- lapply(delta_tt_list_hosp, function(delta_tt_raster) {
-    # Multiply each delta_tt_raster by the population density raster
-    weighted_delta_tt_raster <- delta_tt_raster * pop_density_raster
-    return(weighted_delta_tt_raster)
+# Create weighted delta TT list for hospital-only
+weighted_delta_tt_list_hosp <- lapply(delta_tt_list_hosp, function(delta_tt_raster) {
+    delta_tt_raster * pop_density_raster
+})
+names(weighted_delta_tt_list_hosp) <- sapply(names(weighted_delta_tt_list_hosp), function(name) {
+    parts <- strsplit(name, "_")[[1]]
+    paste(tail(parts, 2), collapse = "_")
 })
 
-# Assign new names to the weighted_delta_tt_list
-names(weighted_delta_tt_list) <- sapply(names(weighted_delta_tt_list), function(name) {
-        parts <- strsplit(name, "_")[[1]]
-        paste(tail(parts, 2), collapse = "_")
-})
-
-# Step 2: Perform zonal statistics to sum the weighted delta travel time for each parish and save to parish_boundaries object
-# Loop through each weighted delta travel time raster and perform zonal statistics
-for (i in seq_along(weighted_delta_tt_list)) {
-        # Perform zonal statistics to sum the weighted delta travel time for each parish
-        sum_weighted_delta_tt <- zonal(weighted_delta_tt_list[[i]], parish_boundaries, fun = "sum", na.rm = TRUE)
-        # Save the result to the parish_boundaries object using the original name
-        original_name <- names(weighted_delta_tt_list)[i]
-        parish_boundaries[[paste0("Weighted_delta_tt_", original_name)]] <- sum_weighted_delta_tt[, 1]
+# Step 2: Zonal stats for hospital-only
+for (i in seq_along(weighted_delta_tt_list_hosp)) {
+    sum_weighted_delta_tt <- zonal(weighted_delta_tt_list_hosp[[i]], parish_boundaries_hosp, fun = "sum", na.rm = TRUE)
+    original_name <- names(weighted_delta_tt_list_hosp)[i]
+    parish_boundaries_hosp[[paste0("Weighted_delta_tt_", original_name)]] <- sum_weighted_delta_tt[, 1]
 }
 
-# Step 3: Sum population density across all cells in each parish and save it in the parish_boundaries object
-parish_boundaries$Population_Sum <- zonal(pop_density_raster, parish_boundaries, fun = "sum", na.rm = TRUE)
+# Step 3: Sum population per parish for hospital-only
+parish_boundaries_hosp$Population_Sum <- zonal(pop_density_raster, parish_boundaries_hosp, fun = "sum", na.rm = TRUE)
 
-# Step 4: Calculate the impacted weighted delta travel time for each parish
-# Loop through each scenario and calculate the impacted weighted delta travel time for each parish
-for (i in seq_along(weighted_delta_tt_list)) {
-        # Calculate the impacted weighted delta travel time for each parish
-        original_name <- names(weighted_delta_tt_list)[i]
-        parish_boundaries[[paste0("Average_Weighted_Delta_TT_", original_name)]] <- parish_boundaries[[paste0("Weighted_delta_tt_", original_name)]] / parish_boundaries$Population_Sum
+# Step 4: Calculate average weighted delta TT
+for (i in seq_along(weighted_delta_tt_list_hosp)) {
+    original_name <- names(weighted_delta_tt_list_hosp)[i]
+    parish_boundaries_hosp[[paste0("Average_Weighted_Delta_TT_", original_name)]] <-
+        parish_boundaries_hosp[[paste0("Weighted_delta_tt_", original_name)]] / parish_boundaries_hosp$Population_Sum
 }
+
 ```
 
 # Create a bivariate map of accessibility reduction and population sum for hospital only scenarios
 ```{r}
-# Step 5: Plot 
-# Convert SpatVector to sf object
-parish_boundaries_sf <- st_as_sf(parish_boundaries)
+# STEP: Convert to sf
+parish_boundaries_hosp_sf <- st_as_sf(parish_boundaries_hosp)
 
-# Make all negative values positive for better visualization
-for (col in names(parish_boundaries)[grepl("Average_Weighted_Delta_TT_", names(parish_boundaries))]) {
-    parish_boundaries[[col]] <- abs(parish_boundaries[[col]])
+# STEP: Make negative values positive for plotting
+for (col in names(parish_boundaries_hosp_sf)[grepl("Average_Weighted_Delta_TT_", names(parish_boundaries_hosp_sf))]) {
+    parish_boundaries_hosp_sf[[col]] <- abs(parish_boundaries_hosp_sf[[col]])
 }
 
-# Extract scenario columns from the parish boundaries data frame
-scenario_columns <- grep("Average_Weighted_Delta_TT_", names(parish_boundaries), value = TRUE)
-
-# Reorder scenario columns to start with 20, 40, 60, 80, 100 and also by 1, 3, 6 hours
-scenario_columns_ordered <- scenario_columns[order(
-    as.numeric(sub(".*_(\\d+)_.*", "\\1", scenario_columns)),   # Sort by mm
-    as.numeric(sub(".*_(\\d+)$", "\\1", sub(".*_\\d+_", "", scenario_columns)))  # Sort by seconds (3600, 10800, etc.)
+# STEP: Extract and order scenario columns
+scenario_columns_hosp <- grep("Average_Weighted_Delta_TT_", names(parish_boundaries_hosp_sf), value = TRUE)
+scenario_columns_ordered_hosp <- scenario_columns_hosp[order(
+    as.numeric(sub(".*_(\\d+)_.*", "\\1", scenario_columns_hosp)),
+    as.numeric(sub(".*_(\\d+)$", "\\1", sub(".*_\\d+_", "", scenario_columns_hosp)))
 )]
 
-# Prepare population bin as a consistent factor across all scenarios
-parish_boundaries_sf$Population_bin <- cut(
-        parish_boundaries_sf$Population_Sum,
-        breaks = c(0, 10000, 30000, Inf),
-        include.lowest = TRUE,
-        labels = c("Low", "Medium", "High")
+# STEP: Create population bin
+parish_boundaries_hosp_sf$Population_bin <- factor(cut(
+    parish_boundaries_hosp_sf$Population_Sum,
+    breaks = c(0, 10000, 30000, Inf),
+    include.lowest = TRUE,
+    labels = c("Low", "Medium", "High")
+), levels = c("High", "Medium", "Low"))
+
+# STEP: Define legend labels
+labels_hosp <- list(
+    bi_x = c("0-30", "30-60", "60+"),
+    bi_y = c("30000+", "10000-30000", "0-10000")
 )
 
-parish_boundaries_sf$Population_bin <- factor(
-        parish_boundaries_sf$Population_bin, 
-        levels = c("High", "Medium", "Low")
-)
+# STEP: Initialize list of plots
+plot_list_hosp <- list()
 
-# Manually create legend labels
-labels <- list(
-        bi_x = c("0-30", "30-60", "60+"),
-        bi_y = c("30000+", "10000-30000", "0-10000")
-)
+# STEP: Loop over each scenario and create the plots
+for (i in seq_along(scenario_columns_ordered_hosp)) {
+    scenario_col <- scenario_columns_ordered_hosp[i]
 
-# Initialize an empty list to store individual plots
-plot_list <- list()
+    # Extract mm and hours
+    mm <- sub(".*_(\\d+)_\\d+$", "\\1", scenario_col)
+    hr <- as.numeric(sub(".*_(\\d+)$", "\\1", scenario_col)) / 3600
+    title_text <- paste(mm, "mm x", hr, "hour")
 
-# Loop through each scenario column and create a bivariate map
-for (i in seq_along(scenario_columns_ordered)) {
-    scenario_col <- scenario_columns_ordered[i]
-
-    # Extract the scenario numbers for the title
-    numbers <- sub(".*_(\\d+)_(\\d+)$", "\\1 \\2", scenario_col)
-    numbers_split <- unlist(strsplit(numbers, " "))
-    mm <- numbers_split[1]
-    hours <- as.numeric(numbers_split[2]) / 3600
-    title_part <- paste(mm, "mm x", hours, "hour")
-
-    # Classify data using the current scenario column and Population_bin
-    parish_boundaries_sf$Weighted_bin <- cut(
-        parish_boundaries_sf[[scenario_col]],
+    # Classify into bins
+    parish_boundaries_hosp_sf$Weighted_bin <- factor(cut(
+        parish_boundaries_hosp_sf[[scenario_col]],
         breaks = c(0, 30, 60, Inf),
         include.lowest = TRUE,
         labels = c("0-30", "30-60", "60+")
-    )
+    ), levels = c("0-30", "30-60", "60+"))
 
-    parish_boundaries_bi <- bi_class(
-        parish_boundaries_sf,
+    # Bivariate classification
+    parish_boundaries_bi_hosp <- bi_class(
+        parish_boundaries_hosp_sf,
         x = "Weighted_bin",
         y = "Population_bin",
         dim = 3
     )
 
-    # Generate the bivariate plot for the current scenario
+    # Plot
     p <- ggplot() +
-        geom_sf(data = parish_boundaries_bi, mapping = aes(fill = bi_class), color = "white", size = 0.1, show.legend = FALSE) +
+        geom_sf(data = parish_boundaries_bi_hosp, aes(fill = bi_class), color = "white", size = 0.1, show.legend = FALSE) +
         bi_scale_fill(pal = "DkViolet", dim = 3, flip_axes = FALSE) +
-        labs(
-            title = title_part
-        ) +
+        labs(title = title_text) +
         bi_theme() +
         theme(
             plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
             legend.position = "none"
         )
 
-    # Store the plot in the list
-    plot_list[[i]] <- p
+    plot_list_hosp[[i]] <- p
 }
 
-
-# Create the shared legend separately
-legend <- bi_legend(
-        pal = "DkViolet",
-        dim = 3,
-        xlab = "Travel Time Decrease (min.)",
-        ylab = "Population Sum",
-        size = 30,
-        breaks = labels,
-        flip_axes = FALSE,
-        arrows = FALSE
+# STEP: Create shared legend
+legend_hosp <- bi_legend(
+    pal = "DkViolet",
+    dim = 3,
+    xlab = "Travel Time Increase (min.)",
+    ylab = "Population Sum",
+    size = 30,
+    breaks = labels_hosp,
+    flip_axes = FALSE,
+    arrows = FALSE
 )
 
-# Combine all scenario plots and add the shared legend at the bottom
-weighted_delta_TT_hosp <- wrap_plots(plot_list, ncol = 3) +
-        plot_layout(guides = "collect") & 
-        theme(legend.position = "bottom") & 
-        plot_annotation(
-                title = "Average Population Weighted Delta Travel Time Scenarios for Hospital Only per Parish",
-                theme = theme(
-                        plot.title = element_text(hjust = 0.5, size = 16, face = "bold")
-                )
+# STEP: Combine and display
+weighted_delta_TT_hosp <- wrap_plots(plot_list_hosp, ncol = 3) +
+    plot_layout(guides = "collect") & 
+    theme(legend.position = "bottom") & 
+    plot_annotation(
+        title = "Average Population Weighted Delta Travel Time Scenarios (Hospitals Only)",
+        theme = theme(
+            plot.title = element_text(hjust = 0.5, size = 16, face = "bold")
         )
+    )
 
-# Display the combined plot with the shared legend at the bottom
+# Display the combined plot
 print(weighted_delta_TT_hosp)
-
-# [OPTIONAL] Save the plot to a file
-# ggsave(here("Figures", "Weighted_delta_TT", "weighted_delta_TT_hosp_portrait.png"), plot = weighted_delta_TT_hosp, width = 10, height = 15, dpi = 300)
-# ggsave(here("Figures", "Weighted_delta_TT", "legend_hosp_portrait.png"), plot = legend, width = 5, height = 5, dpi = 300)
 ```
 
 # Highlight parishes with the highest decrease in travel time for each scenario for all facilities
-```{r}	
+```{r}
 # Function to format scenario titles (e.g., "100_21600" -> "100 mm x 6 hours")
 format_scenario_title <- function(scenario) {
-    # Extract the two numbers from the scenario name
     numbers <- sub(".*_(\\d+)_(\\d+)$", "\\1 \\2", scenario)
     numbers_split <- unlist(strsplit(numbers, " "))
-    
-    # Convert the second number from seconds to hours (3600 seconds = 1 hour)
     hours <- as.numeric(numbers_split[2]) / 3600
-    
-    # Format the title as "X mm x Y hours"
     formatted_title <- paste(numbers_split[1], "mm x", hours, "hours")
-    
     return(formatted_title)
 }
 
-# Define the list of columns for the 15 Average Weighted Delta TT scenarios (hospital only)
-scenario_columns_ordered <- c(
-    "Average_Weighted_Delta_TT_20_3600", "Average_Weighted_Delta_TT_20_10800", "Average_Weighted_Delta_TT_20_21600",
-    "Average_Weighted_Delta_TT_40_3600", "Average_Weighted_Delta_TT_40_10800", "Average_Weighted_Delta_TT_40_21600",
-    "Average_Weighted_Delta_TT_60_3600", "Average_Weighted_Delta_TT_60_10800", "Average_Weighted_Delta_TT_60_21600",
-    "Average_Weighted_Delta_TT_80_3600", "Average_Weighted_Delta_TT_80_10800", "Average_Weighted_Delta_TT_80_21600",
-    "Average_Weighted_Delta_TT_100_3600", "Average_Weighted_Delta_TT_100_10800", "Average_Weighted_Delta_TT_100_21600"
-)
+# Use the hospital-specific SpatVector
+parish_boundaries_hosp_df <- as.data.frame(parish_boundaries_hosp)
 
-# Convert the SpatVector object to a data frame
-parish_boundaries_df <- as.data.frame(parish_boundaries)
+# Extract relevant columns
+scenario_columns_ordered_hosp <- grep("Average_Weighted_Delta_TT_", names(parish_boundaries_hosp_df), value = TRUE)
 
-# Create an empty list to store the top parishes for each scenario
-top_parishes_list <- list()
+# Initialize empty list for results
+top_parishes_list_hosp <- list()
 
-for (i in seq_along(scenario_columns_ordered)) {
-    # Extract the column name for the current scenario
-    scenario_col <- scenario_columns_ordered[i]
-    
-    # Check if the column exists in the data frame
-    if (scenario_col %in% names(parish_boundaries_df)) {
-        # Access the travel time values in the current scenario column
-        travel_times <- parish_boundaries_df[[scenario_col]]
-        
-        # Check if 'travel_times' is numeric and proceed
+# Loop through each scenario and extract top 10 parishes
+for (i in seq_along(scenario_columns_ordered_hosp)) {
+    scenario_col <- scenario_columns_ordered_hosp[i]
+
+    if (scenario_col %in% names(parish_boundaries_hosp_df)) {
+        travel_times <- parish_boundaries_hosp_df[[scenario_col]]
         if (!any(is.na(travel_times))) {
-            # Find the top 10 parishes with the lowest travel time decrease for the current scenario
-            top_parishes <- parish_boundaries_df[order(travel_times), ][1:10, ]  # Sort in ascending order
-            
-            # Store the top parishes in the list, including the parish names and travel time
-            top_parishes_list[[scenario_col]] <- data.frame(
+            top_parishes <- parish_boundaries_hosp_df[order(travel_times), ][1:10, ]
+            top_parishes_list_hosp[[scenario_col]] <- data.frame(
                 Parish_Name = top_parishes$PName2016,
-                Travel_Time_Decrease = top_parishes[[scenario_col]],  # Use the values from the scenario column
+                Travel_Time_Increase = top_parishes[[scenario_col]],
                 Scenario = scenario_col
             )
-        } else {
-            warning(paste("Scenario column", scenario_col, "contains non-numeric data. Skipping."))
         }
-    } else {
-        warning(paste("Scenario column", scenario_col, "not found in data. Skipping."))
     }
 }
 
-# Print the top 10 parishes for each scenario with clearer formatting
-for (scenario in names(top_parishes_list)) {
+# Print top 10 per scenario
+for (scenario in names(top_parishes_list_hosp)) {
     formatted_title <- format_scenario_title(scenario)
-    
     cat("\n\n============================\n")
     cat("Top 10 Parishes for Scenario:", formatted_title, "\n")
     cat("============================\n\n")
-    
-    # Print the table for the current scenario without the 'Scenario' column
-    print(top_parishes_list[[scenario]][, c("Parish_Name", "Travel_Time_Decrease")])
-    
-    cat("\n")  # Add extra spacing between scenarios
+    print(top_parishes_list_hosp[[scenario]][, c("Parish_Name", "Travel_Time_Increase")])
+    cat("\n")
 }
 
-# Create an overall table showing the frequency of each parish in the top 10
-parish_frequency <- table(unlist(lapply(top_parishes_list, function(df) df$Parish_Name)))
+# Frequency count across scenarios
+parish_frequency_hosp <- table(unlist(lapply(top_parishes_list_hosp, function(df) df$Parish_Name)))
+parish_frequency_df_hosp <- as.data.frame(parish_frequency_hosp)
+colnames(parish_frequency_df_hosp) <- c("Parish_Name", "Frequency")
+parish_frequency_df_hosp$Frequency <- as.numeric(parish_frequency_df_hosp$Frequency)
+parish_frequency_df_hosp <- parish_frequency_df_hosp[order(-parish_frequency_df_hosp$Frequency), ]
+top_10_parish_frequency_hosp <- head(parish_frequency_df_hosp, 10)
 
-# Convert the table to a data frame
-parish_frequency_df <- as.data.frame(parish_frequency)
+cat("\n\nTop 10 Parishes by Frequency in Top 10 Lists (Hospitals Only):\n")
+print(top_10_parish_frequency_hosp)
 
-# Rename the columns appropriately (Var1 is the parish name, Freq is the frequency)
-colnames(parish_frequency_df) <- c("Parish_Name", "Frequency")
+# Highlight top 10 in SpatVector
+parish_boundaries_hosp$Top_10 <- ifelse(parish_boundaries_hosp$PName2016 %in% top_10_parish_frequency_hosp$Parish_Name, "Top 10", "Not in Top 10")
 
-# Ensure the Frequency column is numeric
-parish_frequency_df$Frequency <- as.numeric(parish_frequency_df$Frequency)
+# Centroids and coordinates
+parish_centroids_hosp <- centroids(parish_boundaries_hosp)
+centroids_coords_hosp <- geom(parish_centroids_hosp)
 
-# Order the frequency table by Frequency in descending order
-parish_frequency_df <- parish_frequency_df[order(-parish_frequency_df$Frequency), ]
+# Add attributes to centroid df
+parish_centroids_df_hosp <- as.data.frame(parish_centroids_hosp) %>%
+    mutate(
+        PName2016 = parish_boundaries_hosp$PName2016,
+        Top_10 = parish_boundaries_hosp$Top_10,
+        x = centroids_coords_hosp[, "x"],
+        y = centroids_coords_hosp[, "y"]
+    )
 
-# Limit the output to the top 10 parishes
-top_10_parish_frequency <- head(parish_frequency_df, 10)
-
-# Print the top 10 parishes based on their frequency
-cat("\n\nTop 10 Parishes by Frequency in Top 10 Lists:\n")
-print(top_10_parish_frequency)
-
-# Highlight the top 10 parishes on a map 
-# Create a new column in the parish boundaries data frame to indicate if a parish is in the top 10
-parish_boundaries$Top_10 <- ifelse(parish_boundaries$PName2016 %in% top_10_parish_frequency$Parish_Name, "Top 10", "Not in Top 10")
-
-# Calculate centroids of parishes
-parish_centroids <- centroids(parish_boundaries)
-
-# Convert centroids to a data frame for ggplot
-parish_centroids_df <- as.data.frame(parish_centroids)
-
-# Ensure parish names and Top_10 values are retained
-parish_centroids_df <- parish_centroids_df %>%
-    mutate(PName2016 = parish_boundaries$PName2016,
-           Top_10 = parish_boundaries$Top_10)
-
-# Extract centroids and coordinates
-centroids_coords <- geom(parish_centroids) # Extracts x, y coordinates as columns
-
-# Add coordinates to the parish_centroids_df
-parish_centroids_df <- cbind(as.data.frame(parish_centroids), centroids_coords[, c("x", "y")])
-
-# Create the color palette
+# Color palette
 top_10_palette <- c("Top 10" = "red", "Not in Top 10" = "gray")
 
-highlighted_plot <- ggplot() +
-    geom_spatvector(data = parish_boundaries, aes(fill = Top_10)) +
+# Plot
+highlighted_plot_hosp <- ggplot() +
+    geom_spatvector(data = parish_boundaries_hosp, aes(fill = Top_10)) +
     geom_label(
-        data = parish_centroids_df %>% filter(Top_10 == "Top 10"),
-        aes(label = PName2016, x = x, y = y), # Use x and y columns
-        color = "black", # Text color
-        fill = "white",  # Background mask color
-        size = 3,        # Adjust size as needed
-        label.padding = unit(0.2, "lines"),  # Padding around the text
-        label.size = 0.25,                   # Border size of the label box
-        hjust = 0.5,
-        vjust = -0.5
+        data = parish_centroids_df_hosp %>% filter(Top_10 == "Top 10"),
+        aes(label = PName2016, x = x, y = y),
+        color = "black",
+        fill = "white",
+        size = 3,
+        label.padding = unit(0.2, "lines"),
+        label.size = 0.25
     ) +
     scale_fill_manual(values = top_10_palette, name = "Top 10 Parishes") +
     theme_minimal() +
-    ggtitle("Top 10 Parishes with Highest Travel Time Decrease") +
+    ggtitle("Top 10 Parishes with Highest Travel Time Increase (Hospitals Only)") +
     theme(
         legend.position = "bottom",
         legend.title = element_text(size = 12),
@@ -856,14 +625,14 @@ highlighted_plot <- ggplot() +
         strip.background = element_rect(fill = "white")
     )
 
-# Display the plot
-print(highlighted_plot)
+# Show plot
+print(highlighted_plot_hosp)
 ```
 
 # Densitiy plots of the average weighted delta travel time for each scenario across all parishes for all facilities 
 ```{r}
-# Define the list of columns for the 15 Average Weighted Delta TT scenarios (hospital only)
-scenario_columns_ordered <- c(
+# Define the list of columns for hospital-only delta TT scenarios
+scenario_columns_ordered_hosp <- c(
     "Average_Weighted_Delta_TT_20_3600", "Average_Weighted_Delta_TT_20_10800", "Average_Weighted_Delta_TT_20_21600",
     "Average_Weighted_Delta_TT_40_3600", "Average_Weighted_Delta_TT_40_10800", "Average_Weighted_Delta_TT_40_21600",
     "Average_Weighted_Delta_TT_60_3600", "Average_Weighted_Delta_TT_60_10800", "Average_Weighted_Delta_TT_60_21600",
@@ -871,24 +640,23 @@ scenario_columns_ordered <- c(
     "Average_Weighted_Delta_TT_100_3600", "Average_Weighted_Delta_TT_100_10800", "Average_Weighted_Delta_TT_100_21600"
 )
 
-# Get the global x and y limits based on all scenario columns
-x_limits <- range(unlist(parish_boundaries_df[scenario_columns_ordered]))
+# Ensure you're using the correct hospital-specific data frame
+x_limits <- range(unlist(parish_boundaries_hosp_df[scenario_columns_ordered_hosp]), na.rm = TRUE)
 
-y_limits <- c(0, max(sapply(scenario_columns_ordered, function(col) {
-    max(density(parish_boundaries_df[[col]], na.rm = TRUE)$y)
+y_limits <- c(0, max(sapply(scenario_columns_ordered_hosp, function(col) {
+    max(density(parish_boundaries_hosp_df[[col]], na.rm = TRUE)$y)
 })))
 
-# Create an empty list to store the density plots
-density_plot_list <- list()
+# Create density plots for each scenario
+density_plot_list_hosp <- list()
 
-# Loop through each scenario column and create the density plots
-for (i in seq_along(scenario_columns_ordered)) {
-    scenario_col <- scenario_columns_ordered[i]
-    if (scenario_col %in% names(parish_boundaries_df)) {
-        p <- ggplot(parish_boundaries_df, aes(x = .data[[scenario_col]])) + 
+for (i in seq_along(scenario_columns_ordered_hosp)) {
+    scenario_col <- scenario_columns_ordered_hosp[i]
+    if (scenario_col %in% names(parish_boundaries_hosp_df)) {
+        p <- ggplot(parish_boundaries_hosp_df, aes(x = .data[[scenario_col]])) +
             geom_density(fill = "blue", color = "black", alpha = 0.7) +
-            xlim(x_limits) + 
-            ylim(y_limits) + 
+            xlim(x_limits) +
+            ylim(y_limits) +
             theme_minimal() +
             ggtitle(format_scenario_title(scenario_col)) +
             xlab("Average Weighted Delta Travel Time") +
@@ -898,13 +666,13 @@ for (i in seq_along(scenario_columns_ordered)) {
                 axis.title = element_text(size = 12),
                 axis.text = element_text(size = 10)
             )
-        density_plot_list[[i]] <- p
+        density_plot_list_hosp[[i]] <- p
     }
 }
 
-# Combine the density plots in a grid layout using patchwork
-final_density_plot <- wrap_plots(density_plot_list, ncol = 3) + 
-    plot_layout(guides = "collect") & 
+# Combine into one figure
+final_density_plot_hosp <- wrap_plots(density_plot_list_hosp, ncol = 3) +
+    plot_layout(guides = "collect") &
     plot_annotation(
         title = "Density Plots of Average Weighted Delta Travel Time Scenarios for Hospital Only per Parish",
         theme = theme(
@@ -912,33 +680,28 @@ final_density_plot <- wrap_plots(density_plot_list, ncol = 3) +
         )
     )
 
-# Display the combined density plot
-print(final_density_plot)
+# Display
+print(final_density_plot_hosp)
 
-# Overlayed density plots for different mm but same hours (e.g., 20 -100 x 1 hour) 
-overlayed_plot_list <- list()
-
-# Define the hours and corresponding scenario columns for each group
+# Overlayed density plots: same hour, varying mm
+overlayed_plot_list_hosp <- list()
 hours_list <- c(3600, 10800, 21600)
-
-# Define the color palette for the mm values
 color_palette <- c("blue", "green", "orange", "purple", "red")
 
-# Loop through each hour to create overlayed density plots for different mm values
 for (hour in hours_list) {
-    scenarios_for_hour <- grep(paste0("_", hour), scenario_columns_ordered, value = TRUE)
+    scenarios_for_hour <- grep(paste0("_", hour), scenario_columns_ordered_hosp, value = TRUE)
     combined_df <- data.frame()
 
     for (scenario_col in scenarios_for_hour) {
         mm_value <- sub(".*_(\\d+)_\\d+$", "\\1", scenario_col)
         temp_df <- data.frame(
-            mm = as.numeric(mm_value), 
-            travel_times = parish_boundaries_df[[scenario_col]]
+            mm = as.numeric(mm_value),
+            travel_times = parish_boundaries_hosp_df[[scenario_col]]
         )
         combined_df <- rbind(combined_df, temp_df)
     }
 
-    p <- ggplot(combined_df, aes(x = travel_times, color = as.factor(mm))) + 
+    p <- ggplot(combined_df, aes(x = travel_times, color = as.factor(mm))) +
         geom_density(fill = NA, alpha = 0.7) +
         theme_minimal() +
         ggtitle(paste(hour / 3600, "hour(s)")) +
@@ -950,11 +713,12 @@ for (hour in hours_list) {
             axis.title = element_text(size = 12),
             axis.text = element_text(size = 10)
         )
-    overlayed_plot_list[[as.character(hour)]] <- p
+
+    overlayed_plot_list_hosp[[as.character(hour)]] <- p
 }
 
-# Combine the overlayed plots in a grid layout using patchwork
-final_overlayed_plot <- wrap_plots(overlayed_plot_list, ncol = 1) + 
+# Combine overlayed plots
+final_overlayed_plot_hosp <- wrap_plots(overlayed_plot_list_hosp, ncol = 1) +
     plot_annotation(
         title = "Overlayed Density Plots for Different mm by Hours for Hospital Only",
         theme = theme(
@@ -962,6 +726,6 @@ final_overlayed_plot <- wrap_plots(overlayed_plot_list, ncol = 1) +
         )
     )
 
-# Display the combined overlayed density plots
-print(final_overlayed_plot)
+# Display
+print(final_overlayed_plot_hosp)
 ```

@@ -135,9 +135,6 @@ print(gridplot)
     # png(here("Figures/flood_tt_all_scenarios.png"), width = 40, height = 60, units = "cm", res = 1000)
     # print(gridplot)
     # dev.off()
-
-# Remove redundant objects from the environment
-rm(list = setdiff(ls(), c("x", "flood_tt_all_100_10800", "flood_tt_all_100_21600", "flood_tt_all_100_3600", "flood_tt_all_20_10800", "flood_tt_all_20_21600", "flood_tt_all_20_3600", "flood_tt_all_40_10800", "flood_tt_all_40_21600", "flood_tt_all_40_3600", "flood_tt_all_60_10800", "flood_tt_all_60_21600", "flood_tt_all_60_3600", "flood_tt_all_80_10800", "flood_tt_all_80_21600", "flood_tt_all_80_3600", "gridplot")))
 ```
 
 ## Travel time delta all
@@ -262,9 +259,6 @@ save_delta_rasters <- function(raster_data, folder_name = "processed/delta_trave
 
 # Call the function
 save_delta_rasters(x_delta_all, "processed/delta_travel")
-
-# Remove redundant objects from the environment
-rm(list = setdiff(ls(), c("x_delta_all", "delta_tt_all_100_10800", "delta_tt_all_100_21600", "delta_tt_all_100_3600", "delta_tt_all_20_10800", "delta_tt_all_20_21600", "delta_tt_all_20_3600", "delta_tt_all_40_10800", "delta_tt_all_40_21600", "delta_tt_all_40_3600", "delta_tt_all_60_10800", "delta_tt_all_60_21600", "delta_tt_all_60_3600", "delta_tt_all_80_10800", "delta_tt_all_80_21600", "delta_tt_all_80_3600")))
 ```
 
 ## Plotting the delta travel time rasters
@@ -429,9 +423,6 @@ x_delta_hosp_extracted <- lapply(x_delta_hosp, function(obj) obj[[1]])
 
 # Unlist the raster list into the global environment
 list2env(x_delta_hosp_extracted, envir = .GlobalEnv)
-
-# Remove redundant objects from the environment
-rm(list = setdiff(ls(), c("x_delta_hosp", "flood_tt_hosp_100_10800", "flood_tt_hosp_100_21600", "flood_tt_hosp_100_3600", "flood_tt_hosp_20_10800", "flood_tt_hosp_20_21600", "flood_tt_hosp_20_3600", "flood_tt_hosp_40_10800", "flood_tt_hosp_40_21600", "flood_tt_hosp_40_3600", "flood_tt_hosp_60_10800", "flood_tt_hosp_60_21600", "flood_tt_hosp_60_3600", "flood_tt_hosp_80_10800", "flood_tt_hosp_80_21600", "flood_tt_hosp_80_3600")))
 ```
 
 ## Plotting the travel time rasters
@@ -468,10 +459,6 @@ print(gridplot_hosp)
     # png(here("Figures/flood_tt_hosp_scenarios.png"), width = 40, height = 60, units = "cm", res = 1000)
     # print(gridplot_hosp)
     # dev.off()
-
-# Remove redundant objects from the environment
-rm(list = setdiff(ls(), c("x_delta_hosp", "flood_tt_hosp_100_10800", "flood_tt_hosp_100_21600", "flood_tt_hosp_100_3600", "flood_tt_hosp_20_10800", "flood_tt_hosp_20_21600", "flood_tt_hosp_20_3600", "flood_tt_hosp_40_10800", "flood_tt_hosp_40_21600", "flood_tt_hosp_40_3600", "flood_tt_hosp_60_10800", "flood_tt_hosp_60_21600", "flood_tt_hosp_60_3600", "flood_tt_hosp_80_10800", "flood_tt_hosp_80_21600", "flood_tt_hosp_80_3600", "gridplot_hosp")))
-
 ````
 
 ## Travel time delta Hospitals only
@@ -535,9 +522,6 @@ names(x_delta_hosp) <- c("20mm / 1hr", "20mm / 3hr", "20mm / 6hr", "40mm / 1hr",
 
 # Save the delta travel time rasters for hospitals only
 save_delta_rasters(x_delta_hosp, "processed/delta_travel")
-
-# Remove redundant objects from the environment
-rm(list = setdiff(ls(), c("x_delta_hosp", "delta_tt_hosp_100_10800", "delta_tt_hosp_100_21600", "delta_tt_hosp_100_3600", "delta_tt_hosp_20_10800", "delta_tt_hosp_20_21600", "delta_tt_hosp_20_3600", "delta_tt_hosp_40_10800", "delta_tt_hosp_40_21600", "delta_tt_hosp_40_3600", "delta_tt_hosp_60_10800", "delta_tt_hosp_60_21600", "delta_tt_hosp_60_3600", "delta_tt_hosp_80_10800", "delta_tt_hosp_80_21600", "delta_tt_hosp_80_3600", "gridplot_delta_tt_hosp")))
 ```
 
 ## Plotting the delta travel time rasters
@@ -577,7 +561,4 @@ gridplot_delta_tt_hosp = autoplot(x_delta_hosp, nrow = 5, ncol = 3) +
     # png(here("Figures/delta_tt_hosp_scenarios.png"), width = 40, height = 60, units = "cm", res = 300)
     # print(gridplot_delta_tt_hosp)
     # dev.off()
-
-# Remove redundant objects from the environment
-rm(list = setdiff(ls(), c("x_delta_hosp", "delta_tt_hosp_100_10800", "delta_tt_hosp_100_21600", "delta_tt_hosp_100_3600", "delta_tt_hosp_20_10800", "delta_tt_hosp_20_21600", "delta_tt_hosp_20_3600", "delta_tt_hosp_40_10800", "delta_tt_hosp_40_21600", "delta_tt_hosp_40_3600", "delta_tt_hosp_60_10800", "delta_tt_hosp_60_21600", "delta_tt_hosp_60_3600", "delta_tt_hosp_80_10800", "delta_tt_hosp_80_21600", "delta_tt_hosp_80_3600", "gridplot_delta_tt_hosp", "gridplot_delta_tt")))
 ```

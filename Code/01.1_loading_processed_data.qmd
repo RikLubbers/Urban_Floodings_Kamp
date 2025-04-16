@@ -39,7 +39,7 @@ for (folder in folders) {
   folder_path <- file.path(data_dir, folder)
   
   # List all files in the folder
-  files <- list.files(folder_path, full.names = TRUE)
+  files <- list.files(folder_path, full.names = TRUE, recursive = TRUE)
   
   # Load vector files (e.g., .shp, .geojson, .gpkg)
   vector_files <- files[grepl("\\.(shp|geojson|gpkg)$", files, ignore.case = TRUE)]

@@ -31,6 +31,7 @@ library(tidyterra)
 library(cowplot)
 library(viridis)
 library(here)
+library(knitr)
 ```
 
 # ALL SCENARIOS
@@ -96,9 +97,6 @@ x_extracted <- lapply(x, function(obj) obj[[1]])
 
 # Unlist the raster list into the global environment
 list2env(x_extracted, envir = .GlobalEnv)
-
-# Remove redundant objects from the environment
-rm(list = setdiff(ls(), c("x", "flood_tt_all_100_10800", "flood_tt_all_100_21600", "flood_tt_all_100_3600", "flood_tt_all_20_10800", "flood_tt_all_20_21600", "flood_tt_all_20_3600", "flood_tt_all_40_10800", "flood_tt_all_40_21600", "flood_tt_all_40_3600", "flood_tt_all_60_10800", "flood_tt_all_60_21600", "flood_tt_all_60_3600", "flood_tt_all_80_10800", "flood_tt_all_80_21600", "flood_tt_all_80_3600")))
 ```
 
 ## Plotting the travel time rasters
@@ -142,7 +140,7 @@ print(gridplot)
 # Load base travel time raster
 base_tt_all <- rast(here("AccessMod/Output/Base/raster_travel_time_Base_all/raster_travel_time_Base_all.img"))
 
-# Plot the SpatRaster with no axis labels or tick marks, but with a box
+# Plot the baseline travel time raster with parishes overlay
 base_tt_all %>%
     plot(
         col = colorRampPalette(turbo(8))(8),  # Using turbo for stronger contrast
@@ -152,15 +150,15 @@ base_tt_all %>%
         box = TRUE,  # Keep the plot box
         main = "Baseline Healthcare Accessibility in Travel Time (minutes)\n to All Facilities (Public/PNFP)",
         legend = FALSE,
-        cex.main = 1.5,  # Adjust title font size
+        cex.main = 1.5  # Adjust title font size
     ) %>%
     { grid(nx = NULL, ny = NULL, col = "lightgray", lty = "dashed", lwd = 0.5) } %>%
     {
         legend(
             x = "bottomleft",  # Reposition legend to bottom left
             inset = c(0.12, 0.02),  # Slight inset to avoid clipping
-            legend = c( "0-15 min", "15-30 min", "30-45 min", "45-60 min", 
-                        "60-90 min", "90-120 min", "120-180 min", ">180 min"),  # Custom travel time labels
+            legend = c("0-15 min", "15-30 min", "30-45 min", "45-60 min", 
+                       "60-90 min", "90-120 min", "120-180 min", ">180 min"),  # Custom travel time labels
             fill = colorRampPalette(viridis::turbo(8))(8),  # Matching the turbo color ramp
             bg = "white",  # Set white background for legend
             cex = 1.4,  # Adjust text size in the legend
@@ -168,7 +166,10 @@ base_tt_all %>%
             title = "Travel Time Categories (walking)",  # Improved legend title
             ncol = 2
         )
-    } 
+    }
+
+# Add the parishes overlay
+plot(Adm_boundaries, add = TRUE, col = NA, border = "black", lwd = 0.5)
 
 # [OPTIONAL] Save the plot as a PNG.
 # Save the plot as a PNG
@@ -224,9 +225,9 @@ delta_tt_all_100_21600 <- base_tt_all - flood_tt_all_100_21600
 
 x_delta_all <- c(delta_tt_all_20_3600, delta_tt_all_20_10800, delta_tt_all_20_21600, delta_tt_all_40_3600, delta_tt_all_40_10800, delta_tt_all_40_21600, delta_tt_all_60_3600, delta_tt_all_60_10800, delta_tt_all_60_21600, delta_tt_all_80_3600, delta_tt_all_80_10800, delta_tt_all_80_21600, delta_tt_all_100_3600, delta_tt_all_100_10800, delta_tt_all_100_21600)
 
-names(x_delta_all) <- c("20mm / 1hr", "20mm / 3hr", "20mm / 6hr", "40mm / 1hr", "40mm / 3hr", "40mm / 6hr", "60mm / 1hr", "60mm / 3hr", "60mm / 6hr", "80mm / 1hr", "80mm / 3hr", "80mm / 6hr", "100mm / 1hr", "100mm / 3hr", "100mm x 6hr")
+names(x_delta_all) <- c("20mm / 1hr", "20mm / 3hr", "20mm / 6hr", "40mm / 1hr", "40mm / 3hr", "40mm / 6hr", "60mm / 1hr", "60mm / 3hr", "60mm / 6hr", "80mm / 1hr", "80mm / 3hr", "80mm / 6hr", "100mm / 1hr", "100mm / 3hr", "100mm / 6hr")
 
-save_delta_rasters <- function(raster_data, folder_name = "processed/delta_travel") {
+# save_delta_rasters <- function(raster_data, folder_name = "processed/delta_travel") {
     # Define the directory inside Data/processed
     processed_dir <- here("Data", folder_name)
     
@@ -258,7 +259,7 @@ save_delta_rasters <- function(raster_data, folder_name = "processed/delta_trave
 }
 
 # Call the function
-save_delta_rasters(x_delta_all, "processed/delta_travel")
+# save_delta_rasters(x_delta_all, "processed/delta_travel")
 ```
 
 ## Plotting the delta travel time rasters
@@ -358,7 +359,6 @@ autoplot(x_selected, nrow = 1, ncol = 2) +
         ) +
     ggtitle(" Delta Travel Time Accessibility")
 ```
-
 
 # HOSPITAL SCENARIO
 ## Flood scenarios Travel Time Hospitals
@@ -494,6 +494,9 @@ base_tt_hosp %>%
         )
     }
 
+# Add the parishes overlay
+plot(Adm_boundaries, add = TRUE, col = NA, border = "black", lwd = 0.5)
+
 
 # Create delta travel time rasters for hospitals only
 delta_tt_hosp_20_3600 <- base_tt_hosp - flood_tt_hosp_20_3600
@@ -518,7 +521,7 @@ delta_tt_hosp_100_21600 <- base_tt_hosp - flood_tt_hosp_100_21600
 
 x_delta_hosp <- c(delta_tt_hosp_20_3600, delta_tt_hosp_20_10800, delta_tt_hosp_20_21600, delta_tt_hosp_40_3600, delta_tt_hosp_40_10800, delta_tt_hosp_40_21600, delta_tt_hosp_60_3600, delta_tt_hosp_60_10800, delta_tt_hosp_60_21600, delta_tt_hosp_80_3600, delta_tt_hosp_80_10800, delta_tt_hosp_80_21600, delta_tt_hosp_100_3600, delta_tt_hosp_100_10800, delta_tt_hosp_100_21600)
 
-names(x_delta_hosp) <- c("20mm / 1hr", "20mm / 3hr", "20mm / 6hr", "40mm / 1hr", "40mm / 3hr", "40mm / 6hr", "60mm / 1hr", "60mm / 3hr", "60mm / 6hr", "80mm / 1hr", "80mm / 3hr", "80mm / 6hr", "100mm / 1hr", "100mm / 3hr", "100mm x 6hr")
+names(x_delta_hosp) <- c("20mm / 1hr", "20mm / 3hr", "20mm / 6hr", "40mm / 1hr", "40mm / 3hr", "40mm / 6hr", "60mm / 1hr", "60mm / 3hr", "60mm / 6hr", "80mm / 1hr", "80mm / 3hr", "80mm / 6hr", "100mm / 1hr", "100mm / 3hr", "100mm / 6hr")
 
 # Save the delta travel time rasters for hospitals only
 save_delta_rasters(x_delta_hosp, "processed/delta_travel")

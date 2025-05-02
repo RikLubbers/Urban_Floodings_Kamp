@@ -28,6 +28,9 @@ library(classInt)
 library(here)
 library(ggplot2)
 library(tidyterra)
+library(tidyverse)
+library(flextable)
+library(officer)
 ```
 
 # Weighted Delta Travel Time Calculation for scenarios with All Facilities
@@ -398,6 +401,7 @@ parish_boundaries_hosp <- vect(here("Data", "processed", "Adm_boundaries", "pari
 weighted_delta_tt_list_hosp <- lapply(delta_tt_list_hosp, function(delta_tt_raster) {
     delta_tt_raster * pop_density_raster
 })
+
 names(weighted_delta_tt_list_hosp) <- sapply(names(weighted_delta_tt_list_hosp), function(name) {
     parts <- strsplit(name, "_")[[1]]
     paste(tail(parts, 2), collapse = "_")
@@ -508,14 +512,12 @@ legend_hosp <- bi_legend(
 )
 
 # STEP: Combine and display
-weighted_delta_TT_hosp <- wrap_plots(plot_list_hosp, ncol = 3) +
-    plot_layout(guides = "collect") & 
-    theme(legend.position = "bottom") & 
+weighted_delta_TT_hosp <- wrap_plots(plot_list_hosp, ncol = 3) /
+    legend_hosp +
+    plot_layout(heights = c(5, 1)) +
     plot_annotation(
         title = "Average Population Weighted Delta Travel Time Scenarios (Hospitals Only)",
-        theme = theme(
-            plot.title = element_text(hjust = 0.5, size = 16, face = "bold")
-        )
+        theme = theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"))
     )
 
 # Display the combined plot
@@ -728,4 +730,267 @@ final_overlayed_plot_hosp <- wrap_plots(overlayed_plot_list_hosp, ncol = 1) +
 
 # Display
 print(final_overlayed_plot_hosp)
+```
+
+# Mean Travel Time Delta Violin plots all/hospitals
+```{r}
+19
+# Step 1: Rename scenario rasters for clarity
+x_delta_all <- delta_tt_list_all
+names(x_delta_all) <- sapply(names(x_delta_all), function(name) {
+    mm <- sub(".*_(\\d+)_.*", "\\1", name)
+    sec <- sub(".*_(\\d+)$", "\\1", name)
+    hr <- as.character(as.numeric(sec) / 3600)
+    paste0(mm, "mm / ", hr, "hr")
+})
+
+x_delta_hosp <- delta_tt_list_hosp
+names(x_delta_hosp) <- sapply(names(x_delta_hosp), function(name) {
+    mm <- sub(".*_(\\d+)_.*", "\\1", name)
+    sec <- sub(".*_(\\d+)$", "\\1", name)
+    hr <- as.character(as.numeric(sec) / 3600)
+    paste0(mm, "mm / ", hr, "hr")
+})
+
+# Step 2: Extract population-weighted values and uncount
+extract_weighted_pixels <- function(raster_list, pop_raster, facility_type) {
+  out_list <- lapply(names(raster_list), function(name) {
+    delta_vals <- as.numeric(values(raster_list[[name]]))
+    pop_vals <- as.numeric(values(pop_raster))
+
+    # Metadata extraction (once per raster)
+    intensity <- as.numeric(sub("mm /.*", "", name))
+    hours <- sub(".* / ", "", name)
+
+    df <- data.frame(
+      scenario = name,
+      delta_tt = delta_vals,
+      pop = pop_vals,
+      Intensity = factor(intensity, levels = c(20, 40, 60, 80, 100)),
+      Duration = factor(hours, levels = c("1hr", "3hr", "6hr")),
+      FacilityType = facility_type
+    )
+
+    # Filter and uncount
+    df <- df[!is.na(df$delta_tt) & !is.na(df$pop) & df$pop > 0, ]
+    df$pop <- round(df$pop)
+    df <- tidyr::uncount(df, weights = pop)
+
+    return(df)
+  })
+
+  do.call(rbind, out_list)
+}
+
+# Step 3: Run extraction for both facility types
+delta_tt_all_weighted <- extract_weighted_pixels(x_delta_all, pop_density_raster, "All Facilities")
+delta_tt_hosp_weighted <- extract_weighted_pixels(x_delta_hosp, pop_density_raster, "Hospitals")
+
+# Step 4: Combine and optionally sample
+delta_tt_weighted_combined <- bind_rows(delta_tt_all_weighted, delta_tt_hosp_weighted)
+
+set.seed(834)
+delta_tt_weighted_sampled <- delta_tt_weighted_combined %>%
+  group_by(Duration, Intensity, FacilityType) %>%
+  group_modify(~ {
+    if(nrow(.) <= 100000) return(.)
+    else sample_n(., 100000)
+  }) %>%
+  ungroup()
+
+# Step 5: Plot violin chart
+ggplot(delta_tt_weighted_sampled, aes(x = Intensity, y = delta_tt, fill = FacilityType)) +
+    geom_violin(
+        aes(group = interaction(FacilityType, Intensity)),
+        position = position_dodge(width = 0.8),
+        scale = "width",
+        alpha = 0.5
+    ) +
+    stat_summary(
+        aes(group = interaction(FacilityType, Intensity)),
+        fun = mean,
+        geom = "point",
+        position = position_dodge(width = 0.8),
+        shape = 18,
+        size = 3,
+        color = "red",
+        show.legend = FALSE
+    ) +
+    stat_summary(
+        aes(group = interaction(FacilityType, Intensity)),
+        fun = median,
+        geom = "point",
+        position = position_dodge(width = 0.8),
+        shape = 4,
+        size = 3,
+        color = "blue",
+        show.legend = FALSE
+    ) +
+    facet_wrap(~ Duration, ncol = 1, strip.position = "top") +
+    scale_fill_manual(
+        values = c("All Facilities" = "#1f78b4", "Hospitals" = "#a6cee3"),
+        name = "Facility Type"
+    ) +
+    scale_y_continuous(
+        breaks = c(-240, -180, -120, -90, -60, -45, -30, -15, 0),
+        limits = c(-240, 0)
+    ) +
+    geom_vline(
+        xintercept = seq(1.5, length(unique(delta_tt_weighted_sampled$Intensity)) - 0.5, by = 1),
+        linetype = "dashed",
+        color = "grey50"
+    ) +
+    labs(
+        title = "Travel Time Changes: All Facilities vs Hospitals",
+        subtitle = "Pixel-level Distributions by Flood Duration and Intensity (n ≤ 100,000 per group)",
+        x = "Precipitation Amount (mm)",
+        y = "Change in Travel Time (minutes)",
+        caption = "Violin plots show sampled pixel-level distributions.\nRed points indicate mean, blue crosses indicate median."
+    ) +
+    theme_minimal(base_size = 14) +
+    theme(
+        axis.text.x = element_text(size = 12),
+        axis.title.x = element_text(size = 14, face = "bold"),
+        axis.title.y = element_text(size = 14, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(size = 12, hjust = 0.5),
+        plot.caption = element_text(size = 9),
+        strip.text = element_text(size = 14, face = "bold"),
+        panel.grid.major = element_line(color = "grey80"),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+        panel.background = element_rect(fill = "white", color = NA),
+        plot.background = element_rect(fill = "white", color = NA),
+        panel.spacing.y = unit(0.2, "lines"),
+        plot.margin = margin(t = 5, r = 10, b = 5, l = 10),
+        legend.position = c(0.0, 1.055),
+        legend.justification = c("left", "top"),
+        legend.direction = "horizontal",
+        legend.background = element_rect(fill = scales::alpha("white", 0.8), color = NA),
+        legend.box.background = element_blank(),
+        legend.key.size = unit(0.7, "lines"),
+        legend.title = element_text(face = "bold", size = 10),
+        legend.text = element_text(size = 9)
+    )
+
+# Save the plot
+ggsave(
+    filename = here("Figures/mean_travel_time_delta_violin_plot.png"),
+    plot = last_plot(),
+    width = 21,  # Three-quarters of A4 width in cm
+    height = 21, # Three-quarters of A4 height in cm
+    units = "cm",
+    dpi = 300
+)
+```
+
+# Numerical summary of the delta travel time rasters
+```{r}
+# Step 1: Create summary tables
+summary_table_all <- delta_tt_weighted_sampled %>%
+    filter(FacilityType == "All Facilities") %>%
+    group_by(Duration, Intensity) %>%
+    summarise(
+        Mean = round(mean(delta_tt, na.rm = TRUE), 1),
+        Min = round(min(delta_tt, na.rm = TRUE), 1),
+        Q25 = round(quantile(delta_tt, 0.25, na.rm = TRUE), 1),
+        Median = round(median(delta_tt, na.rm = TRUE), 1),
+        Q75 = round(quantile(delta_tt, 0.75, na.rm = TRUE), 1),
+        Max = round(max(delta_tt, na.rm = TRUE), 1),
+        .groups = "drop"
+    ) %>%
+    mutate(Facility = "All Facilities")
+
+summary_table_hosp <- delta_tt_weighted_sampled %>%
+    filter(FacilityType == "Hospitals") %>%
+    group_by(Duration, Intensity) %>%
+    summarise(
+        Mean = round(mean(delta_tt, na.rm = TRUE), 1),
+        Min = round(min(delta_tt, na.rm = TRUE), 1),
+        Q25 = round(quantile(delta_tt, 0.25, na.rm = TRUE), 1),
+        Median = round(median(delta_tt, na.rm = TRUE), 1),
+        Q75 = round(quantile(delta_tt, 0.75, na.rm = TRUE), 1),
+        Max = round(max(delta_tt, na.rm = TRUE), 1),
+        .groups = "drop"
+    ) %>%
+    mutate(Facility = "Hospitals")
+
+# Step 2: Combine and pivot wider
+combined_long <- bind_rows(summary_table_all, summary_table_hosp)
+
+combined_wide <- combined_long %>%
+    pivot_wider(
+        id_cols = c(Duration, Intensity),
+        names_from = Facility,
+        values_from = c(Mean, Min, Q25, Median, Q75, Max),
+        names_glue = "{Facility}_{.value}"
+    ) %>%
+    arrange(Duration, Intensity) %>%
+    dplyr::select(
+        Duration, Intensity,
+        `All Facilities_Mean`, `All Facilities_Min`, `All Facilities_Q25`, `All Facilities_Median`, `All Facilities_Q75`, `All Facilities_Max`,
+        `Hospitals_Mean`, `Hospitals_Min`, `Hospitals_Q25`, `Hospitals_Median`, `Hospitals_Q75`, `Hospitals_Max`
+    )
+
+# Step 3: Clean column names for display
+colnames(combined_wide) <- c(
+    "Duration", "Intensity",
+    "Mean", "Min", "Q25", "Median", "Q75", "Max",   # All Facilities
+    "Mean", "Min", "Q25", "Median", "Q75", "Max"    # Hospitals
+)
+
+# Step 4: Render styled table
+kable(combined_wide, format = "html", digits = 1, align = c("l", "l", rep("c", 12)),
+            caption = "Flood Scenario Travel Time Summary by Facility Type (All vs Hospitals)") %>%
+    add_header_above(c(" " = 2, 
+                                         "All Facilities" = 6, 
+                                         "Hospitals" = 6)) %>%
+    kable_styling(full_width = FALSE, position = "center", font_size = 13) %>%
+    column_spec(2, border_right = "1px solid", include_thead = TRUE) %>%   # after Intensity
+    column_spec(8, border_right = "1px dashed", include_thead = TRUE)      # after All Facilities
+```
+
+# Export the summary table to a word document
+```{r}
+# 1. Rename columns to make them unique
+colnames(combined_wide) <- c(
+  "Duration", "Intensity",
+  "All_Mean", "All_Min", "All_Q25", "All_Median", "All_Q75", "All_Max",
+  "Hosp_Mean", "Hosp_Min", "Hosp_Q25", "Hosp_Median", "Hosp_Q75", "Hosp_Max"
+)
+
+# Build the table
+ft <- flextable(combined_wide) %>%
+  set_header_labels(
+    All_Mean = "Mean", All_Min = "Min", All_Q25 = "Q25", All_Median = "Median", All_Q75 = "Q75", All_Max = "Max",
+    Hosp_Mean = "Mean", Hosp_Min = "Min", Hosp_Q25 = "Q25", Hosp_Median = "Median", Hosp_Q75 = "Q75", Hosp_Max = "Max"
+  ) %>%
+
+  add_header_row(
+    values = c("Duration", "Intensity", "All Facilities", "Hospitals"),
+    colwidths = c(1, 1, 6, 6)
+  ) %>%
+
+  theme_box() %>%
+  align(align = "center", part = "all") %>%
+  fontsize(size = 10, part = "all") %>%
+  font(fontname = "Arial", part = "all") %>%
+  padding(padding = 4, part = "all") %>%
+  set_table_properties(layout = "autofit", width = .9) %>%
+
+  # Add vertical rules to separate groups
+  border(j = 2, border = fp_border(color = "black", width = 1), part = "all") %>%   # after Intensity
+  border(j = 8, border = fp_border(color = "black", width = 1, style = "dashed"), part = "all") %>%  # after All_Max
+
+  # Add basic box styling
+  theme_box()
+
+# Export to Word
+doc <- read_docx() %>%
+  body_add_par("Travel Time Summary under Flood Scenarios", style = "heading 1") %>%
+  body_add_flextable(ft)
+
+print(doc, target = here::here("Manuscripts", "flood_summary_table.docx"))
+
+
 ```

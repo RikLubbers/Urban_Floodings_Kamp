@@ -84,9 +84,6 @@ for (i in 1:length(pop_coverage_all)) {
                 value = pop_coverage_all[[i]]
         )
 }
-
-# Remove redundant objects from the global environment
-rm(base_dir, pop_coverage_all_files, i, name)
 ```
 
 # Population coverage difference calculation for all facilities
@@ -112,7 +109,7 @@ pop_coverage_all_diff <- lapply(names(pop_coverage_all), function(scenario) {
       popTravelTime_diff = table.popTravelTime_flood - table.popTravelTime_baseline,
       popCoveredPercent_diff = table.popCoveredPercent_flood - table.popCoveredPercent_baseline
     ) %>%
-    select(table.pname2016, table.time_m, popTotal_diff, popTravelTime_diff, popCoveredPercent_diff)
+    dplyr::select(table.pname2016, table.time_m, popTotal_diff, popTravelTime_diff, popCoveredPercent_diff)
   
   # Return the difference data
   return(flood_diff)
@@ -309,7 +306,6 @@ rm(base_dir, pop_coverage_hosp_files, i, name)
 ```
 
 # Calculate Population Coverage Difference for the Hospitals-Only Scenario
-
 ```{r}
 # List to store differences
 pop_coverage_hosp_diff <- list()
@@ -332,7 +328,7 @@ pop_coverage_hosp_diff <- lapply(names(pop_coverage_hosp), function(scenario) {
       popTravelTime_diff = table.popTravelTime_flood - table.popTravelTime_baseline,
       popCoveredPercent_diff = table.popCoveredPercent_flood - table.popCoveredPercent_baseline
     ) %>%
-    select(table.pname2016, table.time_m, popTotal_diff, popTravelTime_diff, popCoveredPercent_diff)
+    dplyr::select(table.pname2016, table.time_m, popTotal_diff, popTravelTime_diff, popCoveredPercent_diff)
   
   # Return the difference data
   return(flood_diff)

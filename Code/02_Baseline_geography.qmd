@@ -93,16 +93,34 @@ health_centres <- facilities[facilities$Facility_t %in% c("Health Centre III", "
 # Set tighter margins for the legend
 par(oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0))  # Outer and inner margins reduced
 
+# Load the complete landcover raster
+landcover_complete <- rast(here("Data", "raw", "Landcover", "ESA_WorldCover_10m_2021_v200_N00E030_Map.tif"))
 
-# Plot the landcover map
+landcover_complete <- project(landcover_complete, Landcover)
+landcover_complete <- crop(landcover_complete, ext(Landcover))
+landcover_complete <- mask(landcover_complete, Landcover, inverse = TRUE)
+
+# 1. Plot the background landcover (non-Kampala area only; low opacity)
+plot(
+  landcover_complete,
+  col = adjustcolor(
+    filtered_landcover_colors,
+    alpha.f = 0.15
+  ),
+  legend = FALSE,
+  axes = FALSE,
+  box = FALSE,
+)
+
+# Plot the landcover map 
 Landcover %>%
 plot(
-  col = filtered_landcover_colors,  # Use filtered colors
+  col = adjustcolor(filtered_landcover_colors, alpha.f = 0.7),  # Set alpha to 1 (fully opaque)
   legend = FALSE,  # Disable automatic legend
   axes = FALSE,  # Remove axes and labels
   box = TRUE,  # Keep the plot box
-  main = "Geographical Features of Kampala with Location of Health Centers and Hospitals",  # Add a title 
-  cex.main = 1.5  # Adjust title font size
+  cex.main = 1.5,  # Adjust title font size
+  add = TRUE 
 ) %>%
 {
   # Overlay the hillshade
@@ -144,5 +162,7 @@ plot(
     x.intersp = 0.5,  # Adjust spacing between symbols and text
     y.intersp = 0.8  # Adjust spacing between rows
   )
+  sbar(2000, xy = "bottomright", type = "bar", divs = 4, below = "km", cex = 1.2, lonlat = FALSE, scaleby = 1000)
+  north(type = 2, cex = 1.5)
 }
 ```

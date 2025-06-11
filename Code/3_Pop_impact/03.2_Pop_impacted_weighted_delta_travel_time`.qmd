@@ -52,10 +52,26 @@ parish_boundaries_all <- vect(here("Data", "processed", "Adm_boundaries", "paris
 weighted_delta_tt_list_all <- lapply(delta_tt_list_all, function(delta_tt_raster) {
     delta_tt_raster * pop_density_raster
 })
+
 names(weighted_delta_tt_list_all) <- sapply(names(weighted_delta_tt_list_all), function(name) {
     parts <- strsplit(name, "_")[[1]]
     paste(tail(parts, 2), collapse = "_")
 })
+
+# Save each weighted delta TT raster to disk
+# Create a new folder for saving the weighted delta travel time rasters
+output_folder <- here("Data", "processed", "delta_travel", "weighted_delta_tt")
+if (!dir.exists(output_folder)) {
+    dir.create(output_folder, recursive = TRUE)
+}
+
+# Save each weighted delta TT raster to the new folder
+for (i in seq_along(weighted_delta_tt_list_all)) {
+    raster_obj <- weighted_delta_tt_list_all[[i]]
+    scenario_name <- names(weighted_delta_tt_list_all)[i]
+    file_path <- file.path(output_folder, paste0("weighted_delta_tt_", scenario_name, ".tif"))
+    writeRaster(raster_obj, file_path, overwrite = TRUE)
+}
 
 # Step 2: Zonal stats for all facilities
 for (i in seq_along(weighted_delta_tt_list_all)) {
@@ -182,7 +198,7 @@ print(weighted_delta_TT_all)
 ```
 
 # Highlight parishes with the highest decrease in travel time for each scenario for all facilities
-```{r}	
+```{r}
 # Format scenario titles (e.g., "100_21600" → "100 mm x 6 hours")
 format_scenario_title <- function(scenario) {
     numbers <- sub(".*_(\\d+)_(\\d+)$", "\\1 \\2", scenario)
@@ -210,7 +226,7 @@ for (scenario_col in scenario_columns_ordered_all) {
     if (scenario_col %in% names(parish_boundaries_all_df)) {
         travel_times <- parish_boundaries_all_df[[scenario_col]]
         if (!any(is.na(travel_times))) {
-            top_parishes <- parish_boundaries_all_df[order(travel_times), ][1:10, ]
+            top_parishes <- parish_boundaries_all_df[order(-travel_times), ][1:10, ]
             top_parishes_list_all[[scenario_col]] <- data.frame(
                 Parish_Name = top_parishes$PName2016,
                 Travel_Time_Increase = top_parishes[[scenario_col]],
@@ -267,7 +283,7 @@ highlighted_plot_all <- ggplot() +
     ) +
     scale_fill_manual(values = c("Top 10" = "red", "Not in Top 10" = "gray"), name = "Top 10 Parishes") +
     theme_minimal() +
-    ggtitle("Top 10 Parishes with Lowest Travel Time Increase (All Facilities)") +
+    ggtitle("Top 10 Parishes with Highest Travel Time Increase (All Facilities)") +
     theme(
         legend.position = "bottom",
         legend.title = element_text(size = 12),
@@ -406,6 +422,21 @@ names(weighted_delta_tt_list_hosp) <- sapply(names(weighted_delta_tt_list_hosp),
     parts <- strsplit(name, "_")[[1]]
     paste(tail(parts, 2), collapse = "_")
 })
+
+# Save each weighted delta TT raster to disk
+# Create a new folder for saving the weighted delta travel time rasters for hospitals only
+output_folder_hosp <- here("Data", "processed", "delta_travel", "weighted_delta_tt_hosp")
+if (!dir.exists(output_folder_hosp)) {
+    dir.create(output_folder_hosp, recursive = TRUE)
+}
+
+# Save each weighted delta TT raster to the new folder
+for (i in seq_along(weighted_delta_tt_list_hosp)) {
+    raster_obj <- weighted_delta_tt_list_hosp[[i]]
+    scenario_name <- names(weighted_delta_tt_list_hosp)[i]
+    file_path <- file.path(output_folder_hosp, paste0("weighted_delta_tt_hosp_", scenario_name, ".tif"))
+    writeRaster(raster_obj, file_path, overwrite = TRUE)
+}
 
 # Step 2: Zonal stats for hospital-only
 for (i in seq_along(weighted_delta_tt_list_hosp)) {
@@ -734,7 +765,6 @@ print(final_overlayed_plot_hosp)
 
 # Mean Travel Time Delta Violin plots all/hospitals
 ```{r}
-19
 # Step 1: Rename scenario rasters for clarity
 x_delta_all <- delta_tt_list_all
 names(x_delta_all) <- sapply(names(x_delta_all), function(name) {
@@ -798,7 +828,6 @@ delta_tt_weighted_sampled <- delta_tt_weighted_combined %>%
   }) %>%
   ungroup()
 
-# Step 5: Plot violin chart
 ggplot(delta_tt_weighted_sampled, aes(x = Intensity, y = delta_tt, fill = FacilityType)) +
     geom_violin(
         aes(group = interaction(FacilityType, Intensity)),
@@ -832,8 +861,8 @@ ggplot(delta_tt_weighted_sampled, aes(x = Intensity, y = delta_tt, fill = Facili
         name = "Facility Type"
     ) +
     scale_y_continuous(
-        breaks = c(-240, -180, -120, -90, -60, -45, -30, -15, 0),
-        limits = c(-240, 0)
+        breaks = c(0, 15, 30, 45, 60, 90, 120, 180, 240),
+        limits = c(0, 240)
     ) +
     geom_vline(
         xintercept = seq(1.5, length(unique(delta_tt_weighted_sampled$Intensity)) - 0.5, by = 1),
@@ -841,21 +870,19 @@ ggplot(delta_tt_weighted_sampled, aes(x = Intensity, y = delta_tt, fill = Facili
         color = "grey50"
     ) +
     labs(
-        title = "Travel Time Changes: All Facilities vs Hospitals",
-        subtitle = "Pixel-level Distributions by Flood Duration and Intensity (n ≤ 100,000 per group)",
         x = "Precipitation Amount (mm)",
         y = "Change in Travel Time (minutes)",
         caption = "Violin plots show sampled pixel-level distributions.\nRed points indicate mean, blue crosses indicate median."
     ) +
     theme_minimal(base_size = 14) +
     theme(
-        axis.text.x = element_text(size = 12),
-        axis.title.x = element_text(size = 14, face = "bold"),
-        axis.title.y = element_text(size = 14, face = "bold"),
-        plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-        plot.subtitle = element_text(size = 12, hjust = 0.5),
+        axis.text.x = element_text(size = 11),
+        axis.title.x = element_text(size = 11, face = "bold"),
+        axis.title.y = element_text(size = 11, face = "bold"),
+        plot.title = element_text(size = 11, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(size = 11, hjust = 0.5),
         plot.caption = element_text(size = 9),
-        strip.text = element_text(size = 14, face = "bold"),
+        strip.text = element_text(size = 11, face = "bold"),
         panel.grid.major = element_line(color = "grey80"),
         panel.grid.minor = element_blank(),
         panel.border = element_rect(color = "black", fill = NA, linewidth = 1),

@@ -203,25 +203,25 @@ plot(Adm_boundaries, add = TRUE, col = NA, border = "black", lwd = 0.5)
 # dev.off()
 
 # Create delta travel time rasters
-delta_tt_all_20_3600 <- base_tt_all - flood_tt_all_20_3600
-delta_tt_all_20_10800 <- base_tt_all - flood_tt_all_20_10800
-delta_tt_all_20_21600 <- base_tt_all - flood_tt_all_20_21600
+delta_tt_all_20_3600 <- flood_tt_all_20_3600 - base_tt_all
+delta_tt_all_20_10800 <- flood_tt_all_20_10800 - base_tt_all
+delta_tt_all_20_21600 <- flood_tt_all_20_21600 - base_tt_all
 
-delta_tt_all_40_3600 <- base_tt_all - flood_tt_all_40_3600
-delta_tt_all_40_10800 <- base_tt_all - flood_tt_all_40_10800
-delta_tt_all_40_21600 <- base_tt_all - flood_tt_all_40_21600
+delta_tt_all_40_3600 <- flood_tt_all_40_3600 - base_tt_all
+delta_tt_all_40_10800 <- flood_tt_all_40_10800 - base_tt_all
+delta_tt_all_40_21600 <- flood_tt_all_40_21600 - base_tt_all
 
-delta_tt_all_60_3600 <- base_tt_all - flood_tt_all_60_3600
-delta_tt_all_60_10800 <- base_tt_all - flood_tt_all_60_10800
-delta_tt_all_60_21600 <- base_tt_all - flood_tt_all_60_21600
+delta_tt_all_60_3600 <- flood_tt_all_60_3600 - base_tt_all
+delta_tt_all_60_10800 <- flood_tt_all_60_10800 - base_tt_all
+delta_tt_all_60_21600 <- flood_tt_all_60_21600 - base_tt_all
 
-delta_tt_all_80_3600 <- base_tt_all - flood_tt_all_80_3600
-delta_tt_all_80_10800 <- base_tt_all - flood_tt_all_80_10800
-delta_tt_all_80_21600 <- base_tt_all - flood_tt_all_80_21600
+delta_tt_all_80_3600 <- flood_tt_all_80_3600 - base_tt_all
+delta_tt_all_80_10800 <- flood_tt_all_80_10800 - base_tt_all
+delta_tt_all_80_21600 <- flood_tt_all_80_21600 - base_tt_all
 
-delta_tt_all_100_3600 <- base_tt_all - flood_tt_all_100_3600
-delta_tt_all_100_10800 <- base_tt_all - flood_tt_all_100_10800
-delta_tt_all_100_21600 <- base_tt_all - flood_tt_all_100_21600
+delta_tt_all_100_3600 <- flood_tt_all_100_3600 - base_tt_all
+delta_tt_all_100_10800 <- flood_tt_all_100_10800 - base_tt_all
+delta_tt_all_100_21600 <- flood_tt_all_100_21600 - base_tt_all
 
 x_delta_all <- c(delta_tt_all_20_3600, delta_tt_all_20_10800, delta_tt_all_20_21600, delta_tt_all_40_3600, delta_tt_all_40_10800, delta_tt_all_40_21600, delta_tt_all_60_3600, delta_tt_all_60_10800, delta_tt_all_60_21600, delta_tt_all_80_3600, delta_tt_all_80_10800, delta_tt_all_80_21600, delta_tt_all_100_3600, delta_tt_all_100_10800, delta_tt_all_100_21600)
 
@@ -266,21 +266,21 @@ names(x_delta_all) <- c("20mm / 1hr", "20mm / 3hr", "20mm / 6hr", "40mm / 1hr", 
 ```{r}
 gridplot_delta_tt <- panel(x_delta_all,
     col = data.frame(
-        from = c(-Inf, -180, -120, -90, -60, -45, -30, -15, -0.01),  # Negative time differences
-        to = c(-180, -120, -90, -60, -45, -30, -15, -1, 0),          # Matching the color breaks
-        color = rev(colorRampPalette(turbo(9))(9))                   # Matching the turbo color palette
+        from = c(0, 0.01, 15, 30, 45, 60, 90, 120, 180),  # Positive time differences
+        to = c(0.01, 15, 30, 45, 60, 90, 120, 180, Inf),  # Matching the color breaks
+        color = colorRampPalette(turbo(9))(9)             # Matching the turbo color palette
     ),
     nr = 5, nc = 3,            # Define number of rows and columns
     axes = FALSE,              # Hide the axes for a cleaner grid
     box = TRUE,                # Add box around each plot for clarity
     grid = TRUE,               # Draw gridlines to distinguish between plots
-    main = names(x_delta_all),      # Add titles to each plot
-    loc.main = "bottom",          # Position the titles at the top of each plot
+    main = names(x_delta_all), # Add titles to each plot
+    loc.main = "bottom",       # Position the titles at the bottom of each plot
 )
 
 # Add a custom legend with a title
-legend("topright", legend = c("-180 to -120", "-120 to -90", "..."),
-       fill = rev(colorRampPalette(turbo(9))(9)), 
+legend("topright", legend = c("0-15", "15-30", "..."),
+       fill = colorRampPalette(turbo(9))(9), 
        title = "Time Difference (mins)")
 
 # Add a main title to the grid plot
@@ -289,18 +289,18 @@ mtext("Delta Travel Time Accessibility Analysis for\n All Public/PFNP Facilities
 # Plot using ggplot2's autoplot() method from tidyterra
 gridplot_delta_tt = autoplot(x_delta_all, nrow = 5, ncol = 3) +
     scale_fill_stepsn(
-        colours = rev(colorRampPalette(turbo(9))(9)),  # Reversed turbo color palette with 9 steps
+        colours = colorRampPalette(turbo(9))(9),  # Turbo color palette with 9 steps
         name = "Delta Travel Time\nCategories (walking)",  # Improved legend title
-        breaks = c(-180, -120, -90, -60, -45, -30, -15, 0),  # Custom breaks
-        labels = c(">-180 min", "-180 to -120 min", "-120 to -90 min", 
-                   "-90 to -60 min", "-60 to -45 min", "-45 to -30 min", 
-                   "-30 to -15 min", "-15 to 0 min"),  # Legend labels
+        breaks = c(0, 15, 30, 45, 60, 90, 120, 180),  # Custom breaks
+        labels = c("0-15 min", "15-30 min", "30-45 min", 
+                   "45-60 min", "60-90 min", "90-120 min", 
+                   "120-180 min", ">180 min"),  # Legend labels
         na.value = "transparent",  # Hide NAs by making them transparent
-        limits = c(-180, 0),  # Explicitly set limits to match breaks
+        limits = c(0, 180),  # Explicitly set limits to match breaks
     ) +
     theme_minimal() +
     theme(
-        legend.position = "right",  # Move the legend to the bottom
+        legend.position = "right",  # Move the legend to the right
         legend.title = element_text(size = 12),  # Increase legend title font size
         legend.text = element_text(size = 10),  # Increase legend label font size
         legend.key.width = unit(1.5, "cm"),  # Adjust width of legend keys
@@ -319,9 +319,9 @@ gridplot_delta_tt = autoplot(x_delta_all, nrow = 5, ncol = 3) +
 
 
 # [OPTIONAL] save the gridplot as a png
-   # png(here("Figures/delta_tt_all_scenarios.png"), width = 40, height = 60, units = "cm", res = 1000)
-   # print(gridplot_delta_tt)
-   # dev.off()
+    # png(here("Figures/delta_tt_all_scenarios.png"), width = 40, height = 60, units = "cm", res = 1000)
+    # print(gridplot_delta_tt)
+    # dev.off()
 
 # Selected scenarios only (20mm x 6 hours and 100 mm x 1hour)
 x_selected <- c(delta_tt_all_20_21600, delta_tt_all_100_3600)
@@ -331,11 +331,11 @@ names(x_selected) <- c("20mm / 6hr", "100mm / 1hr")
 # Plot using ggplot2's autoplot() method from tidyterra
 autoplot(x_selected, nrow = 1, ncol = 2) +
     scale_fill_stepsn(
-        colours = rev(viridisLite::turbo(8)),  # Use the turbo color palette with 8 steps
+        colours = viridisLite::turbo(8),  # Use the turbo color palette with 8 steps
         name = "Delta Travel Time Categories (walking)",  # Improved legend title
-        breaks = c(0, -15, -30, -45, -60, -90, -120, -180),  # Custom breaks in reversed order
-        labels = c("-0-15 min", "-15-30 min", "-30-45 min", "-45-60 min", 
-                             "-60-90 min", "-90-120 min", "-120-180 min", ">-180 min"),  # Custom legend labels in reversed order
+        breaks = c(0, 15, 30, 45, 60, 90, 120, 180),  # Custom breaks
+        labels = c("0-15 min", "15-30 min", "30-45 min", "45-60 min", 
+                   "60-90 min", "90-120 min", "120-180 min", ">180 min"),  # Custom legend labels
         na.value = "transparent"  # Hide NAs by making them transparent
     ) +
     theme_minimal() +
@@ -357,7 +357,7 @@ autoplot(x_selected, nrow = 1, ncol = 2) +
         guides(
         fill = guide_legend(title.position = "top", nrow = 4, ncol = 2, byrow = FALSE),  # Move legend title to top and arrange items in 2 columns
         ) +
-    ggtitle(" Delta Travel Time Accessibility")
+    ggtitle("Delta Travel Time Accessibility")
 ```
 
 # HOSPITAL SCENARIO
@@ -497,27 +497,26 @@ base_tt_hosp %>%
 # Add the parishes overlay
 plot(Adm_boundaries, add = TRUE, col = NA, border = "black", lwd = 0.5)
 
-
 # Create delta travel time rasters for hospitals only
-delta_tt_hosp_20_3600 <- base_tt_hosp - flood_tt_hosp_20_3600
-delta_tt_hosp_20_10800 <- base_tt_hosp - flood_tt_hosp_20_10800
-delta_tt_hosp_20_21600 <- base_tt_hosp - flood_tt_hosp_20_21600
+delta_tt_hosp_20_3600 <- flood_tt_hosp_20_3600 - base_tt_hosp
+delta_tt_hosp_20_10800 <- flood_tt_hosp_20_10800 - base_tt_hosp
+delta_tt_hosp_20_21600 <- flood_tt_hosp_20_21600 - base_tt_hosp
 
-delta_tt_hosp_40_3600 <- base_tt_hosp - flood_tt_hosp_40_3600
-delta_tt_hosp_40_10800 <- base_tt_hosp - flood_tt_hosp_40_10800
-delta_tt_hosp_40_21600 <- base_tt_hosp - flood_tt_hosp_40_21600
+delta_tt_hosp_40_3600 <- flood_tt_hosp_40_3600 - base_tt_hosp
+delta_tt_hosp_40_10800 <- flood_tt_hosp_40_10800 - base_tt_hosp
+delta_tt_hosp_40_21600 <- flood_tt_hosp_40_21600 - base_tt_hosp
 
-delta_tt_hosp_60_3600 <- base_tt_hosp - flood_tt_hosp_60_3600
-delta_tt_hosp_60_10800 <- base_tt_hosp - flood_tt_hosp_60_10800
-delta_tt_hosp_60_21600 <- base_tt_hosp - flood_tt_hosp_60_21600
+delta_tt_hosp_60_3600 <- flood_tt_hosp_60_3600 - base_tt_hosp
+delta_tt_hosp_60_10800 <- flood_tt_hosp_60_10800 - base_tt_hosp
+delta_tt_hosp_60_21600 <- flood_tt_hosp_60_21600 - base_tt_hosp
 
-delta_tt_hosp_80_3600 <- base_tt_hosp - flood_tt_hosp_80_3600
-delta_tt_hosp_80_10800 <- base_tt_hosp - flood_tt_hosp_80_10800
-delta_tt_hosp_80_21600 <- base_tt_hosp - flood_tt_hosp_80_21600
+delta_tt_hosp_80_3600 <- flood_tt_hosp_80_3600 - base_tt_hosp
+delta_tt_hosp_80_10800 <- flood_tt_hosp_80_10800 - base_tt_hosp
+delta_tt_hosp_80_21600 <- flood_tt_hosp_80_21600 - base_tt_hosp
 
-delta_tt_hosp_100_3600 <- base_tt_hosp - flood_tt_hosp_100_3600
-delta_tt_hosp_100_10800 <- base_tt_hosp - flood_tt_hosp_100_10800
-delta_tt_hosp_100_21600 <- base_tt_hosp - flood_tt_hosp_100_21600
+delta_tt_hosp_100_3600 <- flood_tt_hosp_100_3600 - base_tt_hosp
+delta_tt_hosp_100_10800 <- flood_tt_hosp_100_10800 - base_tt_hosp
+delta_tt_hosp_100_21600 <- flood_tt_hosp_100_21600 - base_tt_hosp
 
 x_delta_hosp <- c(delta_tt_hosp_20_3600, delta_tt_hosp_20_10800, delta_tt_hosp_20_21600, delta_tt_hosp_40_3600, delta_tt_hosp_40_10800, delta_tt_hosp_40_21600, delta_tt_hosp_60_3600, delta_tt_hosp_60_10800, delta_tt_hosp_60_21600, delta_tt_hosp_80_3600, delta_tt_hosp_80_10800, delta_tt_hosp_80_21600, delta_tt_hosp_100_3600, delta_tt_hosp_100_10800, delta_tt_hosp_100_21600)
 
@@ -532,14 +531,14 @@ save_delta_rasters(x_delta_hosp, "processed/delta_travel")
 # Plot using ggplot2's autoplot() method from tidyterra
 gridplot_delta_tt_hosp = autoplot(x_delta_hosp, nrow = 5, ncol = 3) +
     scale_fill_stepsn(
-        colours = rev(colorRampPalette(turbo(9))(9)),  # Reversed turbo color palette with 9 steps
+        colours = colorRampPalette(turbo(9))(9),  # Turbo color palette with 9 steps
         name = "Delta Travel Time\nCategories (walking)",  # Improved legend title
-        breaks = c(-180, -120, -90, -60, -45, -30, -15, 0),  # Custom breaks
-        labels = c(">-180 min", "-180 to -120 min", "-120 to -90 min", 
-                   "-90 to -60 min", "-60 to -45 min", "-45 to -30 min", 
-                   "-30 to -15 min", "-15 to 0 min"),  # Legend labels
+        breaks = c(0, 15, 30, 45, 60, 90, 120, 180),  # Custom breaks
+        labels = c("0-15 min", "15-30 min", "30-45 min", 
+                   "45-60 min", "60-90 min", "90-120 min", 
+                   "120-180 min", ">180 min"),  # Legend labels
         na.value = "transparent",  # Hide NAs by making them transparent
-        limits = c(-180, 0),  # Explicitly set limits to match breaks
+        limits = c(0, 180),  # Explicitly set limits to match breaks
     ) +
     theme_minimal() +
     theme(

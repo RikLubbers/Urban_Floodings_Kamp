@@ -25,6 +25,8 @@ library(terra)
 library(tidyterra)
 library(here)
 library(viridis)
+library(readxl)
+library(ggplot2)
 ```
 
 ## Load data
@@ -95,10 +97,48 @@ par(oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0))  # Outer and inner margins reduced
 
 # Load the complete landcover raster
 landcover_complete <- rast(here("Data", "raw", "Landcover", "ESA_WorldCover_10m_2021_v200_N00E030_Map.tif"))
+facilities_complete <- vect(here("Data", "raw", "Facilities", "suhsharan_health_facilities", "sub-saharan_health_facilities.shp"))
 
 landcover_complete <- project(landcover_complete, Landcover)
-landcover_complete <- crop(landcover_complete, ext(Landcover))
-landcover_complete <- mask(landcover_complete, Landcover, inverse = TRUE)
+ext(landcover_complete) <- ext(Landcover)
+
+facilities_complete <- project(facilities_complete, Facilities[[1]])
+facilities_complete <- crop(facilities_complete, landcover_complete)
+
+# --- 1. Harmonize names so join works ---
+names(facilities_complete)[names(facilities_complete) == "Facility.n"] <- "Facility_n"
+names(facilities_complete)[names(facilities_complete) == "Facility.t"] <- "Facility_t"
+names(facilities_complete)[names(facilities_complete) == "LL.source"]  <- "LL_source"
+names(facilities_complete)[names(facilities_complete) == "Facility.n"] <- "Facility_n"
+names(facilities_complete)[names(facilities_complete) == "Facility.t"] <- "Facility_t"
+names(facilities_complete)[names(facilities_complete) == "LL.source"]  <- "LL_source"
+
+# --- 2. Get coordinates directly from terra SpatVector ---
+coords_c <- crds(facilities_complete)
+coords_s <- crds(facilities)
+
+# --- 3. Match by Facility_n ---
+ids_c <- facilities_complete$Facility_n
+ids_s <- facilities$Facility_n
+
+common_ids <- intersect(ids_c, ids_s)
+idx_c <- match(common_ids, ids_c)
+idx_s <- match(common_ids, ids_s)
+
+# --- 4. Compute mean offset ---
+dx <- mean(coords_s[idx_s, 1] - coords_c[idx_c, 1], na.rm = TRUE)
+dy <- mean(coords_s[idx_s, 2] - coords_c[idx_c, 2], na.rm = TRUE)
+
+cat("Mean offset: dx =", dx, " dy =", dy, "\n")
+
+# --- 5. Apply shift directly to terra object ---
+facilities_complete <- shift(facilities_complete, dx, dy)
+
+
+# Split facilities_complete into hospitals_complete and health_centers_complete
+hospitals_complete <- facilities_complete[facilities_complete$`Facility_t` %in% c("National Referral Hospital", "Hospital", "Regional Referral Hospital"), ]
+health_centers_complete <- facilities_complete[facilities_complete$`Facility_t` %in% c("Health Centre III", "Health Centre II", "Health Centre IV"), ]
+
 
 # 1. Plot the background landcover (non-Kampala area only; low opacity)
 plot(
@@ -125,44 +165,62 @@ plot(
 {
   # Overlay the hillshade
   plot(hillshade, col = gray.colors(100, start = 0.3, end = 1, alpha = 0.4), legend = FALSE, add = TRUE)
+  
   # Overlay the OSM roads
   lines(OSM_roads, col = "black", lwd = 1.5, lty = 1)
+  
   # Overlay the water lines
   lines(water_lines, col = "blue", lwd = 1, lty = 2)
-  # Add hospitals
+
+  # ---- Outside AOI facilities (transparent) ----
+  points(hospitals_complete,
+         pch = 23,
+         col = adjustcolor("black", alpha.f = 0.5),
+         bg  = adjustcolor("blue", alpha.f = 0.4),
+         cex = 1.8)
+  
+  points(health_centers_complete,
+         pch = 21,
+         col = adjustcolor("black", alpha.f = 0.5),
+         bg  = adjustcolor("green", alpha.f = 0.4),
+         cex = 1.8)
+
+  # ---- Inside AOI facilities (solid) ----
   points(hospitals, pch = 23, col = "black", bg = "blue", cex = 2)
-  # Add health centers
   points(health_centres, pch = 21, col = "black", bg = "green", cex = 2)
-  # Add the Legend
+
+  # ---- Legends ----
   legend(
     x = "bottomleft",
-    inset = c(0.09, 0.01),  # Adjust inset to fit the map
-    legend = c(filtered_landcover_classes, "Rivers", "Roads"),  # Filtered class names, rivers, roads
-    fill = c(filtered_landcover_colors, "blue", "black"),  # Matching filtered colors, blue for rivers, black for roads
-    border = "white",  # Legend border
-    bg = "white",  # Legend background
-    cex = 1.5,  # Adjust text size
+    inset = c(0.09, 0.01),
+    legend = c(filtered_landcover_classes, "Rivers", "Roads"),
+    fill = c(filtered_landcover_colors, "blue", "black"),
+    border = "white",
+    bg = "white",
+    cex = 1.5,
     title = "Landcover Classes",
     ncol = 2,
-    x.intersp = 0.1,  # Decrease spacing between columns
-    y.intersp = 0.7,  # Decrease spacing between rows
-    text.width = NA  # Adjust text width
+    x.intersp = 0.1,
+    y.intersp = 0.7,
+    text.width = NA
   )
+  
   legend(
     x = "bottomleft",
-    inset = c(0.09, 0.175),  # Adjust inset to fit above the landcover legend
-    legend = c("Hospitals", "Health Centers"),  # Legend for hospitals and health centers
-    pch = c(23, 21),  # Symbols for hospitals and health centers
-    col = "black",  # Black border for symbols
-    pt.bg = c("blue", "green"),  # Fill colors for hospitals and health centers
-    pt.cex = 2,  # Adjust point size
+    inset = c(0.09, 0.175),
+    legend = c("Hospitals", "Health Centers"),
+    pch = c(23, 21),
+    col = "black",
+    pt.bg = c("blue", "green"),
+    pt.cex = 2,
     title = "Healthcare Facilities",
-    bg = "white",  # Legend background
-    cex = 1.5,  # Adjust text size
-    x.intersp = 0.5,  # Adjust spacing between symbols and text
-    y.intersp = 0.8  # Adjust spacing between rows
+    bg = "white",
+    cex = 1.5,
+    x.intersp = 0.5,
+    y.intersp = 0.8
   )
+
   sbar(2000, xy = "bottomright", type = "bar", divs = 4, below = "km", cex = 1.2, lonlat = FALSE, scaleby = 1000)
   north(type = 2, cex = 1.5)
 }
-```
+``` 

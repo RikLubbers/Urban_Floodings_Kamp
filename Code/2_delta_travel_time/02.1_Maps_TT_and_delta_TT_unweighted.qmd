@@ -141,66 +141,74 @@ print(gridplot)
 base_tt_all <- rast(here("AccessMod/Output/Base/raster_travel_time_Base_all/raster_travel_time_Base_all.img"))
 
 # Plot the baseline travel time raster with parishes overlay
-base_tt_all %>%
-    plot(
-        col = colorRampPalette(turbo(8))(8),  # Using turbo for stronger contrast
-        breaks = c(0, 15, 30, 45, 60, 90, 120, 180, Inf),  # Define travel time breaks
-        nr = 5, nc = 3,  # Grid layout (5 rows, 3 columns)
-        axes = FALSE,  # Remove axes and labels
-        box = TRUE,  # Keep the plot box
-        main = "Baseline Healthcare Accessibility in Travel Time (minutes)\n to All Facilities (Public/PNFP)",
-        legend = FALSE,
-        cex.main = 1.5  # Adjust title font size
-    ) %>%
-    { grid(nx = NULL, ny = NULL, col = "lightgray", lty = "dashed", lwd = 0.5) } %>%
-    {
-        legend(
-            x = "bottomleft",  # Reposition legend to bottom left
-            inset = c(0.12, 0.02),  # Slight inset to avoid clipping
-            legend = c("0-15 min", "15-30 min", "30-45 min", "45-60 min", 
-                       "60-90 min", "90-120 min", "120-180 min", ">180 min"),  # Custom travel time labels
-            fill = colorRampPalette(viridis::turbo(8))(8),  # Matching the turbo color ramp
-            bg = "white",  # Set white background for legend
-            cex = 1.4,  # Adjust text size in the legend
-            x.intersp = 0.6,  # Reduce horizontal space in the legend
-            title = "Travel Time Categories (walking)",  # Improved legend title
-            ncol = 2
-        )
-    }
+# 1. Plot semi-transparent background landcover (outside Kampala)
+## First run 02_baseline_geography.qmd and to load the landcover data and align etc. 
+plot(
+  landcover_complete,
+  col = adjustcolor(filtered_landcover_colors, alpha.f = 0.15),
+  legend = FALSE,
+  axes = FALSE,
+  box = FALSE
+)
 
-# Add the parishes overlay
+# 2. Plot the base travel time raster
+base_tt_all %>%
+  plot(
+    col = colorRampPalette(turbo(8))(8),  # Using turbo for stronger contrast
+    breaks = c(0, 15, 30, 45, 60, 90, 120, 180, Inf),  # Define travel time breaks
+    nr = 5, nc = 3,  # Grid layout (5 rows, 3 columns)
+    axes = FALSE,  # Remove axes and labels
+    box = TRUE,  # Keep the plot box
+    legend = FALSE,
+    cex.main = 1.5,  # Adjust title font size
+    add = TRUE  # Add to existing plot
+  ) %>%
+  { 
+    grid(nx = NULL, ny = NULL, col = "lightgray", lty = "dashed", lwd = 0.5)
+    # Add hospitals inside AOI
+    points(hospitals, pch = 23, col = "black", bg = "blue", cex = 2)
+    # Add health centers inside AOI
+    points(health_centres, pch = 21, col = "black", bg = "green", cex = 2)
+    # Add hospitals outside AOI (semi-transparent)
+    points(hospitals_complete, pch = 23, col = adjustcolor("black", alpha.f = 0.5), bg = adjustcolor("blue", alpha.f = 0.4), cex = 1.8)
+    # Add health centers outside AOI (semi-transparent)
+    points(health_centers_complete, pch = 21, col = adjustcolor("black", alpha.f = 0.5), bg = adjustcolor("green", alpha.f = 0.4), cex = 1.8)
+  } %>%
+  {
+    legend(
+      x = "bottomleft",  # Reposition legend to bottom left
+      inset = c(0.09, 0.01),  # Slight inset to avoid clipping
+      legend = c("0-15 min", "15-30 min", "30-45 min", "45-60 min", 
+             "60-90 min", "90-120 min", "120-180 min", ">180 min"),  # Custom travel time labels
+      fill = colorRampPalette(viridis::turbo(8))(8),  # Matching the turbo color ramp
+      bg = "white",  # Set white background for legend
+      cex = 1.4,  # Adjust text size in the legend
+      x.intersp = 0.6,  # Reduce horizontal space in the legend
+      title = "Travel Time Categories (walking)",  # Improved legend title
+      ncol = 2
+    )
+    legend(
+      x = "bottomleft",
+      inset = c(0.09, 0.185),  # Adjust inset to fit above the landcover legend
+      legend = c("Hospitals", "Health Centers"),
+      pch = c(23, 21),
+      col = c("black", "black"),
+      pt.bg = c("blue", "green"),
+      pt.cex = c(2, 2),
+      title = "Healthcare Facilities",
+      bg = "white",
+      cex = 1.5,
+      x.intersp = 0.5,
+      y.intersp = 0.8
+    )
+  }
+
+# 3. Add the parishes overlay
 plot(Adm_boundaries, add = TRUE, col = NA, border = "black", lwd = 0.5)
 
-# [OPTIONAL] Save the plot as a PNG.
-# Save the plot as a PNG
-# png(here("Figures/base_tt_all.png"), width = 40, height = 60, units = "cm", res = 1000)
-# base_tt_all %>%
-    plot(
-        col = colorRampPalette(turbo(8))(8),  # Using turbo for stronger contrast
-        breaks = c(0, 15, 30, 45, 60, 90, 120, 180, Inf),  # Define travel time breaks
-        nr = 5, nc = 3,  # Grid layout (5 rows, 3 columns)
-        axes = FALSE,  # Remove axes and labels
-        box = TRUE,  # Keep the plot box
-        main = "Baseline Healthcare Accessibility in Travel Time (minutes)\n to All Facilities (Public/PNFP)",
-        legend = FALSE,
-        cex.main = 1.5,  # Adjust title font size
-    ) %>%
-    { grid(nx = NULL, ny = NULL, col = "lightgray", lty = "dashed", lwd = 0.5) } %>%
-    {
-        legend(
-            x = "bottomleft",  # Reposition legend to bottom left
-            inset = c(0.12, 0.02),  # Slight inset to avoid clipping
-            legend = c( "0-15 min", "15-30 min", "30-45 min", "45-60 min", 
-                        "60-90 min", "90-120 min", "120-180 min", ">180 min"),  # Custom travel time labels
-            fill = colorRampPalette(viridis::turbo(8))(8),  # Matching the turbo color ramp
-            bg = "white",  # Set white background for legend
-            cex = 1.4,  # Adjust text size in the legend
-            x.intersp = 0.6,  # Reduce horizontal space in the legend
-            title = "Travel Time Categories (walking)",  # Improved legend title
-            ncol = 2
-        )
-    } 
-# dev.off()
+# 4. Add scale bar and north arrow
+sbar(2000, xy = "bottomright", type = "bar", divs = 4, below = "km", cex = 1.2, lonlat = FALSE, scaleby = 1000)
+north(type = 2, cex = 1.5)
 
 # Create delta travel time rasters
 delta_tt_all_20_3600 <- flood_tt_all_20_3600 - base_tt_all
@@ -227,7 +235,7 @@ x_delta_all <- c(delta_tt_all_20_3600, delta_tt_all_20_10800, delta_tt_all_20_21
 
 names(x_delta_all) <- c("20mm / 1hr", "20mm / 3hr", "20mm / 6hr", "40mm / 1hr", "40mm / 3hr", "40mm / 6hr", "60mm / 1hr", "60mm / 3hr", "60mm / 6hr", "80mm / 1hr", "80mm / 3hr", "80mm / 6hr", "100mm / 1hr", "100mm / 3hr", "100mm / 6hr")
 
-# save_delta_rasters <- function(raster_data, folder_name = "processed/delta_travel") {
+save_delta_rasters <- function(raster_data, folder_name = "processed/delta_travel") {
     # Define the directory inside Data/processed
     processed_dir <- here("Data", folder_name)
     
@@ -402,34 +410,35 @@ if (length(scenario_img_files) > 0) {
 }
 
 # Load all rasters
-x_delta_hosp <- lapply(scenario_img_files, function(img_files) {
+x_hosp <- lapply(scenario_img_files, function(img_files) {
   lapply(img_files, rast)
 })
 
 # Create meaningful names for each raster
-x_delta_hosp_names <- c(
-    "flood_tt_hosp_100_10800", "flood_tt_hosp_100_21600", "flood_tt_hosp_100_3600",
-    "flood_tt_hosp_20_10800", "flood_tt_hosp_20_21600", "flood_tt_hosp_20_3600",
-    "flood_tt_hosp_40_10800", "flood_tt_hosp_40_21600", "flood_tt_hosp_40_3600",
-    "flood_tt_hosp_60_10800", "flood_tt_hosp_60_21600", "flood_tt_hosp_60_3600",
-    "flood_tt_hosp_80_10800", "flood_tt_hosp_80_21600", "flood_tt_hosp_80_3600"
+x_hosp_names <- c(
+  "flood_tt_hosp_100_10800", "flood_tt_hosp_100_21600", "flood_tt_hosp_100_3600",
+  "flood_tt_hosp_20_10800", "flood_tt_hosp_20_21600", "flood_tt_hosp_20_3600",
+  "flood_tt_hosp_40_10800", "flood_tt_hosp_40_21600", "flood_tt_hosp_40_3600",
+  "flood_tt_hosp_60_10800", "flood_tt_hosp_60_21600", "flood_tt_hosp_60_3600",
+  "flood_tt_hosp_80_10800", "flood_tt_hosp_80_21600", "flood_tt_hosp_80_3600"
 )
 
+
 # Assign names to the list
-names(x_delta_hosp) <- x_delta_hosp_names
+names(x_hosp) <- x_hosp_names
 
 # Extract the SpatRaster from each list element
-x_delta_hosp_extracted <- lapply(x_delta_hosp, function(obj) obj[[1]])
+x_hosp_extracted <- lapply(x_hosp, function(obj) obj[[1]])
 
 # Unlist the raster list into the global environment
-list2env(x_delta_hosp_extracted, envir = .GlobalEnv)
+list2env(x_hosp_extracted, envir = .GlobalEnv)
 ```
 
 ## Plotting the travel time rasters
 ```{r}
 # Combine the list of SpatRasters into a single SpatRaster stack
 # Extract the SpatRaster objects from the nested lists
-raster_list_hosp <- lapply(x_delta_hosp, function(obj) obj[[1]])
+raster_list_hosp <- lapply(x_hosp, function(obj) obj[[1]])
 
 # Combine the extracted SpatRasters into a single SpatRaster stack
 stacked_rasters_hosp <- rast(raster_list_hosp)
@@ -466,36 +475,80 @@ print(gridplot_hosp)
 # Load base hospital travel time raster
 base_tt_hosp <- rast(here("AccessMod/Output/Base/raster_travel_time_Base_hosp/raster_travel_time_Base_hosp.img"))
 
-# Plot the SpatRaster with no axis labels or tick marks, but with a box
-base_tt_hosp %>%
-    plot(
-        col = colorRampPalette(turbo(8))(8),  # Using turbo for stronger contrast
-        breaks = c(0, 15, 30, 45, 60, 90, 120, 180, Inf),  # Define travel time breaks
-        nr = 5, nc = 3,  # Grid layout (5 rows, 3 columns)
-        axes = FALSE,  # Remove axes and labels
-        box = TRUE,  # Keep the plot box
-        main = "Baseline Healthcare Accessibility in Travel Time (minutes) to Public/PNFP Hospitals",
-        legend = FALSE,
-        cex.main = 1.5,  # Adjust title font size
-    ) %>%
-    { grid(nx = NULL, ny = NULL, col = "lightgray", lty = "dashed", lwd = 0.5) } %>%
-    {
-        legend(
-            x = "bottomleft",  # Reposition legend to bottom left
-            inset = c(0.12, 0.02),  # Slight inset to avoid clipping
-            legend = c( "0-15 min", "15-30 min", "30-45 min", "45-60 min", 
-                        "60-90 min", "90-120 min", "120-180 min", ">180 min"),  # Custom travel time labels
-            fill = colorRampPalette(viridis::turbo(8))(8),  # Matching the turbo color ramp
-            bg = "white",  # Set white background for legend
-            cex = 1.4,  # Adjust text size in the legend
-            x.intersp = 0.6,  # Reduce horizontal space in the legend
-            title = "Travel Time Categories (walking)",  # Improved legend title
-            ncol = 2
-        )
-    }
+# 1. Plot semi-transparent background landcover (outside Kampala)
+plot(
+  landcover_complete,
+  col = adjustcolor(filtered_landcover_colors, alpha.f = 0.15),
+  legend = FALSE,
+  axes = FALSE,
+  box = FALSE
+)
 
-# Add the parishes overlay
+# 2. Plot the base travel time raster (to hospitals)
+base_tt_hosp %>%
+  plot(
+    col = colorRampPalette(turbo(8))(8),  # Turbo color scheme
+    breaks = c(0, 15, 30, 45, 60, 90, 120, 180, Inf),
+    nr = 5, nc = 3,
+    axes = FALSE,
+    box = TRUE,
+    main = "Baseline Accessibility to Public/PNFP Hospitals (Travel Time, minutes)",
+    legend = FALSE,
+    cex.main = 1.5,
+    add = TRUE
+  ) %>%
+  {
+    # Grid overlay
+    grid(nx = NULL, ny = NULL, col = "lightgray", lty = "dashed", lwd = 0.5)
+
+    # ---- Outside AOI facilities (transparent) ----
+    points(hospitals_complete,
+           pch = 23,
+           col = adjustcolor("black", alpha.f = 0.5),
+           bg  = adjustcolor("blue", alpha.f = 0.4),
+           cex = 1.8)
+
+    # ---- Inside AOI facilities (solid) ----
+    points(hospitals, pch = 23, col = "black", bg = "blue", cex = 2)
+  } %>%
+  {
+    # Travel time legend
+    legend(
+      x = "bottomleft",
+      inset = c(0.09, 0.01),
+      legend = c("0-15 min", "15-30 min", "30-45 min", "45-60 min", 
+                 "60-90 min", "90-120 min", "120-180 min", ">180 min"),
+      fill = colorRampPalette(turbo(8))(8),
+      bg = "white",
+      cex = 1.4,
+      x.intersp = 0.6,
+      title = "Travel Time Categories (walking)",
+      ncol = 2
+    )
+
+    # Facility legend
+    legend(
+      x = "bottomleft",
+      inset = c(0.09, 0.185),
+      legend = c("Hospitals"),
+      pch = c(23),
+      col = "black",
+      pt.bg = c("blue"),
+      pt.cex = 2,
+      title = "Healthcare Facilities",
+      bg = "white",
+      cex = 1.5,
+      x.intersp = 0.5,
+      y.intersp = 0.8
+    )
+  }
+
+# 3. Add administrative boundaries
 plot(Adm_boundaries, add = TRUE, col = NA, border = "black", lwd = 0.5)
+
+# 4. Add scale bar and north arrow
+sbar(2000, xy = "bottomright", type = "bar", divs = 4, below = "km", cex = 1.2, lonlat = FALSE, scaleby = 1000)
+north(type = 2, cex = 1.5)
 
 # Create delta travel time rasters for hospitals only
 delta_tt_hosp_20_3600 <- flood_tt_hosp_20_3600 - base_tt_hosp

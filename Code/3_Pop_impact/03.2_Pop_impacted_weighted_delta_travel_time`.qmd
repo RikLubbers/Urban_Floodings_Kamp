@@ -31,6 +31,7 @@ library(tidyterra)
 library(tidyverse)
 library(flextable)
 library(officer)
+library(kableExtra)
 ```
 
 # Weighted Delta Travel Time Calculation for scenarios with All Facilities
@@ -121,7 +122,7 @@ parish_boundaries_all_sf$Population_bin <- factor(cut(
 # STEP: Define bivariate legend labels
 labels_all <- list(
     bi_x = c("0-30", "30-60", "60+"),
-    bi_y = c("30000+", "10000-30000", "0-10000")
+    bi_y = c("30.000+", "10.000 - 30.000", "0 - 10.000")
 )
 
 # STEP: Create plots for each scenario
@@ -170,20 +171,19 @@ for (i in seq_along(scenario_columns_ordered_all)) {
 legend_all <- bi_legend(
     pal = "DkViolet",
     dim = 3,
-    xlab = "Travel Time Increase (min.)",
+    xlab = "Δ Travel Time (min)",
     ylab = "Population Sum",
-    size = 30,
+    size = 16,
     breaks = labels_all,
     flip_axes = FALSE,
     arrows = FALSE
 )
 
 # STEP: Combine all plots
-weighted_delta_TT_all <- wrap_plots(plot_list_all, ncol = 3) +
-    plot_layout(guides = "collect") &
-    theme(legend.position = "bottom") &
+weighted_delta_TT_all <- wrap_plots(plot_list_all, ncol = 3) /
+    legend_all +
+    plot_layout(heights = c(5,1)) +
     plot_annotation(
-        title = "Average Population Weighted Delta Travel Time Scenarios (All Facilities)",
         theme = theme(
             plot.title = element_text(hjust = 0.5, size = 16, face = "bold")
         )
@@ -193,8 +193,8 @@ weighted_delta_TT_all <- wrap_plots(plot_list_all, ncol = 3) +
 print(weighted_delta_TT_all)
 
 # OPTIONAL: Save the combined plot and legend
-# ggsave(here("Figures", "Weighted_delta_TT", "weighted_delta_TT_all.png"), plot = weighted_delta_TT_all, width = 10, height = 15, dpi = 300)
-# ggsave(here("Figures", "Weighted_delta_TT", "legend_all.png"), plot = legend_all, width = 5, height = 5, dpi = 300)
+#ggsave(here("Figures", "Weighted_delta_TT", "weighted_delta_TT_all.png"), plot = weighted_delta_TT_all, width = 10, height = 15, dpi = 300)
+#ggsave(here("Figures", "Weighted_delta_TT", "legend_all.png"), plot = legend_all, width = 5, height = 5, dpi = 300)
 ```
 
 # Highlight parishes with the highest decrease in travel time for each scenario for all facilities
@@ -413,6 +413,11 @@ pop_density_raster <- rast(here("AccessMod", "InAccessMod", "Uganda", "data", "z
 # Load parish boundaries and rename
 parish_boundaries_hosp <- vect(here("Data", "processed", "Adm_boundaries", "parishes_kampala.shp"))
 
+# Align all rasters in delta_tt_list_hosp to pop_density_raster
+# Remove any non-raster objects (e.g., gridplot_delta_tt_hosp, gg, list) from delta_tt_list_hosp
+delta_tt_list_hosp <- delta_tt_list_hosp[!names(delta_tt_list_hosp) %in% c("gridplot_delta_tt_hosp", "gg", "list")]
+delta_tt_list_hosp <- lapply(delta_tt_list_hosp, function(x) Spatial.align::align(x, pop_density_raster))
+
 # Create weighted delta TT list for hospital-only
 weighted_delta_tt_list_hosp <- lapply(delta_tt_list_hosp, function(delta_tt_raster) {
     delta_tt_raster * pop_density_raster
@@ -454,7 +459,6 @@ for (i in seq_along(weighted_delta_tt_list_hosp)) {
     parish_boundaries_hosp[[paste0("Average_Weighted_Delta_TT_", original_name)]] <-
         parish_boundaries_hosp[[paste0("Weighted_delta_tt_", original_name)]] / parish_boundaries_hosp$Population_Sum
 }
-
 ```
 
 # Create a bivariate map of accessibility reduction and population sum for hospital only scenarios
@@ -485,7 +489,7 @@ parish_boundaries_hosp_sf$Population_bin <- factor(cut(
 # STEP: Define legend labels
 labels_hosp <- list(
     bi_x = c("0-30", "30-60", "60+"),
-    bi_y = c("30000+", "10000-30000", "0-10000")
+    bi_y = c("30.000+", "10.000 - 30.000", "0 - 10.000")
 )
 
 # STEP: Initialize list of plots
@@ -534,9 +538,9 @@ for (i in seq_along(scenario_columns_ordered_hosp)) {
 legend_hosp <- bi_legend(
     pal = "DkViolet",
     dim = 3,
-    xlab = "Travel Time Increase (min.)",
+    xlab = "Δ Travel Time (min)",
     ylab = "Population Sum",
-    size = 30,
+    size = 16,
     breaks = labels_hosp,
     flip_axes = FALSE,
     arrows = FALSE
@@ -547,12 +551,14 @@ weighted_delta_TT_hosp <- wrap_plots(plot_list_hosp, ncol = 3) /
     legend_hosp +
     plot_layout(heights = c(5, 1)) +
     plot_annotation(
-        title = "Average Population Weighted Delta Travel Time Scenarios (Hospitals Only)",
         theme = theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"))
     )
 
 # Display the combined plot
 print(weighted_delta_TT_hosp)
+
+# OPTIONAL: Save the combined plot and legend
+# ggsave(here("Figures", "Weighted_delta_TT", "weighted_delta_TT_hosp.png"), plot = weighted_delta_TT_hosp, width = 10, height = 15, dpi = 300)
 ```
 
 # Highlight parishes with the highest decrease in travel time for each scenario for all facilities
@@ -575,14 +581,14 @@ scenario_columns_ordered_hosp <- grep("Average_Weighted_Delta_TT_", names(parish
 # Initialize empty list for results
 top_parishes_list_hosp <- list()
 
-# Loop through each scenario and extract top 10 parishes
+# Loop through each scenario and extract top 10 parishes (highest values = worst)
 for (i in seq_along(scenario_columns_ordered_hosp)) {
     scenario_col <- scenario_columns_ordered_hosp[i]
 
     if (scenario_col %in% names(parish_boundaries_hosp_df)) {
         travel_times <- parish_boundaries_hosp_df[[scenario_col]]
-        if (!any(is.na(travel_times))) {
-            top_parishes <- parish_boundaries_hosp_df[order(travel_times), ][1:10, ]
+        if (!all(is.na(travel_times))) {
+            top_parishes <- parish_boundaries_hosp_df[order(-travel_times), ][1:10, ]
             top_parishes_list_hosp[[scenario_col]] <- data.frame(
                 Parish_Name = top_parishes$PName2016,
                 Travel_Time_Increase = top_parishes[[scenario_col]],
@@ -1018,6 +1024,4 @@ doc <- read_docx() %>%
   body_add_flextable(ft)
 
 print(doc, target = here::here("Manuscripts", "flood_summary_table.docx"))
-
-
 ```

@@ -59,7 +59,7 @@ writeVector(parishes_kamp, here("Data/processed/Adm_boundaries/parishes_kampala.
 
 # Spatial align all the other data to the extent of the parishes in Kampala
 ```{r}
-dem30m <- align(dem30m, parishes_kamp)
+dem30m <- align(dem30m, parishes_kamp, show_plots = TRUE)
 facilities_all <- align(facilities_all, parishes_kamp)
 facilities_hosp <- align(facilities_hosp, parishes_kamp)
 landcover10m <- align(landcover10m, parishes_kamp)

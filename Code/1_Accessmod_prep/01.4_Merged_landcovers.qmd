@@ -27,95 +27,99 @@ The resulting merged landcover layers are saved in the "Merged landcovers" folde
 # R code
 ## Load libraries
 ```{r}
-# Set up renv for package management
+# Set up renv for reproducible package management
 if (!requireNamespace("renv", quietly = TRUE)) {
     install.packages("renv")
 } else {
     message("renv is already installed.")
 }
 
-# Load the renv package
+# Load renv for environment management
 library(renv)
 
-# Check if renv is already active, activate if not
+# Activate renv if not already synchronized
 if (!renv::status()$synchronized) {
     renv::activate()
 }
 
-# To restore the environment (for a collaborator)
+# Restore package environment (for collaborators)
 renv::restore()
 
-# Load the required libraries
-library(sf)
-library(dplyr)
-library(foreach)
-library(snow)
-library(terra)
-library(raster)
-library(ggplot2)
-library(gridExtra)
-library(tidyterra)
-library(cowplot)
-library(patchwork)
-library(Spatial.align)
-library(ggspatial)
-library(here)
+# Load required libraries for spatial data processing, plotting, and utilities
+library(sf)            # Simple features for vector data
+library(dplyr)         # Data manipulation
+library(foreach)       # Parallel processing
+library(snow)          # Parallel computing support
+library(terra)         # Raster and vector spatial data
+library(raster)        # Legacy raster support
+library(ggplot2)       # Plotting
+library(gridExtra)     # Grid graphics
+library(tidyterra)     # Tidyverse support for terra objects
+library(cowplot)       # Plot composition
+library(patchwork)     # Plot composition
+library(Spatial.align) # Spatial alignment tools
+library(ggspatial)     # Spatial plotting enhancements
+library(here)          # Project directory management
+library(stringr)       # String manipulation
+library(tidyr)         # Data tidying
+library(scales)        # Scale functions for visualization
 ```
 
 # Create merged landcover layer for AccessMod
 ## First seperate the flood extents based on the unique values of threshold, rainfall, and duration
 ```{r}
-# Flood(x1)x(x2)x(x3), MLC = merged land cover, x1 = rainfall (mm), x2 = rain duration (h), x3 = flood depth (m)
-# Load full data
+# Separate flood extents by rainfall (mm) and duration (hours), and save each as a shapefile in a dedicated subfolder.
+# Load the full flood extent dataset
 flood_full <- st_read(here("AccessMod/InAccessMod/Uganda/data/vNaturalPolygons/20250107104606/processed/20250107121314"))
 
-# Define unique values for threshold, rainfall, and duration
+# Define rainfall and duration values to iterate over (duration in hours)
 rainfall_values <- c(20, 40, 60, 80, 100)
-duration_values <- c(3600, 10800, 21600)
+duration_values <- c(1, 3, 6)
 
-# Seperate each flood extent based on the unique values of rainfall and duration
+# Loop through each rainfall-duration combination and export corresponding flood polygons
 for (rainfall in rainfall_values) {
     for (duration in duration_values) {
-        # Filter data based on current combination
+        # Filter polygons for the current rainfall-duration scenario
         filtered_data <- flood_full[flood_full$rainfall == rainfall & flood_full$duration == duration, ]
         
-        # Check if the filtered data is not empty
+        # If any polygons exist for this scenario, save them as a shapefile
         if (nrow(filtered_data) > 0) {
-            # Define sub-folder name
+            # Construct subfolder name for this scenario
             subfolder_name <- paste0("flood_", rainfall, "_", duration)
             
-            # Define the path directly inside Flood_extents
+            # Path to the scenario subfolder within Flood_extents
             dir_path <- here("Data", "raw", "Flood_extents", subfolder_name)
             
-            # Create sub-folder if it doesn't exist
+            # Create the subfolder if it doesn't already exist
             if (!dir.exists(dir_path)) {
                 dir.create(dir_path, recursive = TRUE)
             }
             
-            # Define shapefile name
+            # Name for the output shapefile
             shapefile_name <- paste0(subfolder_name, ".shp")
             
-            # Write filtered data to shapefile in the sub-folder
+            # Write the filtered polygons to the shapefile in the scenario subfolder
             st_write(filtered_data, file.path(dir_path, shapefile_name), append = FALSE)
         }
     }
 }
 
-# Load all flood_extents from subfolders
+# Load all scenario flood extent shapefiles from subfolders into a list
 flood_list <- list.files(path = here("Data", "raw", "Flood_extents"), pattern = "\\.shp$", full.names = TRUE, recursive = TRUE) %>%
     lapply(st_read)
 
-# Name the flood extents in flood_list based on their subfolder name
+# Extract scenario names from subfolder names for each flood extent
 flood_extents_names <- basename(dirname(list.files(path = here("Data", "raw", "Flood_extents"), pattern = "\\.shp$", full.names = TRUE, recursive = TRUE)))
 
+# Add a Scenario column to each flood extent object, based on its subfolder name
 for (i in 1:length(flood_list)) {
     flood_list[[i]]$Scenario <- gsub("flood_", "", flood_extents_names[i])
 }
 
-# Assign names to flood list
+# Assign scenario names as list element names for easy reference
 names(flood_list) <- flood_extents_names
 
-# Remove other variable names from the flood extents
+# Remove rainfall and duration columns from each flood extent object, retaining only geometry and scenario info
 flood_list <- lapply(flood_list, function(x) {
     x$rainfall <- NULL
     x$duration <- NULL
@@ -126,77 +130,78 @@ flood_list <- lapply(flood_list, function(x) {
 
 ## Merge landcover layers for each flood extent
 ```{r}
-# Create merged landcover list
+# Create a list to store merged landcover rasters for each flood scenario
 merged_landcovers <- list()
 
-# Base MLC file path
+# Load the base merged landcover raster (MLC0)
 MLC0 <- rast(here("Data/processed/Merged_landcovers/raster_land_cover_merged_MLC0.img"))
 
-# Load landcover raster to set projection
+# Load landcover raster to set projection (ensures CRS consistency)
 landcover <- rast(here("AccessMod/InAccessMod/Uganda/data/zToAccessMod/20250108115609/UG_Landcover_kamp.tif"))
 
+# Set the CRS of the base raster to match the landcover raster
 crs(MLC0) <- crs(landcover)
 
-## Iterate through each flood extent in the flood list and create merged landcover layers for each flood scenario
+## For each flood scenario, merge the flood extent polygons with the base landcover raster
 for (i in 1:length(flood_list)) {
-    landcov <- MLC0 # Load base landcover raster
-    flood_extent <- flood_list[[i]] %>% # Load water polygons
+    landcov <- MLC0 # Use base landcover raster for merging
+    flood_extent <- flood_list[[i]] %>% # Get flood polygons for current scenario
         mutate(class = case_when(
-            threshold == 0.1 ~ 1, # Assign classes based on thresholds
-            threshold == 0.2 ~ 2,
-            threshold == 0.3 ~ 3,
+            threshold == 0.1 ~ 1, # Assign flood depth class 1 for 10cm
+            threshold == 0.2 ~ 2, # Assign flood depth class 2 for 20cm
+            threshold == 0.3 ~ 3, # Assign flood depth class 3 for 30cm
             TRUE ~ NA_real_
         )) %>% 
-        as(., "Spatial") %>% # Convert to sp object
-        vect() # Convert to terra object
+        as(., "Spatial") %>% # Convert sf object to sp object
+        vect() # Convert sp object to terra vector
 
-    # Rasterize flood extent
+    # Rasterize flood extent polygons to match the base raster grid, using the assigned class
     flood_extent_rast <- terra::rasterize(flood_extent, landcov, "class", touches = TRUE)
 
-    # Preserve NA values from the base raster to prevent creating artificial "bridges"
+    # Mask rasterized flood extent to preserve NA values from the base raster (avoids filling gaps)
     flood_extent_rast <- mask(flood_extent_rast, landcov, inverse = FALSE) 
 
-    # Merge landcover and water raster while preserving NAs
+    # Merge the flood raster with the base landcover raster, prioritizing flood classes where present
     landcover_merge <- terra::cover(flood_extent_rast, landcov) 
 
-    # Write the merged raster to file
+    # Save the merged raster for the current scenario to disk
     writeRaster(landcover_merge, here("Data", "processed", "Merged_landcovers", paste0("MLC_", flood_extents_names[i], ".tif")), overwrite = TRUE)
 }
 ```
 
 # Prepare merged landcover layers for plotting
 ```{r}	
-# Load all merged landcovers from the Merged landcovers folder
+# Load all merged landcover rasters from the "Merged landcovers" folder
 merged_landcovers <- list.files(path = here("Data", "processed", "Merged_landcovers"), pattern = "\\.tif$", full.names = TRUE, recursive = TRUE) %>%
     lapply(terra::rast)
 
-# Name the MLC extents in merged_landcovers based on their subfolder name
+# Extract file names for merged landcover rasters (used for naming and ordering)
 merged_landcovers_names <- list.files(path = here("Data", "processed", "Merged_landcovers"), pattern = "\\.tif$", full.names = FALSE, recursive = TRUE)
 
-# Order the merged landcovers from low to high (20 to 100 mm)
-# Extract flood depths and durations from file names
+# Order merged landcover rasters by flood depth (mm) and duration (hr) extracted from file names
+# Extract flood depths and durations from file names using regular expressions
 flood_depths <- as.numeric(sub(".*_flood_([0-9]+)_.*", "\\1", merged_landcovers_names))
 durations <- as.numeric(sub(".*_([0-9]+)\\.tif$", "\\1", merged_landcovers_names))
 
-# Replace NA for non-matching files (e.g., "MLC_Flood_extents_full.tif") with a large number
+# Assign Inf to NA values for files that do not match the expected pattern (e.g., summary rasters)
 flood_depths[is.na(flood_depths)] <- Inf
 durations[is.na(durations)] <- Inf
 
-# Reorder the file names based on flood depth and then by duration
+# Reorder file names by flood depth and duration
 merged_landcovers_names <- merged_landcovers_names[order(flood_depths, durations, merged_landcovers_names)]
 
-# Remove "MLC_Flood_extents_full.tif" and NA from the list
+# Remove summary rasters and NA entries from the list (e.g., "MLC_Flood_extents_full.tif")
 merged_landcovers_names <- merged_landcovers_names[!grepl("full", merged_landcovers_names) & !is.na(merged_landcovers_names)]
 
-# Reorder the merged_landcovers list based on the same rules
+# Reorder the merged_landcovers list to match the ordered file names
 merged_landcovers <- merged_landcovers[order(flood_depths, durations)]
 
-# Load all merged landcovers as separate objects
+# Assign each merged landcover raster to a named object in the environment for convenience
 for (i in 1:length(merged_landcovers)) {
     assign(gsub(".tif", "", merged_landcovers_names[i]), merged_landcovers[[i]])
 }
 
-# Define legend colours and names
+# Define legend colors and names for landcover and flood classes
 legend_colour <- data.frame(
     value = c(1, 2, 3, 10, 20, 30, 40, 50, 60, 80, 90, 1001, 1002, 1003, 1004, 1005),
     color = c("#169FFB", "#3C3CCF", "#170AA6", "#A8E16E", "#FFB400", "#FFFF1B", "#D7B5D8", "#FF0000", "#30123B", "#0312DC", "#15C44C", "#DE0004", "#CE0FA4", "#336CE6", "#34EF05", "#333333")
@@ -221,102 +226,144 @@ legend_names <- c(
     "Tertiary"
 )
 
-# Create a data frame to define levels
+# Create a data frame mapping raster values to legend categories
 levels_df <- data.frame(
-  ID = legend_colour$value,   # Values in raster
+  ID = legend_colour$value,   # Raster values
   Category = legend_names     # Corresponding category names
 )
 
-# Assign levels to the factorized raster
+# Assign legend levels to each raster for proper labeling in plots
 merged_landcovers <- lapply(merged_landcovers, function(r) {
     levels(r) <- levels_df
     r
 })
 
+# Convert each raster to a factor for categorical plotting
 merged_landcovers <- lapply(merged_landcovers, function(r) {
-    # Convert each raster to a factor
     as.factor(r)
 })
 
+# Assign descriptive names to each merged landcover raster based on flood scenario
 names(merged_landcovers) <- c("20 mm / 1hr", "20 mm / 3hr", "20 mm / 6hr", "40 mm / 1hr", "40 mm / 3hr", "40 mm / 6hr", "60 mm / 1hr", "60 mm / 3hr", "60 mm / 6hr", "80 mm / 1hr", "80 mm / 3hr", "80 mm / 6hr", "100 mm / 1hr", "100 mm / 3hr", "100 mm / 6hr")
 
-# Define color_mapping
+# Create a named vector for color mapping in plots
 color_mapping <- setNames(legend_colour$color, legend_colour$value)
 ```
 
-
-# Load and prepare Health Facilities
-```{r}
-# Load health facilities from the processed folder
-hf_all <- vect(here("Data", "processed", "Facilities", "facilities_all_kampala.shp"))
-hf_hosp <- vect(here("Data", "processed", "Facilities", "facilities_hosp_kampala.shp"))
-```	
-
 # Plot
 ```{r}
-# Define the output folder
-output_folder <- here("Figures/MLC_floodings") # Specify the folder to save plots
-dir.create(output_folder, showWarnings = FALSE, recursive = TRUE)  # Create the folder automatically if it doesn't exist
+# -----------------------------
+# 1) Parse scenario names, order layers, and build a 15-layer SpatRaster stack
+# -----------------------------
+# Assumes: merged_landcovers is a named list of SpatRaster layers, each representing a flood scenario
+meta <- tibble(name = names(merged_landcovers)) |>
+    mutate(
+        mm = as.integer(str_extract(name, "(?i)(?<=^|[^0-9])\\d+(?=\\s*mm)")),
+        hr = as.integer(str_extract(name, "(?i)(?<=^|[^0-9])\\d+(?=\\s*h)")),
+        lab = sprintf("%d mm / %d hr", mm, hr)
+    ) |>
+    filter(!is.na(mm), !is.na(hr)) |>
+    arrange(mm, factor(hr, levels = c(1, 3, 6)))
 
-# Generate and save plots
-plots <- lapply(seq_along(merged_landcovers), function(i) {
-    # Generate the plot
-    plot <- autoplot(merged_landcovers[[i]]) +
-        geom_sf(data = hf_all, color = "black", size = 5, shape = 21, fill = "purple") +
-        scale_fill_manual(
-            values = setNames(legend_colour$color, legend_colour$value),
-            labels = legend_names,
-            name = "Landcover Type",
-            na.translate = FALSE,
-            na.value = "transparent"
+ord <- meta$name
+
+# Stack layers in the desired order for plotting
+mlc_stack <- rast(merged_landcovers[ord])
+
+# Assign tidy facet labels to each layer
+names(mlc_stack) <- meta$lab
+
+# -----------------------------
+# 2) Define legend, color palette, and alpha mapping for categorical raster values
+# -----------------------------
+legend_colour <- data.frame(
+    value = c(1, 2, 3, 10, 20, 30, 40, 50, 60, 80, 90, 1001, 1002, 1003, 1004, 1005),
+    color = c("#169FFB", "#3C3CCF", "#170AA6", "#A8E16E", "#FFB400", "#FFFF1B",
+                        "#D7B5D8", "#FF0000", "#30123B", "#0312DC", "#15C44C",
+                        "#DE0004", "#CE0FA4", "#336CE6", "#34EF05", "#333333")
+)
+
+legend_names <- c(
+    "Flood 10cm", "Flood 20cm", "Flood 30cm",
+    "Tree Cover", "Shrubs", "Grass Land", "Agriculture", "Urban", "Bare",
+    "Water Bodies", "Herbaceous wetland",
+    "Trunk", "Primary", "Motorway", "Secondary", "Tertiary"
+)
+
+# Create named vectors for ggplot2 manual scales
+pal   <- setNames(legend_colour$color, as.character(legend_colour$value))
+labs  <- setNames(legend_names,            as.character(legend_colour$value))
+
+# Set alpha: fully opaque for flood classes, semi-transparent for other landcover types
+alpha_map <- setNames(
+    ifelse(as.integer(names(pal)) %in% c(1, 2, 3), 1, 0.6),
+    names(pal)
+)
+
+# To restrict legend to only present classes, uncomment below:
+# present_vals <- as.character(sort(unique(stats::na.omit(values(mlc_stack[])))))
+# pal   <- pal[names(pal) %in% present_vals]
+# labs  <- labs[names(labs) %in% present_vals]
+# alpha_map <- alpha_map[names(alpha_map) %in% present_vals]
+
+# -----------------------------
+# 3) Convert overlay data to sf format if needed
+# -----------------------------
+# OSM_roads and water_lines may be SpatVector or sf; convert to sf for plotting
+if (inherits(OSM_roads, "SpatVector"))  OSM_roads  <- sf::st_as_sf(OSM_roads)
+if (inherits(water_lines, "SpatVector")) water_lines <- sf::st_as_sf(water_lines)
+
+# -----------------------------
+# 4) Build faceted panel plot of merged landcover and flood scenarios
+# -----------------------------
+# Use geom_spatraster to plot the 15-layer SpatRaster, faceted by scenario
+# Fill and alpha are mapped to categorical raster values
+gridplot_mlc <-
+        ggplot() +
+        geom_spatraster(
+                data = mlc_stack,
+                aes(fill = as.factor(after_stat(value)), alpha = as.factor(after_stat(value)))
         ) +
-        annotation_scale(location = "bl", width_hint = 0.3, text_cex = 2, pad_y = unit(11, "cm"), pad_x = unit(1, "cm")) +
-        annotation_north_arrow(location = "tr", which_north = "true", style = north_arrow_fancy_orienteering, height = unit(4, "cm"), width = unit(4, "cm")) +
-        annotate("text", x = Inf, y = -Inf, label = "Source: Authors", hjust = 1.1, vjust = -0.5, size = 5, fontface = "italic") +
-        labs(title = names(merged_landcovers)[i]) +
-        theme_minimal() +
+        facet_wrap(~lyr, nrow = 5, ncol = 3) +
+        # Overlay OSM roads and water lines with thin lines
+        geom_sf(data = OSM_roads,  color = "black", linewidth = 0.15, inherit.aes = FALSE) +
+        geom_sf(data = water_lines, color = "blue",  linewidth = 0.12, linetype = 2, inherit.aes = FALSE) +
+        # Manual fill and alpha scales for categorical legend
+        scale_fill_manual(
+                values = pal,
+                breaks = names(pal),
+                labels = labs[names(pal)],
+                name   = "Merged land-cover, barriers and floods",
+                na.translate = FALSE,
+                na.value = "transparent",
+                guide = guide_legend(
+                        ncol = 2,
+                        title.position = "top",
+                        # Set legend key alpha to match facet alpha by class
+                        override.aes = list(alpha = unname(alpha_map[names(pal)]))
+                )
+        ) +
+        scale_alpha_manual(values = alpha_map, guide = "none") +
+        coord_sf(expand = FALSE) +
+        theme_minimal(base_size = 8) +  # Set base font size to 8
         theme(
-            axis.text = element_blank(),
-            axis.title = element_blank(),
-            legend.position = c(0.25, 0.13),
-            legend.title = element_text(size = 20, face = "bold"),
-            legend.text = element_text(size = 18),
-            plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),
-            legend.background = element_rect(fill = "white", color = "black", linewidth = 0.5),
-            panel.border = element_rect(color = "black", fill = NA, linewidth = 1)
+                plot.background = element_rect(fill = "white", color = NA),
+                panel.background = element_rect(fill = "white", color = NA),
+                axis.text = element_blank(),
+                axis.title = element_blank(),
+                panel.grid = element_blank(),
+                strip.text = element_text(size = 8, face = "plain"),
+                strip.background = element_rect(fill = "white", colour = NA),
+                legend.position = "right",
+                legend.title = element_text(size = 8, face = "bold"),
+                legend.text  = element_text(size = 8),
+                panel.border = element_rect(color = "black", fill = NA, linewidth = 0.6)
         )
 
-    # Save the plot
-    file_name <- paste0(output_folder, "/", gsub(" / ", "X", trimws(names(merged_landcovers)[i])), ".png")
-    ggsave(filename = file_name, plot = plot, width = 24, height = 16, dpi = 1000)
-
-    return(plot)
-})
-
-# Split plots into three groups
-plots_group1 <- plots[1:6]
-plots_group2 <- plots[7:12]
-plots_group3 <- plots[13:15]
-
-# Combine plots with a single legend for each group
-combined_plot1 <- wrap_plots(plots_group1, ncol = 3) + 
-  plot_layout(guides = "collect") +  # Combine all legends into one
-  plot_annotation(title = "Merged Landcover Scenarios (1-6)") &  # Optional title 
-    theme(legend.position = "bottom")
-
-combined_plot2 <- wrap_plots(plots_group2, ncol = 3) + 
-  plot_layout(guides = "collect") +  # Combine all legends into one
-  plot_annotation(title = "Merged Landcover Scenarios (7-12)") &  # Optional title 
-    theme(legend.position = "bottom")
-
-combined_plot3 <- wrap_plots(plots_group3, ncol = 3) + 
-  plot_layout(guides = "collect") +  # Combine all legends into one
-  plot_annotation(title = "Merged Landcover Scenarios (13-15)")  &  # Optional title 
-    theme(legend.position = "bottom")
-
-# Print combined plots
-combined_plot1
-combined_plot2
-combined_plot3
-
+# Save the faceted plot as a PDF for publication
+ggsave(
+        filename = here("Figures", "Pdf_final", "app_fig_1_merged_landcovers_w_floods.pdf"),
+        plot = gridplot_mlc,
+        width = 15.92, height = 24.62, units = "cm"
+)
 ```

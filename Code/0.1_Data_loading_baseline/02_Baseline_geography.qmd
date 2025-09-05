@@ -1,0 +1,240 @@
+# Baseline geography
+
+## Load libraries
+```{r}
+# Set up renv for reproducible package management
+if (!requireNamespace("renv", quietly = TRUE)) {
+  install.packages("renv")
+} else {
+  message("renv is already installed.")
+}
+
+# Load renv for environment management
+library(renv)
+
+# Activate renv if the environment is not synchronized
+if (!renv::status()$synchronized) {
+  renv::activate()
+}
+
+# Restore the environment from lockfile (for reproducibility)
+renv::restore()
+
+# Load required libraries for spatial analysis and plotting
+library(terra)      # Raster and vector spatial data
+library(tidyterra)  # Tidyverse-style terra helpers
+library(here)       # Relative file paths
+library(viridis)    # Color palettes
+library(readxl)     # Excel file reading
+library(ggplot2)    # Data visualization
+```
+
+## Load data
+```{r}
+# Load processed spatial and facility data
+# This script assumes that the required objects (Landcover, DEM, Facilities, OSM_roads, water_lines, etc.)
+# have already been loaded by running '01.1_loading_processed_data.qmd'.
+# If not, please run that file first to ensure all necessary data is available in the environment.
+```
+
+## Set the parameters for plotting
+```{r}
+# --- Define landcover color palette and class names ---
+# Set up color mapping and class labels for each landcover code
+landcover_colors <- c(
+  "10" = "#006400",  # Tree cover
+  "20" = "#ffbb22",  # Shrubland
+  "30" = "#ffff4c",  # Grassland
+  "40" = "#f096ff",  # Cropland
+  "50" = "#fa0000",  # Built-up
+  "60" = "#b4b4b4",  # Bare/sparse vegetation
+  "70" = "#f0f0f0",  # Snow and Ice
+  "80" = "#0064c8",  # Permanent water bodies
+  "90" = "#0096a0",  # Herbaceous wetland
+  "95" = "#00cf75",  # Mangroves
+  "100" = "#fae6a0", # Moss and lichen
+  "0" = NA           # No data
+)
+
+landcover_classes <- c(
+  "10" = "Tree cover",
+  "20" = "Shrubland",
+  "30" = "Grassland",
+  "40" = "Cropland",
+  "50" = "Built-up",
+  "60" = "Bare/Sparse vegetation",
+  "70" = "Snow and Ice",
+  "80" = "Permanent water bodies",
+  "90" = "Herbaceous wetland",
+  "95" = "Mangroves",
+  "100" = "Moss and lichen",
+  "0" = "No data"
+)
+
+# --- Filter landcover palette and classes to match raster values ---
+# Only keep colors and classes for landcover codes present in the raster
+unique_classes <- sort(unique(values(Landcover)))  # Get unique landcover codes present in raster
+
+# Remove snow and ice if not present in study area
+unique_classes <- unique_classes[unique_classes != 70]
+
+filtered_landcover_colors <- landcover_colors[names(landcover_colors) %in% unique_classes]
+filtered_landcover_classes <- landcover_classes[names(landcover_classes) %in% unique_classes]
+
+# --- Generate terrain layers from DEM ---
+# Calculate slope and aspect rasters from DEM for visualization
+slope <- terrain(DEM, "slope")       # Slope raster
+aspect <- terrain(DEM, "aspect")     # Aspect raster
+
+# --- Create hillshade for visualization ---
+# Simulate sunlight from NW direction for terrain shading
+hillshade <- shade(slope, aspect, angle = 45, direction = 315)
+
+# --- Filter facilities data into hospitals and health centres ---
+# Subset facilities by type for plotting
+facilities <- Facilities[[1]]  # Extract main facilities layer
+
+hospitals <- facilities[facilities$Facility_t %in% c("National Referral Hospital", "Hospital", "Regional Referral Hospital"), ]
+health_centres <- facilities[facilities$Facility_t %in% c("Health Centre III", "Health Centre II", "Health Centre IV"), ]
+
+# --- Set plotting margins for legends ---
+# Remove outer and inner margins for clean plotting
+par(oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0))
+
+# --- Load complete landcover and facilities datasets for reference ---
+# Load full landcover and facilities datasets for reference and alignment
+landcover_complete <- rast(here("Data", "raw", "Landcover", "ESA_WorldCover_10m_2021_v200_N00E030_Map.tif"))
+facilities_complete <- vect(here("Data", "raw", "Facilities", "suhsharan_health_facilities", "sub-saharan_health_facilities.shp"))
+
+# --- Project and crop reference datasets to match analysis extent ---
+# Align reference datasets to analysis CRS and extent
+landcover_complete <- project(landcover_complete, Landcover)
+ext(landcover_complete) <- ext(Landcover)
+
+facilities_complete <- project(facilities_complete, Facilities[[1]])
+facilities_complete <- project(facilities_complete, Facilities[[1]])
+facilities_complete <- crop(facilities_complete, landcover_complete)
+
+# --- Harmonize attribute names for joining ---
+# Rename columns for consistent joining between datasets
+names(facilities_complete)[names(facilities_complete) == "Facility.n"] <- "Facility_n"
+names(facilities_complete)[names(facilities_complete) == "Facility.t"] <- "Facility_t"
+names(facilities_complete)[names(facilities_complete) == "LL.source"]  <- "LL_source"
+names(facilities_complete)[names(facilities_complete) == "Facility.n"] <- "Facility_n"
+names(facilities_complete)[names(facilities_complete) == "Facility.t"] <- "Facility_t"
+names(facilities_complete)[names(facilities_complete) == "LL.source"]  <- "LL_source"
+
+# --- Extract coordinates from SpatVector objects ---
+coords_c <- crds(facilities_complete)
+coords_s <- crds(facilities)
+
+# --- Match facilities by Facility_n ---
+# Find common facility IDs and their indices in both datasets
+ids_c <- facilities_complete$Facility_n
+ids_s <- facilities$Facility_n
+
+common_ids <- intersect(ids_c, ids_s)
+idx_c <- match(common_ids, ids_c)
+idx_s <- match(common_ids, ids_s)
+
+# --- Compute mean coordinate offset ---
+# Calculate average shift needed to align reference and analysis datasets
+dx <- mean(coords_s[idx_s, 1] - coords_c[idx_c, 1], na.rm = TRUE)
+dy <- mean(coords_s[idx_s, 2] - coords_c[idx_c, 2], na.rm = TRUE)
+
+cat("Mean offset: dx =", dx, " dy =", dy, "\n")
+
+# --- Apply coordinate shift to reference datasets ---
+# Shift reference facilities and landcover to align with analysis datasets
+facilities_complete <- shift(facilities_complete, dx, dy)
+landcover_complete <- shift(landcover_complete, dx, dy)
+
+# --- Split reference facilities into hospitals and health centers ---
+# Subset shifted reference facilities by type for plotting
+hospitals_complete <- facilities_complete[facilities_complete$`Facility_t` %in% c("National Referral Hospital", "Hospital", "Regional Referral Hospital"), ]
+health_centers_complete <- facilities_complete[facilities_complete$`Facility_t` %in% c("Health Centre III", "Health Centre II", "Health Centre IV"), ]
+```
+
+````{r}
+# --- Set output dimensions for PDF figure ---
+# Convert width and height from millimeters to inches for PDF output
+w <- 79.6 / 25.4  # 79.6 mm converted to inches
+h <- 123.1 / 25.4  # 123.1 mm converted to inches
+
+# --- Create PDF for baseline geography figure ---
+pdf(here("Figures", "Pdf_final", "Figure_1_baseline_geography.pdf"),
+  width = w, height = h,
+  version = "1.4",      # needed for alpha transparency
+  useDingbats = FALSE)
+
+# --- Set plotting parameters ---
+par(mai = c(0, 0, 0, 0), xaxs = "i", yaxs = "i", cex = 8/12)  # Set base font size to 8pt
+
+# --- Plot reference landcover with transparency ---
+plot(landcover_complete,
+     col = adjustcolor(filtered_landcover_colors, alpha.f = 0.15),
+     legend = FALSE, axes = FALSE, box = FALSE)
+
+# --- Overlay study area landcover with higher opacity ---
+plot(Landcover,
+     col = adjustcolor(filtered_landcover_colors, alpha.f = 0.7),
+     legend = FALSE, axes = FALSE, box = TRUE, add = TRUE)
+
+# --- Add hillshade for terrain visualization ---
+plot(hillshade,
+     col = gray.colors(100, start = 0.3, end = 1, alpha = 0.4),
+     legend = FALSE, add = TRUE)
+
+# --- Add infrastructure layers: roads and rivers ---
+lines(OSM_roads, col = "black", lwd = 0.7, lty = 1)
+lines(water_lines, col = "blue",  lwd = 0.5, lty = 2)
+
+# --- Plot reference healthcare facilities (shifted for alignment) ---
+points(hospitals_complete,       pch = 23,
+       col = adjustcolor("black", alpha.f = 0.5),
+       bg  = adjustcolor("blue",  alpha.f = 0.4), cex = 1)
+
+points(health_centers_complete,  pch = 21,
+       col = adjustcolor("black", alpha.f = 0.5),
+       bg  = adjustcolor("green", alpha.f = 0.4), cex = 1)
+
+# --- Plot study area healthcare facilities ---
+points(hospitals,       pch = 23, col = "black", bg = "blue",  cex = 1)
+points(health_centres,  pch = 21, col = "black", bg = "green", cex = 1)
+
+# --- Prepare legend labels and colors for landcover and infrastructure ---
+lc_labs  <- unname(filtered_landcover_classes)
+lc_cols  <- unname(filtered_landcover_colors)
+labs  <- c(lc_labs, "Rivers", "Roads")
+fills <- c(lc_cols,  "blue",   "black")
+
+n <- length(labs)
+left_idx  <- seq_len(ceiling(n/2))       # legend fills by column
+right_idx <- setdiff(seq_len(n), left_idx)
+
+w1 <- max(strwidth(labs[left_idx],  cex = 8/12))
+w2 <- max(strwidth(labs[right_idx], cex = 8/12))
+
+# --- Add landcover and infrastructure legend ---
+legend(x = "bottomleft", inset = c(0.01, 0.145),
+       legend = labs, fill = fills,
+       border = "white", bg = "white", title = "Landcover Classes",
+       ncol = 2, cex = 8/12,
+       text.width = c(w1, w2),    # tight per-column widths
+       x.intersp = 0.2, y.intersp = 0.7)
+
+# --- Add healthcare facilities legend ---
+legend(x = "bottomleft", inset = c(0.01, 0.245),
+  legend = c("Hospitals", "Health Centers"),
+  pch = c(23, 21), col = "black", pt.bg = c("blue", "green"),
+  pt.cex = 0.75, title = "Healthcare Facilities", bg = "white",
+  cex = 8/12, x.intersp = 0.5, y.intersp = 0.8)
+
+# --- Add scale bar and north arrow ---
+sbar(2000, xy = "bottomright", type = "bar", divs = 4, below = "km",
+     cex = 8/12, lonlat = FALSE, scaleby = 1000)
+north(type = 2, cex = 8/12)
+
+# --- Close PDF device ---
+dev.off()
+``` 

@@ -1,0 +1,71 @@
+# Install packages
+```{r}
+# Set up renv for reproducible package management
+if (!requireNamespace("renv", quietly = TRUE)) {
+  install.packages("renv")
+} else {
+  message("renv is already installed.")
+}
+
+# Load renv for environment management
+library(renv)
+
+# Activate renv if the project is not yet synchronized
+if (!renv::status()$synchronized) {
+  renv::activate()
+}
+
+# Restore the package environment (useful for collaborators)
+renv::restore()
+
+# Load required libraries for geospatial data handling and project paths
+library(terra)      # For raster and vector data
+library(here)       # For reproducible file paths
+library(tidyterra)  # For tidyverse-style terra operations
+```
+
+# Load the processed data data
+```{r}
+# Define the base directory for processed data
+data_dir <- here("Data", "processed")
+
+# Specify subdirectories containing different geospatial datasets
+folders <- c("Adm_boundaries", "DEM", "Facilities", "Flood_extents", 
+       "Landcover", "OSM_roads", "Rainfall_estimation", 
+       "water_lines", "Worldpop_density", "Worldpop_dev_indicators")
+
+# Iterate over each folder to load geospatial files
+for (folder in folders) {
+  folder_path <- file.path(data_dir, folder)
+  
+  # List all files in the current folder (including subfolders)
+  files <- list.files(folder_path, full.names = TRUE, recursive = TRUE)
+  
+  # Identify vector files by extension (.shp, .geojson, .gpkg)
+  vector_files <- files[grepl("\\.(shp|geojson|gpkg)$", files, ignore.case = TRUE)]
+  if (length(vector_files) == 1) {
+  # Load a single vector file and assign to a variable named after the folder
+  assign(folder, vect(vector_files[[1]]), envir = .GlobalEnv)
+  print(paste("Loaded single vector file into variable:", folder))
+  } else if (length(vector_files) > 1) {
+  # Load multiple vector files as a list and assign to a variable named after the folder
+  assign(folder, lapply(vector_files, vect), envir = .GlobalEnv)
+  print(paste("Loaded multiple vector files into list variable:", folder))
+  }
+  
+  # Identify raster files by extension (.tif, .vrt)
+  raster_files <- files[grepl("\\.(tif|vrt)$", files, ignore.case = TRUE)]
+  if (length(raster_files) == 1) {
+  # Load a single raster file and assign to a variable named after the folder
+  assign(folder, rast(raster_files[[1]]), envir = .GlobalEnv)
+  print(paste("Loaded single raster file into variable:", folder))
+  } else if (length(raster_files) > 1) {
+  # Load multiple raster files as a list and assign to a variable named after the folder
+  assign(folder, lapply(raster_files, rast), envir = .GlobalEnv)
+  print(paste("Loaded multiple raster files into list variable:", folder))
+  }
+}
+
+# Clean up temporary objects from the environment
+rm(files, vector_files, raster_files, folder_path, folder, data_dir, folders)
+```

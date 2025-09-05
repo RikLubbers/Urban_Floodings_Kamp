@@ -1,6 +1,6 @@
-
+# Population impacted weighted delta travel time calculation and visualization
 ```{r}
-# Set up renv for package management
+# Set up renv for reproducible package management
 if (!requireNamespace("renv", quietly = TRUE)) {
     install.packages("renv")
 } else {
@@ -10,63 +10,64 @@ if (!requireNamespace("renv", quietly = TRUE)) {
 # Load the renv package
 library(renv)
 
-# Check if renv is already active, activate if not
+# Activate renv if not already synchronized
 if (!renv::status()$synchronized) {
     renv::activate()
 }
 
-# To restore the environment (for a collaborator)
+# Restore the environment (useful for collaborators to install required packages)
 renv::restore()
 
-# Load the required libraries
-library(terra)
-library(Spatial.align)
-library(patchwork)
-library(sf)
-library(biscale)
-library(classInt)
-library(here)
-library(ggplot2)
-library(tidyterra)
-library(tidyverse)
-library(flextable)
-library(officer)
-library(kableExtra)
+# Load all required libraries for analysis and visualization
+library(terra)           # Raster and vector spatial data
+library(Spatial.align)   # Raster alignment
+library(patchwork)       # Plot composition
+library(sf)              # Simple features for vector data
+library(biscale)         # Bivariate mapping
+library(classInt)        # Classification intervals
+library(here)            # Relative file paths
+library(ggplot2)         # Plotting
+library(tidyterra)       # Tidyverse support for terra objects
+library(tidyverse)       # Data manipulation and visualization
+library(flextable)       # Table formatting for Word export
+library(officer)         # Word document creation
+library(kableExtra)      # Enhanced HTML table formatting
 ```
 
 # Weighted Delta Travel Time Calculation for scenarios with All Facilities
 ```{r}
-# Load delta travel time and population distribution
-## For delta travel time go to script 03.3 maps_tt_and_delta_TT
-### After doing so make a list using the following code:
+# Load delta travel time rasters for all facilities
+## For delta travel time go to script 02.1_maps_tt_and_delta_TT
+### After running that script, create a list using the following code:
 
 delta_tt_list_all <- mget(ls(pattern = "delta_tt_all"))
 
-## Load population distribution
+# Remove any non-raster objects from delta_tt_list_all (e.g., "delta_tt_all_weighted")
+delta_tt_list_all <- delta_tt_list_all[grepl("^delta_tt_all_\\d+_\\d+$", names(delta_tt_list_all))]
+
+# Load population density raster
 pop_density_raster <- rast(here("AccessMod", "InAccessMod", "Uganda", "data", "zToAccessMod", "20250108115609", "pop_total_10m.tif"))
 
-# Load the SpatVector for parish boundaries
+# Load parish boundaries as SpatVector
 parish_boundaries_all <- vect(here("Data", "processed", "Adm_boundaries", "parishes_kampala.shp"))
 
-# Step 1: Iterate through each delta_tt_raster in delta_tt_list_all and multiply by population density raster
-# Create weighted delta TT list for all facilities
+# Step 1: Multiply each delta travel time raster by the population density raster to get population-weighted delta TT
 weighted_delta_tt_list_all <- lapply(delta_tt_list_all, function(delta_tt_raster) {
     delta_tt_raster * pop_density_raster
 })
 
+# Rename weighted delta TT rasters for clarity (keep only scenario info)
 names(weighted_delta_tt_list_all) <- sapply(names(weighted_delta_tt_list_all), function(name) {
     parts <- strsplit(name, "_")[[1]]
     paste(tail(parts, 2), collapse = "_")
 })
 
-# Save each weighted delta TT raster to disk
-# Create a new folder for saving the weighted delta travel time rasters
+# Step 2: Save each weighted delta TT raster to disk in a dedicated folder
 output_folder <- here("Data", "processed", "delta_travel", "weighted_delta_tt")
 if (!dir.exists(output_folder)) {
     dir.create(output_folder, recursive = TRUE)
 }
 
-# Save each weighted delta TT raster to the new folder
 for (i in seq_along(weighted_delta_tt_list_all)) {
     raster_obj <- weighted_delta_tt_list_all[[i]]
     scenario_name <- names(weighted_delta_tt_list_all)[i]
@@ -74,44 +75,43 @@ for (i in seq_along(weighted_delta_tt_list_all)) {
     writeRaster(raster_obj, file_path, overwrite = TRUE)
 }
 
-# Step 2: Zonal stats for all facilities
+# Step 3: Calculate zonal sum of weighted delta TT for each parish (all facilities)
 for (i in seq_along(weighted_delta_tt_list_all)) {
     sum_weighted_delta_tt <- zonal(weighted_delta_tt_list_all[[i]], parish_boundaries_all, fun = "sum", na.rm = TRUE)
     original_name <- names(weighted_delta_tt_list_all)[i]
     parish_boundaries_all[[paste0("Weighted_delta_tt_", original_name)]] <- sum_weighted_delta_tt[, 1]
 }
 
-# Step 3: Sum population per parish for all facilities
+# Step 4: Calculate total population per parish
 parish_boundaries_all$Population_Sum <- zonal(pop_density_raster, parish_boundaries_all, fun = "sum", na.rm = TRUE)
 
-# Step 4: Calculate average weighted delta TT
+# Step 5: Calculate average population-weighted delta TT per parish for each scenario
 for (i in seq_along(weighted_delta_tt_list_all)) {
     original_name <- names(weighted_delta_tt_list_all)[i]
     parish_boundaries_all[[paste0("Average_Weighted_Delta_TT_", original_name)]] <-
         parish_boundaries_all[[paste0("Weighted_delta_tt_", original_name)]] / parish_boundaries_all$Population_Sum
 }
-
 ```
 
 # Create a bivariate map of accessibility reduction and population sum for all facilities
 ```{r}	
-# Step 5: Plot bivariate map for ALL FACILITIES
-# STEP: Prepare sf object for ALL FACILITIES
+# Bivariate map of population-weighted delta travel time and population sum for ALL FACILITIES
+# STEP 1: Convert parish boundaries to sf object for plotting
 parish_boundaries_all_sf <- st_as_sf(parish_boundaries_all)
 
-# STEP: Make negative values positive for visualization
+# STEP 2: Ensure all delta TT values are positive for visualization
 for (col in names(parish_boundaries_all_sf)[grepl("Average_Weighted_Delta_TT_", names(parish_boundaries_all_sf))]) {
     parish_boundaries_all_sf[[col]] <- abs(parish_boundaries_all_sf[[col]])
 }
 
-# STEP: Extract and reorder scenario columns
+# STEP 3: Extract and order scenario columns by rainfall intensity and duration
 scenario_columns_all <- grep("Average_Weighted_Delta_TT_", names(parish_boundaries_all_sf), value = TRUE)
 scenario_columns_ordered_all <- scenario_columns_all[order(
     as.numeric(sub(".*_(\\d+)_.*", "\\1", scenario_columns_all)),
     as.numeric(sub(".*_(\\d+)$", "\\1", sub(".*_\\d+_", "", scenario_columns_all)))
 )]
 
-# STEP: Create consistent population bin
+# STEP 4: Bin population sum into categories for bivariate mapping
 parish_boundaries_all_sf$Population_bin <- factor(cut(
     parish_boundaries_all_sf$Population_Sum,
     breaks = c(0, 10000, 30000, Inf),
@@ -119,25 +119,25 @@ parish_boundaries_all_sf$Population_bin <- factor(cut(
     labels = c("Low", "Medium", "High")
 ), levels = c("High", "Medium", "Low"))
 
-# STEP: Define bivariate legend labels
+# STEP 5: Define legend labels for bivariate map
 labels_all <- list(
     bi_x = c("0-30", "30-60", "60+"),
     bi_y = c("30.000+", "10.000 - 30.000", "0 - 10.000")
 )
 
-# STEP: Create plots for each scenario
+# STEP 6: Create bivariate map plots for each scenario
 plot_list_all <- list()
 
 for (i in seq_along(scenario_columns_ordered_all)) {
     scenario_col <- scenario_columns_ordered_all[i]
 
-    # Extract mm and hour values
+    # Extract rainfall intensity (mm) and duration (hours) for plot title
     numbers <- sub(".*_(\\d+)_(\\d+)$", "\\1 \\2", scenario_col)
     mm <- unlist(strsplit(numbers, " "))[1]
     hours <- as.numeric(unlist(strsplit(numbers, " "))[2]) / 3600
     title_text <- paste(mm, "mm x", hours, "hour")
 
-    # Create weighted bin
+    # Bin delta TT values for bivariate mapping
     parish_boundaries_all_sf$Weighted_bin <- factor(cut(
         parish_boundaries_all_sf[[scenario_col]],
         breaks = c(0, 30, 60, Inf),
@@ -145,7 +145,7 @@ for (i in seq_along(scenario_columns_ordered_all)) {
         labels = c("0-30", "30-60", "60+")
     ), levels = c("0-30", "30-60", "60+"))
 
-    # Create bivariate classification
+    # Bivariate classification using biscale
     parish_boundaries_bi_all <- bi_class(
         parish_boundaries_all_sf,
         x = "Weighted_bin",
@@ -153,53 +153,58 @@ for (i in seq_along(scenario_columns_ordered_all)) {
         dim = 3
     )
 
-    # Create plot
+    # Plot bivariate map for this scenario
     p <- ggplot() +
         geom_sf(data = parish_boundaries_bi_all, aes(fill = bi_class), color = "white", size = 0.1, show.legend = FALSE) +
         bi_scale_fill(pal = "DkViolet", dim = 3, flip_axes = FALSE) +
         labs(title = title_text) +
         bi_theme() +
         theme(
-            plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
+            plot.title = element_text(size = 8, face = "bold", hjust = 0.5),
             legend.position = "none"
         )
 
     plot_list_all[[i]] <- p
 }
 
-# STEP: Create shared legend
+# STEP 7: Create shared legend for bivariate map
 legend_all <- bi_legend(
     pal = "DkViolet",
     dim = 3,
     xlab = "Δ Travel Time (min)",
     ylab = "Population Sum",
-    size = 16,
+    size = 8,
     breaks = labels_all,
     flip_axes = FALSE,
     arrows = FALSE
 )
 
-# STEP: Combine all plots
-weighted_delta_TT_all <- wrap_plots(plot_list_all, ncol = 3) /
-    legend_all +
-    plot_layout(heights = c(5,1)) +
-    plot_annotation(
-        theme = theme(
-            plot.title = element_text(hjust = 0.5, size = 16, face = "bold")
-        )
-    )
+# STEP 8: Combine all scenario plots into a grid (without legend)
+weighted_delta_TT_all <- wrap_plots(plot_list_all, ncol = 3) +
+    plot_layout(guides = "collect") &
+    theme(plot.title = element_text(hjust = 0.5, size = 8, face = "bold"))
 
-# STEP: Display plot
-print(weighted_delta_TT_all)
+# STEP 9: Save the main bivariate map grid and legend as PDF files
+ggsave(
+    filename = here("Figures", "Pdf_Final", "Figure_3_weighted_delta_TT_all.pdf"),
+    plot = weighted_delta_TT_all,
+    width = 15.92,
+    height = 24.62,
+    units = "cm"
+)
 
-# OPTIONAL: Save the combined plot and legend
-#ggsave(here("Figures", "Weighted_delta_TT", "weighted_delta_TT_all.png"), plot = weighted_delta_TT_all, width = 10, height = 15, dpi = 300)
-#ggsave(here("Figures", "Weighted_delta_TT", "legend_all.png"), plot = legend_all, width = 5, height = 5, dpi = 300)
+ggsave(
+    filename = here("Figures", "Pdf_Final", "Figure_3_weighted_delta_TT_all_legend.pdf"),
+    plot = legend_all,
+    width = 6,
+    height = 6,
+    units = "cm"
+)
 ```
 
 # Highlight parishes with the highest decrease in travel time for each scenario for all facilities
 ```{r}
-# Format scenario titles (e.g., "100_21600" → "100 mm x 6 hours")
+# Format scenario titles for display (e.g., "100_21600" → "100 mm x 6 hours")
 format_scenario_title <- function(scenario) {
     numbers <- sub(".*_(\\d+)_(\\d+)$", "\\1 \\2", scenario)
     numbers_split <- unlist(strsplit(numbers, " "))
@@ -207,7 +212,7 @@ format_scenario_title <- function(scenario) {
     paste(numbers_split[1], "mm x", hours, "hours")
 }
 
-# Scenario column names for ALL facilities
+# Define scenario column names for ALL facilities
 scenario_columns_ordered_all <- c(
     "Average_Weighted_Delta_TT_20_3600", "Average_Weighted_Delta_TT_20_10800", "Average_Weighted_Delta_TT_20_21600",
     "Average_Weighted_Delta_TT_40_3600", "Average_Weighted_Delta_TT_40_10800", "Average_Weighted_Delta_TT_40_21600",
@@ -216,10 +221,10 @@ scenario_columns_ordered_all <- c(
     "Average_Weighted_Delta_TT_100_3600", "Average_Weighted_Delta_TT_100_10800", "Average_Weighted_Delta_TT_100_21600"
 )
 
-# Convert to data frame for analysis
+# Convert parish boundaries to data frame for analysis
 parish_boundaries_all_df <- as.data.frame(parish_boundaries_all)
 
-# Identify top 10 parishes for each scenario
+# Identify top 10 parishes with highest travel time increase for each scenario
 top_parishes_list_all <- list()
 
 for (scenario_col in scenario_columns_ordered_all) {
@@ -240,7 +245,7 @@ for (scenario_col in scenario_columns_ordered_all) {
     }
 }
 
-# Print each scenario's top 10
+# Print top 10 parishes for each scenario
 for (scenario in names(top_parishes_list_all)) {
     cat("\n\n============================\n")
     cat("Top 10 Parishes for Scenario:", format_scenario_title(scenario), "\n")
@@ -249,7 +254,7 @@ for (scenario in names(top_parishes_list_all)) {
     cat("\n")
 }
 
-# Create frequency table across all scenarios
+# Calculate frequency of parishes appearing in top 10 lists across all scenarios
 parish_frequency_all <- table(unlist(lapply(top_parishes_list_all, function(df) df$Parish_Name)))
 parish_frequency_all_df <- as.data.frame(parish_frequency_all)
 colnames(parish_frequency_all_df) <- c("Parish_Name", "Frequency")
@@ -260,10 +265,10 @@ top_10_parish_frequency_all <- head(parish_frequency_all_df, 10)
 cat("\n\nTop 10 Parishes by Frequency in Top 10 Lists (All Facilities):\n")
 print(top_10_parish_frequency_all)
 
-# Highlight top 10 on map
+# Add indicator to SpatVector for top 10 parishes by frequency
 parish_boundaries_all$Top_10 <- ifelse(parish_boundaries_all$PName2016 %in% top_10_parish_frequency_all$Parish_Name, "Top 10", "Not in Top 10")
 
-# Centroids
+# Calculate centroids for parish polygons
 parish_centroids_all <- centroids(parish_boundaries_all)
 centroids_coords_all <- geom(parish_centroids_all)
 parish_centroids_all_df <- as.data.frame(parish_centroids_all) %>%
@@ -271,7 +276,7 @@ parish_centroids_all_df <- as.data.frame(parish_centroids_all) %>%
            Top_10 = parish_boundaries_all$Top_10) %>%
     cbind(centroids_coords_all[, c("x", "y")])
 
-# Plot
+# Plot map highlighting top 10 parishes by frequency
 highlighted_plot_all <- ggplot() +
     geom_spatvector(data = parish_boundaries_all, aes(fill = Top_10)) +
     geom_label(
@@ -295,13 +300,13 @@ highlighted_plot_all <- ggplot() +
         strip.background = element_rect(fill = "white")
     )
 
-# Display
+# Display highlighted map
 print(highlighted_plot_all)
 ```
 
 # Densitiy plots of the average weighted delta travel time for each scenario across all parishes for all facilities 
 ```{r}
-# Define columns for ALL FACILITIES
+# Define scenario columns for ALL FACILITIES (ordered by rainfall intensity and duration)
 scenario_columns_ordered_all <- c(
     "Average_Weighted_Delta_TT_20_3600", "Average_Weighted_Delta_TT_20_10800", "Average_Weighted_Delta_TT_20_21600",
     "Average_Weighted_Delta_TT_40_3600", "Average_Weighted_Delta_TT_40_10800", "Average_Weighted_Delta_TT_40_21600",
@@ -310,13 +315,13 @@ scenario_columns_ordered_all <- c(
     "Average_Weighted_Delta_TT_100_3600", "Average_Weighted_Delta_TT_100_10800", "Average_Weighted_Delta_TT_100_21600"
 )
 
-# Compute global axis limits across all scenarios
+# Compute global axis limits for density plots across all scenarios
 x_limits_all <- range(unlist(parish_boundaries_all_df[scenario_columns_ordered_all]), na.rm = TRUE)
 y_limits_all <- c(0, max(sapply(scenario_columns_ordered_all, function(col) {
     max(density(parish_boundaries_all_df[[col]], na.rm = TRUE)$y)
 })))
 
-# Generate density plots for each scenario
+# Create density plots for each scenario (all facilities)
 density_plot_list_all <- list()
 
 for (i in seq_along(scenario_columns_ordered_all)) {
@@ -339,7 +344,7 @@ for (i in seq_along(scenario_columns_ordered_all)) {
     }
 }
 
-# Combine all density plots into one grid
+# Combine all scenario density plots into a grid (all facilities)
 final_density_plot_all <- wrap_plots(density_plot_list_all, ncol = 3) + 
     plot_layout(guides = "collect") &
     plot_annotation(
@@ -351,7 +356,7 @@ final_density_plot_all <- wrap_plots(density_plot_list_all, ncol = 3) +
 
 print(final_density_plot_all)
 
-# Generate overlayed density plots by rainfall duration (1h, 3h, 6h)
+# Create overlayed density plots by rainfall duration (1h, 3h, 6h) for all facilities
 overlayed_plot_list_all <- list()
 hours_list <- c(3600, 10800, 21600)
 color_palette <- c("blue", "green", "orange", "purple", "red")
@@ -384,6 +389,7 @@ for (hour in hours_list) {
     overlayed_plot_list_all[[as.character(hour)]] <- p
 }
 
+# Combine overlayed density plots for all durations (all facilities)
 final_overlayed_plot_all <- wrap_plots(overlayed_plot_list_all, ncol = 1) +
     plot_annotation(
         title = "Overlayed Density Plots for Different mm by Duration (All Facilities)",
@@ -402,40 +408,40 @@ Hospiital only scenarios
 # Weighted Delta Travel Time Calculation for scenarios with Hospitals only
 # Load delta travel time and population distribution
 ```{r}
+# Load hospital-only delta travel time rasters
 ## For delta travel time go to script 05. maps_tt_and_delta_TT
-### After doing so make a list using the following code:
+## After running that script, create a list using the following code:
 delta_tt_list_hosp <- mget(ls(pattern = "delta_tt_hosp"))
 
-## Load population distribution
+# Load population density raster
 pop_density_raster <- rast(here("AccessMod", "InAccessMod", "Uganda", "data", "zToAccessMod", "20250108115609", "pop_total_10m.tif"))
 
-# Load the SpatVector for parish boundaries
-# Load parish boundaries and rename
+# Load parish boundaries as SpatVector for hospital-only analysis
 parish_boundaries_hosp <- vect(here("Data", "processed", "Adm_boundaries", "parishes_kampala.shp"))
 
-# Align all rasters in delta_tt_list_hosp to pop_density_raster
-# Remove any non-raster objects (e.g., gridplot_delta_tt_hosp, gg, list) from delta_tt_list_hosp
-delta_tt_list_hosp <- delta_tt_list_hosp[!names(delta_tt_list_hosp) %in% c("gridplot_delta_tt_hosp", "gg", "list")]
+# Remove any non-raster objects from delta_tt_list_hosp (e.g., plots, lists, etc.)
+delta_tt_list_hosp <- delta_tt_list_hosp[grepl("^delta_tt_hosp_\\d+_\\d+$", names(delta_tt_list_hosp))]
+
+# Align all hospital-only delta TT rasters to the population raster grid
 delta_tt_list_hosp <- lapply(delta_tt_list_hosp, function(x) Spatial.align::align(x, pop_density_raster))
 
-# Create weighted delta TT list for hospital-only
+# Multiply each hospital-only delta TT raster by the population raster to get population-weighted delta TT
 weighted_delta_tt_list_hosp <- lapply(delta_tt_list_hosp, function(delta_tt_raster) {
     delta_tt_raster * pop_density_raster
 })
 
+# Rename weighted delta TT rasters for clarity (keep only scenario info)
 names(weighted_delta_tt_list_hosp) <- sapply(names(weighted_delta_tt_list_hosp), function(name) {
     parts <- strsplit(name, "_")[[1]]
     paste(tail(parts, 2), collapse = "_")
 })
 
-# Save each weighted delta TT raster to disk
-# Create a new folder for saving the weighted delta travel time rasters for hospitals only
+# Save each weighted delta TT raster to disk in a dedicated folder for hospitals only
 output_folder_hosp <- here("Data", "processed", "delta_travel", "weighted_delta_tt_hosp")
 if (!dir.exists(output_folder_hosp)) {
     dir.create(output_folder_hosp, recursive = TRUE)
 }
 
-# Save each weighted delta TT raster to the new folder
 for (i in seq_along(weighted_delta_tt_list_hosp)) {
     raster_obj <- weighted_delta_tt_list_hosp[[i]]
     scenario_name <- names(weighted_delta_tt_list_hosp)[i]
@@ -443,17 +449,17 @@ for (i in seq_along(weighted_delta_tt_list_hosp)) {
     writeRaster(raster_obj, file_path, overwrite = TRUE)
 }
 
-# Step 2: Zonal stats for hospital-only
+# Calculate zonal sum of weighted delta TT for each parish (hospital-only scenarios)
 for (i in seq_along(weighted_delta_tt_list_hosp)) {
     sum_weighted_delta_tt <- zonal(weighted_delta_tt_list_hosp[[i]], parish_boundaries_hosp, fun = "sum", na.rm = TRUE)
     original_name <- names(weighted_delta_tt_list_hosp)[i]
     parish_boundaries_hosp[[paste0("Weighted_delta_tt_", original_name)]] <- sum_weighted_delta_tt[, 1]
 }
 
-# Step 3: Sum population per parish for hospital-only
+# Calculate total population per parish for hospital-only scenarios
 parish_boundaries_hosp$Population_Sum <- zonal(pop_density_raster, parish_boundaries_hosp, fun = "sum", na.rm = TRUE)
 
-# Step 4: Calculate average weighted delta TT
+# Calculate average population-weighted delta TT per parish for each hospital-only scenario
 for (i in seq_along(weighted_delta_tt_list_hosp)) {
     original_name <- names(weighted_delta_tt_list_hosp)[i]
     parish_boundaries_hosp[[paste0("Average_Weighted_Delta_TT_", original_name)]] <-
@@ -461,24 +467,25 @@ for (i in seq_along(weighted_delta_tt_list_hosp)) {
 }
 ```
 
-# Create a bivariate map of accessibility reduction and population sum for hospital only scenarios
 ```{r}
-# STEP: Convert to sf
+# Create a bivariate map of population-weighted delta travel time and population sum for hospital-only scenarios
+
+# STEP 1: Convert parish boundaries to sf object for plotting
 parish_boundaries_hosp_sf <- st_as_sf(parish_boundaries_hosp)
 
-# STEP: Make negative values positive for plotting
+# STEP 2: Ensure all delta TT values are positive for visualization
 for (col in names(parish_boundaries_hosp_sf)[grepl("Average_Weighted_Delta_TT_", names(parish_boundaries_hosp_sf))]) {
     parish_boundaries_hosp_sf[[col]] <- abs(parish_boundaries_hosp_sf[[col]])
 }
 
-# STEP: Extract and order scenario columns
+# STEP 3: Extract and order scenario columns by rainfall intensity and duration
 scenario_columns_hosp <- grep("Average_Weighted_Delta_TT_", names(parish_boundaries_hosp_sf), value = TRUE)
 scenario_columns_ordered_hosp <- scenario_columns_hosp[order(
     as.numeric(sub(".*_(\\d+)_.*", "\\1", scenario_columns_hosp)),
     as.numeric(sub(".*_(\\d+)$", "\\1", sub(".*_\\d+_", "", scenario_columns_hosp)))
 )]
 
-# STEP: Create population bin
+# STEP 4: Bin population sum into categories for bivariate mapping
 parish_boundaries_hosp_sf$Population_bin <- factor(cut(
     parish_boundaries_hosp_sf$Population_Sum,
     breaks = c(0, 10000, 30000, Inf),
@@ -486,25 +493,24 @@ parish_boundaries_hosp_sf$Population_bin <- factor(cut(
     labels = c("Low", "Medium", "High")
 ), levels = c("High", "Medium", "Low"))
 
-# STEP: Define legend labels
+# STEP 5: Define legend labels for bivariate map
 labels_hosp <- list(
     bi_x = c("0-30", "30-60", "60+"),
     bi_y = c("30.000+", "10.000 - 30.000", "0 - 10.000")
 )
 
-# STEP: Initialize list of plots
+# STEP 6: Create bivariate map plots for each hospital-only scenario
 plot_list_hosp <- list()
 
-# STEP: Loop over each scenario and create the plots
 for (i in seq_along(scenario_columns_ordered_hosp)) {
     scenario_col <- scenario_columns_ordered_hosp[i]
 
-    # Extract mm and hours
+    # Extract rainfall intensity (mm) and duration (hours) for plot title
     mm <- sub(".*_(\\d+)_\\d+$", "\\1", scenario_col)
     hr <- as.numeric(sub(".*_(\\d+)$", "\\1", scenario_col)) / 3600
     title_text <- paste(mm, "mm x", hr, "hour")
 
-    # Classify into bins
+    # Bin delta TT values for bivariate mapping
     parish_boundaries_hosp_sf$Weighted_bin <- factor(cut(
         parish_boundaries_hosp_sf[[scenario_col]],
         breaks = c(0, 30, 60, Inf),
@@ -512,7 +518,7 @@ for (i in seq_along(scenario_columns_ordered_hosp)) {
         labels = c("0-30", "30-60", "60+")
     ), levels = c("0-30", "30-60", "60+"))
 
-    # Bivariate classification
+    # Bivariate classification using biscale
     parish_boundaries_bi_hosp <- bi_class(
         parish_boundaries_hosp_sf,
         x = "Weighted_bin",
@@ -520,50 +526,58 @@ for (i in seq_along(scenario_columns_ordered_hosp)) {
         dim = 3
     )
 
-    # Plot
+    # Plot bivariate map for this scenario
     p <- ggplot() +
         geom_sf(data = parish_boundaries_bi_hosp, aes(fill = bi_class), color = "white", size = 0.1, show.legend = FALSE) +
         bi_scale_fill(pal = "DkViolet", dim = 3, flip_axes = FALSE) +
         labs(title = title_text) +
         bi_theme() +
         theme(
-            plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
+            plot.title = element_text(size = 8, face = "bold", hjust = 0.5),
             legend.position = "none"
         )
 
     plot_list_hosp[[i]] <- p
 }
 
-# STEP: Create shared legend
+# STEP 7: Create shared legend for bivariate map
 legend_hosp <- bi_legend(
     pal = "DkViolet",
     dim = 3,
     xlab = "Δ Travel Time (min)",
     ylab = "Population Sum",
-    size = 16,
+    size = 8,
     breaks = labels_hosp,
     flip_axes = FALSE,
     arrows = FALSE
 )
 
-# STEP: Combine and display
-weighted_delta_TT_hosp <- wrap_plots(plot_list_hosp, ncol = 3) /
-    legend_hosp +
-    plot_layout(heights = c(5, 1)) +
-    plot_annotation(
-        theme = theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"))
-    )
+# STEP 8: Combine all scenario plots into a grid (without legend)
+weighted_delta_TT_hosp <- wrap_plots(plot_list_hosp, ncol = 3) +
+    plot_layout(guides = "collect") &
+    theme(plot.title = element_text(hjust = 0.5, size = 8, face = "bold"))
 
-# Display the combined plot
-print(weighted_delta_TT_hosp)
+# STEP 9: Save the main bivariate map grid and legend as PDF files
+ggsave(
+    filename = here("Figures", "Pdf_Final", "Figure_4_weighted_delta_TT_hosp.pdf"),
+    plot = weighted_delta_TT_hosp,
+    width = 15.92,
+    height = 24.62,
+    units = "cm"
+)
 
-# OPTIONAL: Save the combined plot and legend
-# ggsave(here("Figures", "Weighted_delta_TT", "weighted_delta_TT_hosp.png"), plot = weighted_delta_TT_hosp, width = 10, height = 15, dpi = 300)
+ggsave(
+    filename = here("Figures", "Pdf_Final", "Figure_4_weighted_delta_TT_hosp_legend.pdf"),
+    plot = legend_hosp,
+    width = 6,
+    height = 6,
+    units = "cm"
+)
 ```
 
 # Highlight parishes with the highest decrease in travel time for each scenario for all facilities
 ```{r}
-# Function to format scenario titles (e.g., "100_21600" -> "100 mm x 6 hours")
+# Format scenario titles for display (e.g., "100_21600" → "100 mm x 6 hours")
 format_scenario_title <- function(scenario) {
     numbers <- sub(".*_(\\d+)_(\\d+)$", "\\1 \\2", scenario)
     numbers_split <- unlist(strsplit(numbers, " "))
@@ -572,16 +586,16 @@ format_scenario_title <- function(scenario) {
     return(formatted_title)
 }
 
-# Use the hospital-specific SpatVector
+# Convert hospital-only parish boundaries to data frame for analysis
 parish_boundaries_hosp_df <- as.data.frame(parish_boundaries_hosp)
 
-# Extract relevant columns
+# Extract hospital-only scenario columns for average weighted delta travel time
 scenario_columns_ordered_hosp <- grep("Average_Weighted_Delta_TT_", names(parish_boundaries_hosp_df), value = TRUE)
 
-# Initialize empty list for results
+# Initialize list to store top 10 parishes for each scenario
 top_parishes_list_hosp <- list()
 
-# Loop through each scenario and extract top 10 parishes (highest values = worst)
+# Identify top 10 parishes with highest travel time increase for each hospital-only scenario
 for (i in seq_along(scenario_columns_ordered_hosp)) {
     scenario_col <- scenario_columns_ordered_hosp[i]
 
@@ -598,7 +612,7 @@ for (i in seq_along(scenario_columns_ordered_hosp)) {
     }
 }
 
-# Print top 10 per scenario
+# Print top 10 parishes for each hospital-only scenario
 for (scenario in names(top_parishes_list_hosp)) {
     formatted_title <- format_scenario_title(scenario)
     cat("\n\n============================\n")
@@ -608,7 +622,7 @@ for (scenario in names(top_parishes_list_hosp)) {
     cat("\n")
 }
 
-# Frequency count across scenarios
+# Calculate frequency of parishes appearing in top 10 lists across all hospital-only scenarios
 parish_frequency_hosp <- table(unlist(lapply(top_parishes_list_hosp, function(df) df$Parish_Name)))
 parish_frequency_df_hosp <- as.data.frame(parish_frequency_hosp)
 colnames(parish_frequency_df_hosp) <- c("Parish_Name", "Frequency")
@@ -619,14 +633,14 @@ top_10_parish_frequency_hosp <- head(parish_frequency_df_hosp, 10)
 cat("\n\nTop 10 Parishes by Frequency in Top 10 Lists (Hospitals Only):\n")
 print(top_10_parish_frequency_hosp)
 
-# Highlight top 10 in SpatVector
+# Add indicator to SpatVector for top 10 parishes by frequency (hospital-only)
 parish_boundaries_hosp$Top_10 <- ifelse(parish_boundaries_hosp$PName2016 %in% top_10_parish_frequency_hosp$Parish_Name, "Top 10", "Not in Top 10")
 
-# Centroids and coordinates
+# Calculate centroids for parish polygons (hospital-only)
 parish_centroids_hosp <- centroids(parish_boundaries_hosp)
 centroids_coords_hosp <- geom(parish_centroids_hosp)
 
-# Add attributes to centroid df
+# Create data frame for centroid coordinates and attributes
 parish_centroids_df_hosp <- as.data.frame(parish_centroids_hosp) %>%
     mutate(
         PName2016 = parish_boundaries_hosp$PName2016,
@@ -635,10 +649,10 @@ parish_centroids_df_hosp <- as.data.frame(parish_centroids_hosp) %>%
         y = centroids_coords_hosp[, "y"]
     )
 
-# Color palette
+# Define color palette for highlighting top 10 parishes
 top_10_palette <- c("Top 10" = "red", "Not in Top 10" = "gray")
 
-# Plot
+# Plot map highlighting top 10 parishes by frequency (hospital-only)
 highlighted_plot_hosp <- ggplot() +
     geom_spatvector(data = parish_boundaries_hosp, aes(fill = Top_10)) +
     geom_label(
@@ -664,12 +678,14 @@ highlighted_plot_hosp <- ggplot() +
         strip.background = element_rect(fill = "white")
     )
 
-# Show plot
+# Display highlighted map for hospital-only scenarios
 print(highlighted_plot_hosp)
 ```
 
-# Densitiy plots of the average weighted delta travel time for each scenario across all parishes for all facilities 
+# Densitiy plots of the average weighted delta travel time for each scenario across all parishes for hospitals 
 ```{r}
+# Density plots of the average weighted delta travel time for each hospital-only scenario across all parishes
+
 # Define the list of columns for hospital-only delta TT scenarios
 scenario_columns_ordered_hosp <- c(
     "Average_Weighted_Delta_TT_20_3600", "Average_Weighted_Delta_TT_20_10800", "Average_Weighted_Delta_TT_20_21600",
@@ -679,14 +695,14 @@ scenario_columns_ordered_hosp <- c(
     "Average_Weighted_Delta_TT_100_3600", "Average_Weighted_Delta_TT_100_10800", "Average_Weighted_Delta_TT_100_21600"
 )
 
-# Ensure you're using the correct hospital-specific data frame
+# Compute global axis limits for density plots across all hospital-only scenarios
 x_limits <- range(unlist(parish_boundaries_hosp_df[scenario_columns_ordered_hosp]), na.rm = TRUE)
 
 y_limits <- c(0, max(sapply(scenario_columns_ordered_hosp, function(col) {
     max(density(parish_boundaries_hosp_df[[col]], na.rm = TRUE)$y)
 })))
 
-# Create density plots for each scenario
+# Create density plots for each hospital-only scenario
 density_plot_list_hosp <- list()
 
 for (i in seq_along(scenario_columns_ordered_hosp)) {
@@ -709,7 +725,7 @@ for (i in seq_along(scenario_columns_ordered_hosp)) {
     }
 }
 
-# Combine into one figure
+# Combine all hospital-only scenario density plots into a grid
 final_density_plot_hosp <- wrap_plots(density_plot_list_hosp, ncol = 3) +
     plot_layout(guides = "collect") &
     plot_annotation(
@@ -719,10 +735,10 @@ final_density_plot_hosp <- wrap_plots(density_plot_list_hosp, ncol = 3) +
         )
     )
 
-# Display
+# Display the combined density plot grid
 print(final_density_plot_hosp)
 
-# Overlayed density plots: same hour, varying mm
+# Overlayed density plots for each rainfall duration (1h, 3h, 6h) showing all precipitation intensities for hospital-only scenarios
 overlayed_plot_list_hosp <- list()
 hours_list <- c(3600, 10800, 21600)
 color_palette <- c("blue", "green", "orange", "purple", "red")
@@ -756,7 +772,7 @@ for (hour in hours_list) {
     overlayed_plot_list_hosp[[as.character(hour)]] <- p
 }
 
-# Combine overlayed plots
+# Combine overlayed density plots for all durations into a single figure
 final_overlayed_plot_hosp <- wrap_plots(overlayed_plot_list_hosp, ncol = 1) +
     plot_annotation(
         title = "Overlayed Density Plots for Different mm by Hours for Hospital Only",
@@ -765,13 +781,13 @@ final_overlayed_plot_hosp <- wrap_plots(overlayed_plot_list_hosp, ncol = 1) +
         )
     )
 
-# Display
+# Display the overlayed density plots
 print(final_overlayed_plot_hosp)
 ```
 
 # Mean Travel Time Delta Violin plots all/hospitals
 ```{r}
-# Step 1: Rename scenario rasters for clarity
+# Step 1: Rename scenario rasters for clarity (extract mm and duration for plot labels)
 x_delta_all <- delta_tt_list_all
 names(x_delta_all) <- sapply(names(x_delta_all), function(name) {
     mm <- sub(".*_(\\d+)_.*", "\\1", name)
@@ -788,13 +804,13 @@ names(x_delta_hosp) <- sapply(names(x_delta_hosp), function(name) {
     paste0(mm, "mm / ", hr, "hr")
 })
 
-# Step 2: Extract population-weighted values and uncount
+# Step 2: Extract pixel-level population-weighted delta travel time values for each scenario
 extract_weighted_pixels <- function(raster_list, pop_raster, facility_type) {
   out_list <- lapply(names(raster_list), function(name) {
     delta_vals <- as.numeric(values(raster_list[[name]]))
     pop_vals <- as.numeric(values(pop_raster))
 
-    # Metadata extraction (once per raster)
+    # Extract scenario metadata (intensity and duration)
     intensity <- as.numeric(sub("mm /.*", "", name))
     hours <- sub(".* / ", "", name)
 
@@ -807,7 +823,7 @@ extract_weighted_pixels <- function(raster_list, pop_raster, facility_type) {
       FacilityType = facility_type
     )
 
-    # Filter and uncount
+    # Remove NA and zero population pixels, then expand rows by population count
     df <- df[!is.na(df$delta_tt) & !is.na(df$pop) & df$pop > 0, ]
     df$pop <- round(df$pop)
     df <- tidyr::uncount(df, weights = pop)
@@ -818,11 +834,11 @@ extract_weighted_pixels <- function(raster_list, pop_raster, facility_type) {
   do.call(rbind, out_list)
 }
 
-# Step 3: Run extraction for both facility types
+# Step 3: Extract weighted pixel data for both facility types
 delta_tt_all_weighted <- extract_weighted_pixels(x_delta_all, pop_density_raster, "All Facilities")
 delta_tt_hosp_weighted <- extract_weighted_pixels(x_delta_hosp, pop_density_raster, "Hospitals")
 
-# Step 4: Combine and optionally sample
+# Step 4: Combine all and hospital-only data, then sample up to 100,000 pixels per group for plotting
 delta_tt_weighted_combined <- bind_rows(delta_tt_all_weighted, delta_tt_hosp_weighted)
 
 set.seed(834)
@@ -834,6 +850,7 @@ delta_tt_weighted_sampled <- delta_tt_weighted_combined %>%
   }) %>%
   ungroup()
 
+# Step 5: Create violin plots comparing travel time change distributions by facility type, intensity, and duration
 ggplot(delta_tt_weighted_sampled, aes(x = Intensity, y = delta_tt, fill = FacilityType)) +
     geom_violin(
         aes(group = interaction(FacilityType, Intensity)),
@@ -847,7 +864,7 @@ ggplot(delta_tt_weighted_sampled, aes(x = Intensity, y = delta_tt, fill = Facili
         geom = "point",
         position = position_dodge(width = 0.8),
         shape = 18,
-        size = 3,
+        size = 2,
         color = "red",
         show.legend = FALSE
     ) +
@@ -857,7 +874,7 @@ ggplot(delta_tt_weighted_sampled, aes(x = Intensity, y = delta_tt, fill = Facili
         geom = "point",
         position = position_dodge(width = 0.8),
         shape = 4,
-        size = 3,
+        size = 2,
         color = "blue",
         show.legend = FALSE
     ) +
@@ -867,8 +884,8 @@ ggplot(delta_tt_weighted_sampled, aes(x = Intensity, y = delta_tt, fill = Facili
         name = "Facility Type"
     ) +
     scale_y_continuous(
-        breaks = c(0, 15, 30, 45, 60, 90, 120, 180, 240),
-        limits = c(0, 240)
+        breaks = c(0, 15, 30, 45, 60, 90, 120, 180, 240, 300, 360),
+        limits = c(0, 360)
     ) +
     geom_vline(
         xintercept = seq(1.5, length(unique(delta_tt_weighted_sampled$Intensity)) - 0.5, by = 1),
@@ -880,15 +897,15 @@ ggplot(delta_tt_weighted_sampled, aes(x = Intensity, y = delta_tt, fill = Facili
         y = "Change in Travel Time (minutes)",
         caption = "Violin plots show sampled pixel-level distributions.\nRed points indicate mean, blue crosses indicate median."
     ) +
-    theme_minimal(base_size = 14) +
+    theme_minimal(base_size = 8) +
     theme(
-        axis.text.x = element_text(size = 11),
-        axis.title.x = element_text(size = 11, face = "bold"),
-        axis.title.y = element_text(size = 11, face = "bold"),
-        plot.title = element_text(size = 11, face = "bold", hjust = 0.5),
-        plot.subtitle = element_text(size = 11, hjust = 0.5),
-        plot.caption = element_text(size = 9),
-        strip.text = element_text(size = 11, face = "bold"),
+        axis.text.x = element_text(size = 8),
+        axis.title.x = element_text(size = 8, face = "bold"),
+        axis.title.y = element_text(size = 8, face = "bold"),
+        plot.title = element_text(size = 8, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(size = 8, hjust = 0.5),
+        plot.caption = element_text(size = 8),
+        strip.text = element_text(size = 8, face = "bold"),
         panel.grid.major = element_line(color = "grey80"),
         panel.grid.minor = element_blank(),
         panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
@@ -902,24 +919,23 @@ ggplot(delta_tt_weighted_sampled, aes(x = Intensity, y = delta_tt, fill = Facili
         legend.background = element_rect(fill = scales::alpha("white", 0.8), color = NA),
         legend.box.background = element_blank(),
         legend.key.size = unit(0.7, "lines"),
-        legend.title = element_text(face = "bold", size = 10),
-        legend.text = element_text(size = 9)
+        legend.title = element_text(face = "bold", size = 8),
+        legend.text = element_text(size = 8)
     )
 
-# Save the plot
+# Step 6: Save the violin plot to PDF
 ggsave(
-    filename = here("Figures/mean_travel_time_delta_violin_plot.png"),
+    filename = here("Figures", "Pdf_Final", "Figure_5_violin_plot.pdf"),
     plot = last_plot(),
-    width = 21,  # Three-quarters of A4 width in cm
-    height = 21, # Three-quarters of A4 height in cm
-    units = "cm",
-    dpi = 300
+    width = 15.92,
+    height = 18.47,
+    units = "cm"
 )
 ```
 
 # Numerical summary of the delta travel time rasters
 ```{r}
-# Step 1: Create summary tables
+# Step 1: Create summary tables for pixel-level population-weighted delta travel time
 summary_table_all <- delta_tt_weighted_sampled %>%
     filter(FacilityType == "All Facilities") %>%
     group_by(Duration, Intensity) %>%
@@ -948,7 +964,7 @@ summary_table_hosp <- delta_tt_weighted_sampled %>%
     ) %>%
     mutate(Facility = "Hospitals")
 
-# Step 2: Combine and pivot wider
+# Step 2: Combine and pivot summary tables for display
 combined_long <- bind_rows(summary_table_all, summary_table_hosp)
 
 combined_wide <- combined_long %>%
@@ -965,14 +981,14 @@ combined_wide <- combined_long %>%
         `Hospitals_Mean`, `Hospitals_Min`, `Hospitals_Q25`, `Hospitals_Median`, `Hospitals_Q75`, `Hospitals_Max`
     )
 
-# Step 3: Clean column names for display
+# Step 3: Clean column names for table output
 colnames(combined_wide) <- c(
     "Duration", "Intensity",
     "Mean", "Min", "Q25", "Median", "Q75", "Max",   # All Facilities
     "Mean", "Min", "Q25", "Median", "Q75", "Max"    # Hospitals
 )
 
-# Step 4: Render styled table
+# Step 4: Render styled summary table for HTML output
 kable(combined_wide, format = "html", digits = 1, align = c("l", "l", rep("c", 12)),
             caption = "Flood Scenario Travel Time Summary by Facility Type (All vs Hospitals)") %>%
     add_header_above(c(" " = 2, 
@@ -985,43 +1001,44 @@ kable(combined_wide, format = "html", digits = 1, align = c("l", "l", rep("c", 1
 
 # Export the summary table to a word document
 ```{r}
-# 1. Rename columns to make them unique
+# 1. Rename columns for clarity and uniqueness (All Facilities vs Hospitals)
 colnames(combined_wide) <- c(
-  "Duration", "Intensity",
-  "All_Mean", "All_Min", "All_Q25", "All_Median", "All_Q75", "All_Max",
-  "Hosp_Mean", "Hosp_Min", "Hosp_Q25", "Hosp_Median", "Hosp_Q75", "Hosp_Max"
+    "Duration", "Intensity",
+    "All_Mean", "All_Min", "All_Q25", "All_Median", "All_Q75", "All_Max",
+    "Hosp_Mean", "Hosp_Min", "Hosp_Q25", "Hosp_Median", "Hosp_Q75", "Hosp_Max"
 )
 
-# Build the table
+# 2. Build a formatted summary table using flextable for Word export
 ft <- flextable(combined_wide) %>%
-  set_header_labels(
-    All_Mean = "Mean", All_Min = "Min", All_Q25 = "Q25", All_Median = "Median", All_Q75 = "Q75", All_Max = "Max",
-    Hosp_Mean = "Mean", Hosp_Min = "Min", Hosp_Q25 = "Q25", Hosp_Median = "Median", Hosp_Q75 = "Q75", Hosp_Max = "Max"
-  ) %>%
+    set_header_labels(
+        All_Mean = "Mean", All_Min = "Min", All_Q25 = "Q25", All_Median = "Median", All_Q75 = "Q75", All_Max = "Max",
+        Hosp_Mean = "Mean", Hosp_Min = "Min", Hosp_Q25 = "Q25", Hosp_Median = "Median", Hosp_Q75 = "Q75", Hosp_Max = "Max"
+    ) %>%
 
-  add_header_row(
-    values = c("Duration", "Intensity", "All Facilities", "Hospitals"),
-    colwidths = c(1, 1, 6, 6)
-  ) %>%
+    # Add a header row to distinguish facility types
+    add_header_row(
+        values = c("Duration", "Intensity", "All Facilities", "Hospitals"),
+        colwidths = c(1, 1, 6, 6)
+    ) %>%
 
-  theme_box() %>%
-  align(align = "center", part = "all") %>%
-  fontsize(size = 10, part = "all") %>%
-  font(fontname = "Arial", part = "all") %>%
-  padding(padding = 4, part = "all") %>%
-  set_table_properties(layout = "autofit", width = .9) %>%
+    theme_box() %>%
+    align(align = "center", part = "all") %>%
+    fontsize(size = 10, part = "all") %>%
+    font(fontname = "Arial", part = "all") %>%
+    padding(padding = 4, part = "all") %>%
+    set_table_properties(layout = "autofit", width = .9) %>%
 
-  # Add vertical rules to separate groups
-  border(j = 2, border = fp_border(color = "black", width = 1), part = "all") %>%   # after Intensity
-  border(j = 8, border = fp_border(color = "black", width = 1, style = "dashed"), part = "all") %>%  # after All_Max
+    # Add vertical borders to visually separate facility groups
+    border(j = 2, border = fp_border(color = "black", width = 1), part = "all") %>%   # after Intensity
+    border(j = 8, border = fp_border(color = "black", width = 1, style = "dashed"), part = "all") %>%  # after All_Max
 
-  # Add basic box styling
-  theme_box()
+    # Apply box styling to the table
+    theme_box()
 
-# Export to Word
+# 3. Export the formatted table to a Word document
 doc <- read_docx() %>%
-  body_add_par("Travel Time Summary under Flood Scenarios", style = "heading 1") %>%
-  body_add_flextable(ft)
+    body_add_par("Travel Time Summary under Flood Scenarios", style = "heading 1") %>%
+    body_add_flextable(ft)
 
 print(doc, target = here::here("Manuscripts", "flood_summary_table.docx"))
 ```

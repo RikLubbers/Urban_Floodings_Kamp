@@ -25,18 +25,16 @@ This repository contains the code and data for the second study of my PhD resear
 The study utilizes a range of software and R packages. Ensure you have the following installed:
 
 #### Software
-- [R](https://www.r-project.org/) (version 4.0.3 or higher)
-- [RStudio](https://rstudio.com/) (version 1.4.1106 or higher) or other IDE
+- [R](https://www.r-project.org/)
 - [Git](https://git-scm.com/) (version 2.30.0 or higher)
 - [GitHub Desktop](https://desktop.github.com/) (version 2.6.3 or higher) or equivalent
-- [ARC-GIS](https://www.arcgis.com/index.html) (version 10.8.1 or higher) or equivalent GIS software
 
 #### R packages
-A list of required R packages for data analysis and visualization will be provided, similar to Study 1.
+A list of required R packages for data analysis and visualization will be provided.
 
 ## Usage
 
-Instructions for downloading and running the code, including accessing public datasets and requesting restricted datasets, will be similar to those in Study 1. Specific details relevant to this study will be included.
+Instructions for downloading and running the code, including accessing public datasets and requesting restricted datasets, will be provided
 
 ## Contributing
 

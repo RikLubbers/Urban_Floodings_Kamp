@@ -77,7 +77,6 @@ worldpop_dev_indicators <- lapply(worldpop_dev_indicators, function(x) align(x, 
 malaria = align(malaria, parishes_kamp)
 ```
 
-
 # Clean the data 
 ## Clean and prepare landcover data
 ```{r}
@@ -96,7 +95,7 @@ reclass_matrix <- matrix(c(
   100, 999.999999, 100
 ), ncol = 3, byrow = TRUE)
 
-
+# Apply the reclassification to the landcover raster
 landcover10m <- classify(landcover10m, reclass_matrix)
 
 # Ensure the landcover is treated as categorical

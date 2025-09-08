@@ -138,7 +138,7 @@ idx_c <- match(common_ids, ids_c)
 idx_s <- match(common_ids, ids_s)
 
 # --- Compute mean coordinate offset ---
-# Calculate average shift needed to align reference and analysis datasets
+# Calculate average shift needed to align reference and analysis datasets (for unknown reasons they are slightly misaligned even after reprojection. We are aware of which datasource is more accurate but not why the misalignment occurs)
 dx <- mean(coords_s[idx_s, 1] - coords_c[idx_c, 1], na.rm = TRUE)
 dy <- mean(coords_s[idx_s, 2] - coords_c[idx_c, 2], na.rm = TRUE)
 

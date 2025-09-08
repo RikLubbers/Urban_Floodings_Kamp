@@ -26,7 +26,7 @@ library(tidyterra)  # For tidyverse-style terra operations
 
 # Load the processed data data
 ```{r}
-# Define the base directory for processed data
+# Define the base directory for processed data. These data are the results of the script 01.1_Aligning_cleaning_data.qmd
 data_dir <- here("Data", "processed")
 
 # Specify subdirectories containing different geospatial datasets

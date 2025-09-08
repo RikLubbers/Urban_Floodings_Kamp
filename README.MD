@@ -1,15 +1,12 @@
 <div align="center">
-    <h1>Impact   of Urban Floodings on Physical Healthcare Accessibility in Kampala, Uganda</h1>
-    <h2>A Focus on Mothers and Children Under-5</h2>
+    <h1>Urban Floods and Geographical Healthcare Access in Kampala</h1>
 </div>
 
 ## Description
 
-This repository contains the code and data for the second study of my PhD research at the Global Health Unit of the University Medical Center Groningen (UMCG). This study focuses on understanding how flooding in Kampala, Uganda impact healthcare accessibility and determines if those impacts are equitable.
+Geospatial modelling of pluvial flood scenarios in Kampala, Uganda, estimating population-weighted changes in walking access to public and PNFP facilities and hospitals, with vulnerability stratification for mothers and children. 
 
 ## Table of Contents
-
-- [Study Title](#equity-in-healthcare-accessibility-a-case-study-on-undernutrition-vulnerability-and-mobility-during-floodings-in-kampala-uganda)
   - [Description](#description)
   - [Table of Contents](#table-of-contents)
   - [Getting Started](#getting-started)

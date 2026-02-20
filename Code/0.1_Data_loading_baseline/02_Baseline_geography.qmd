@@ -155,84 +155,233 @@ hospitals_complete <- facilities_complete[facilities_complete$`Facility_t` %in% 
 health_centers_complete <- facilities_complete[facilities_complete$`Facility_t` %in% c("Health Centre III", "Health Centre II", "Health Centre IV"), ]
 ```
 
-````{r}
+```{r}
 # --- Set output dimensions for PDF figure ---
-# Convert width and height from millimeters to inches for PDF output
-w <- 79.6 / 25.4  # 79.6 mm converted to inches
+# Convert width and height from millimetres to inches for PDF output
+# A vector PDF is resolution-independent (equivalent to >600 dpi at any print size)
+w <- 79.6  / 25.4  # 79.6 mm converted to inches
 h <- 123.1 / 25.4  # 123.1 mm converted to inches
 
 # --- Create PDF for baseline geography figure ---
 pdf(here("Figures", "Pdf_final", "Figure_1_baseline_geography.pdf"),
-  width = w, height = h,
-  version = "1.4",      # needed for alpha transparency
-  useDingbats = FALSE)
+    width       = w, height = h,
+    version     = "1.4",      # needed for alpha transparency
+    useDingbats = FALSE)
 
 # --- Set plotting parameters ---
-par(mai = c(0, 0, 0, 0), xaxs = "i", yaxs = "i", cex = 8/12)  # Set base font size to 8pt
+# cex = 8/12 gives ~8 pt at the device dpi, mai keeps zero outer margins
+par(mai = c(0, 0, 0, 0), xaxs = "i", yaxs = "i", cex = 8/12)
 
 # --- Plot reference landcover with transparency ---
 plot(landcover_complete,
-     col = adjustcolor(filtered_landcover_colors, alpha.f = 0.15),
+     col    = adjustcolor(filtered_landcover_colors, alpha.f = 0.15),
      legend = FALSE, axes = FALSE, box = FALSE)
 
 # --- Overlay study area landcover with higher opacity ---
 plot(Landcover,
-     col = adjustcolor(filtered_landcover_colors, alpha.f = 0.7),
+     col    = adjustcolor(filtered_landcover_colors, alpha.f = 0.7),
      legend = FALSE, axes = FALSE, box = TRUE, add = TRUE)
 
 # --- Add hillshade for terrain visualization ---
 plot(hillshade,
-     col = gray.colors(100, start = 0.3, end = 1, alpha = 0.4),
+     col    = gray.colors(100, start = 0.3, end = 1, alpha = 0.4),
      legend = FALSE, add = TRUE)
 
 # --- Add infrastructure layers: roads and rivers ---
-lines(OSM_roads, col = "black", lwd = 0.7, lty = 1)
-lines(water_lines, col = "blue",  lwd = 0.5, lty = 2)
+lines(OSM_roads,    col = "black", lwd = 0.7, lty = 1)
+lines(water_lines,  col = "#1a6db5",  lwd = 0.7, lty = 1)
 
 # --- Plot reference healthcare facilities (shifted for alignment) ---
-points(hospitals_complete,       pch = 23,
+points(hospitals_complete,      pch = 23,
        col = adjustcolor("black", alpha.f = 0.5),
        bg  = adjustcolor("blue",  alpha.f = 0.4), cex = 1)
 
-points(health_centers_complete,  pch = 21,
+points(health_centers_complete, pch = 21,
        col = adjustcolor("black", alpha.f = 0.5),
        bg  = adjustcolor("green", alpha.f = 0.4), cex = 1)
 
 # --- Plot study area healthcare facilities ---
-points(hospitals,       pch = 23, col = "black", bg = "blue",  cex = 1)
-points(health_centres,  pch = 21, col = "black", bg = "green", cex = 1)
+points(hospitals,      pch = 23, col = "black", bg = "blue",  cex = 1)
+points(health_centres, pch = 21, col = "black", bg = "green", cex = 1)
 
-# --- Prepare legend labels and colors for landcover and infrastructure ---
-lc_labs  <- unname(filtered_landcover_classes)
-lc_cols  <- unname(filtered_landcover_colors)
-labs  <- c(lc_labs, "Rivers", "Roads")
-fills <- c(lc_cols,  "blue",   "black")
+# =============================================================
+# LEGEND — two-column layout
+#   Left  : Land cover classes
+#   Right : Healthcare facilities + Transport & water
+# =============================================================
 
-n <- length(labs)
-left_idx  <- seq_len(ceiling(n/2))       # legend fills by column
-right_idx <- setdiff(seq_len(n), left_idx)
+lc_labs <- unname(filtered_landcover_classes)
+lc_cols <- unname(filtered_landcover_colors)
+n_lc    <- length(lc_labs)
 
-w1 <- max(strwidth(labs[left_idx],  cex = 8/12))
-w2 <- max(strwidth(labs[right_idx], cex = 8/12))
+cex_lgd   <- 6.5/12      # slightly smaller font
+ysp       <- 0.75        # vertical spacing
+inner_pad <- 0           # no extra inner horizontal pad (legend already has margin)
 
-# --- Add landcover and infrastructure legend ---
-legend(x = "bottomleft", inset = c(0.01, 0.145),
-       legend = labs, fill = fills,
-       border = "white", bg = "white", title = "Landcover Classes",
-       ncol = 2, cex = 8/12,
-       text.width = c(w1, w2),    # tight per-column widths
-       x.intersp = 0.2, y.intersp = 0.7)
+# ------------------------------------------------------------------
+# LEFT COLUMN entries  (Land cover classes)
+# Row 1 → blank (header: "Land cover classes")
+# Rows 2..1+n_lc → land cover
+# ------------------------------------------------------------------
+left_labs  <- c("", "  Hospitals", "  Health centres",
+                "", "  Major roads", "  Rivers / watercourses")
+n_left     <- length(left_labs)
 
-# --- Add healthcare facilities legend ---
-legend(x = "bottomleft", inset = c(0.01, 0.245),
-  legend = c("Hospitals", "Health Centers"),
-  pch = c(23, 21), col = "black", pt.bg = c("blue", "green"),
-  pt.cex = 0.75, title = "Healthcare Facilities", bg = "white",
-  cex = 8/12, x.intersp = 0.5, y.intersp = 0.8)
+left_pch   <- c(NA, 23L, 21L, NA, NA, NA)
+left_col   <- c(NA, "black", "black", NA, "black", "#1a6db5")
+left_pt.bg <- c(NA, "blue", "green", NA, NA, NA)
+left_lty   <- c(NA, NA, NA, NA, 1L, 1L)
+left_lwd   <- c(NA, NA, NA, NA, 0.7, 0.7)
 
-# --- Add scale bar and north arrow ---
-sbar(2000, xy = "bottomright", type = "bar", divs = 4, below = "km",
-     cex = 8/12, lonlat = FALSE, scaleby = 1000)
+# ------------------------------------------------------------------
+# RIGHT COLUMN entries  (Healthcare facilities + Transport & water)
+# Row 1 → blank (header: "Healthcare facilities")
+# Row 2 → Hospitals
+# Row 3 → Health centres
+# Row 4 → blank (header: "Transport & water")
+# Row 5 → Roads
+# Row 6 → Rivers / watercourses
+# ------------------------------------------------------------------
+right_labs  <- c("", paste0("  ", lc_labs))
+n_right     <- length(right_labs)
+lc_rows_r   <- seq(2L, 1L + n_lc)
+
+right_pch   <- c(NA, rep(22L, n_lc))
+right_col   <- c(NA, lc_cols)
+right_pt.bg <- c(NA, lc_cols)
+right_lty   <- rep(NA_integer_, n_right)
+right_lwd   <- rep(NA_real_,    n_right)
+
+# ------------------------------------------------------------------
+# Dry-run both legends to capture their bounding boxes
+# ------------------------------------------------------------------
+lgd_L_dry <- legend(x = 0, y = 0,
+  legend    = right_labs, pch = right_pch,
+  col       = right_col,  pt.bg = right_pt.bg,
+  lty       = right_lty,  lwd = right_lwd,
+  pt.cex    = 0.85, cex = cex_lgd,
+  x.intersp = 0.20, y.intersp = ysp,
+  bty = "n", plot = FALSE)
+
+lgd_R_dry <- legend(x = 0, y = 0,
+  legend    = left_labs,  pch = left_pch,
+  col       = left_col,   pt.bg = left_pt.bg,
+  lty       = left_lty,   lwd = left_lwd,
+  pt.cex    = 0.85, cex = cex_lgd,
+  x.intersp = 0.25, y.intersp = ysp,
+  bty = "n", plot = FALSE)
+
+# ------------------------------------------------------------------
+# Anchor point: bottom-left of plot region + small inset
+# ------------------------------------------------------------------
+usr     <- par("usr")   # x1, x2, y1, y2
+pad_x   <- 0.010 * (usr[2] - usr[1])
+pad_y   <- 0.143 * (usr[4] - usr[3])   # preserve user's inset value
+gap_col <- 0.05 * lgd_L_dry$rect$w     # minimal gap between columns
+
+# Total box dimensions (no extra inner pad needed; legend() has its own margin)
+box_w <- lgd_L_dry$rect$w + gap_col + lgd_R_dry$rect$w
+box_h <- max(lgd_L_dry$rect$h, lgd_R_dry$rect$h)
+
+# Bottom-left anchor (plot coord) for the outer box
+box_x0 <- usr[1] + pad_x
+box_y0 <- usr[3] + pad_y
+box_x1 <- box_x0 + box_w
+box_y1 <- box_y0 + box_h
+
+# Draw white background box
+rect(box_x0, box_y0, box_x1, box_y1,
+     col = "white", border = "grey70", lwd = 0.5)
+
+# x / y origin for each column (top-left corner of legend content)
+x_L <- box_x0
+y_L <- box_y1          # legend() places top-left at (x, y)
+
+x_R <- box_x0 + lgd_L_dry$rect$w + gap_col
+y_R <- box_y1
+
+# ------------------------------------------------------------------
+# Draw left legend — Land cover classes (no box)
+# ------------------------------------------------------------------
+lgd_L <- legend(x = x_L, y = y_L,
+  legend    = right_labs, pch = right_pch,
+  col       = right_col,  pt.bg = right_pt.bg,
+  lty       = right_lty,  lwd = right_lwd,
+  pt.cex    = 0.85, cex = cex_lgd,
+  x.intersp = 0.20, y.intersp = ysp,
+  bty = "n")
+
+# Overdraw left column section header (row 1: "Land cover classes")
+text(x = lgd_L$text$x[1L], y = lgd_L$text$y[1L],
+     labels = "Land cover classes", adj = c(0, 0.5), cex = cex_lgd, font = 2)
+
+# ------------------------------------------------------------------
+# Draw right legend — Healthcare facilities + Transport & water (no box)
+# ------------------------------------------------------------------
+lgd_R <- legend(x = x_R, y = y_R,
+  legend    = left_labs,  pch = left_pch,
+  col       = left_col,   pt.bg = left_pt.bg,
+  lty       = left_lty,   lwd = left_lwd,
+  pt.cex    = 0.85, cex = cex_lgd,
+  x.intersp = 0.25, y.intersp = ysp,
+  bty = "n")
+
+# Overdraw right column section headers (rows 1 and 4)
+right_headers <- list(
+  list(row = 1L, label = "Healthcare facilities"),
+  list(row = 4L, label = "Transport & water")
+)
+for (h in right_headers) {
+  text(x = lgd_R$text$x[h$row], y = lgd_R$text$y[h$row],
+       labels = h$label, adj = c(0, 0.5), cex = cex_lgd, font = 2)
+}
+
+# --- Custom alternating scale bar (lower-right corner) ---
+# Geography: 1 km = 1000 native map units (projected CRS, metres).
+# Dimensions are anchored in device inches so the bar has a
+# fixed physical size regardless of map extent.
+usr   <- par("usr")                      # x1, x2, y1, y2 in map units
+pin   <- par("pin")                      # plot region size in inches
+uin_x <- (usr[2] - usr[1]) / pin[1]     # map units per inch (x)
+uin_y <- (usr[4] - usr[3]) / pin[2]     # map units per inch (y)
+
+# Physical bar design (in inches → converted to map units)
+sb_len   <- 2000                         # total bar = 2 km (map units)
+sb_half  <- 1000                         # midpoint  = 1 km
+sb_h     <- 0.055 * uin_y               # bar height  ≈ 1.5 mm on paper
+gap_x_in <- 0.15                         # right margin in inches
+gap_y_in <- 0.70                         # bottom margin in inches (raised)
+
+# Bar extent in map coordinates
+sb_x2 <- usr[2] - gap_x_in * uin_x     # right edge
+sb_x1 <- sb_x2 - sb_len                # left  edge
+sb_xm <- sb_x1 + sb_half               # midpoint (1 km mark)
+sb_y0 <- usr[3] + gap_y_in * uin_y     # bar bottom
+sb_y1 <- sb_y0 + sb_h                  # bar top
+
+# Two-segment fills (no per-segment border)
+rect(sb_x1, sb_y0, sb_xm, sb_y1, col = "black",  border = NA)
+rect(sb_xm, sb_y0, sb_x2, sb_y1, col = "grey88", border = NA)
+
+# Outer border around the entire bar
+rect(sb_x1, sb_y0, sb_x2, sb_y1, col = NA, border = "black", lwd = 0.7)
+
+# Tick marks projecting above bar top (same height as bar)
+tick_x <- c(sb_x1, sb_xm, sb_x2)
+tick_h <- sb_h
+segments(tick_x, rep(sb_y1, 3), tick_x, rep(sb_y1 + tick_h, 3),
+         col = "black", lwd = 0.7)
+
+# Numeric labels centred on ticks
+lbl_y <- sb_y1 + tick_h + 0.018 * uin_y
+text(tick_x, rep(lbl_y, 3), labels = c("0", "1", "2"),
+     adj = c(0.5, 0), cex = 6/12, col = "black")
+
+# "km" label right of "2", right-aligned visually
+text(sb_x2 + 0.035 * uin_x, lbl_y,
+     labels = "km", adj = c(0, 0), cex = 5.5/12, col = "black")
+
+# --- North arrow ---
 north(type = 2, cex = 8/12)
 
 # --- Close PDF device ---

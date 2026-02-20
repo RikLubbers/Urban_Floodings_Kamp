@@ -670,3 +670,176 @@ gridplot_delta_tt_hosp = autoplot(x_delta_hosp, nrow = 5, ncol = 3) +
   # print(gridplot_delta_tt_hosp)
   # dev.off()
 ```
+
+# Figure 2 — Combined two-panel figure
+```{r}
+# Two-panel PDF: panel a (all facilities) on the left,
+#                panel b (hospitals only) on the right.
+# Shared legend in panel a only. No legend in panel b.
+# Output: Figure_2_combined.pdf (318.4 x 123.1 mm, double-column)
+
+w_panel <- 159.2 / 25.4   # single-panel width  in inches
+h_panel <- 123.1 / 25.4   # single-panel height in inches
+
+pdf(here("Figures", "Pdf_final", "Figure_2_combined.pdf"),
+    width       = 2 * w_panel,
+    height      = h_panel,
+    version     = "1.4",
+    useDingbats = FALSE)
+
+# Two equal columns, zero margins (cex controlled per-call throughout)
+par(mfrow = c(1, 2),
+    mai  = c(0, 0, 0, 0),
+    oma  = c(0, 0, 0, 0),
+    xaxs = "i", yaxs = "i")
+
+# ================================================================
+# PANEL a  —  Baseline travel time to ALL facilities
+# ================================================================
+
+# 1. Semi-transparent landcover background (outside AOI)
+plot(landcover_complete,
+     col    = adjustcolor(filtered_landcover_colors, alpha.f = 0.15),
+     legend = FALSE, axes = FALSE, box = FALSE)
+
+# 2. Travel time raster (all facilities)
+plot(base_tt_all,
+     col    = colorRampPalette(turbo(8))(8),
+     breaks = c(0, 15, 30, 45, 60, 90, 120, 180, Inf),
+     axes   = FALSE, box = TRUE, legend = FALSE, add = TRUE)
+
+# 3. Light reference grid
+grid(nx = NULL, ny = NULL, col = "lightgray", lty = "dashed", lwd = 0.5)
+
+# 4. Healthcare facilities
+points(hospitals_complete,
+       pch = 23, col = adjustcolor("black", alpha.f = 0.5),
+       bg  = adjustcolor("blue",  alpha.f = 0.4), cex = 1)
+points(health_centers_complete,
+       pch = 21, col = adjustcolor("black", alpha.f = 0.5),
+       bg  = adjustcolor("green", alpha.f = 0.4), cex = 1)
+points(hospitals,      pch = 23, col = "black", bg = "blue",  cex = 1)
+points(health_centres, pch = 21, col = "black", bg = "green", cex = 1)
+
+# 5. Parish / administrative boundaries
+plot(Adm_boundaries, add = TRUE, col = NA, border = "black", lwd = 0.5)
+
+# Panel label — inside frame, upper-left, bold
+usr_a <- par("usr")
+text(usr_a[1] + 0.03 * (usr_a[2] - usr_a[1]),
+     usr_a[4] - 0.04 * (usr_a[4] - usr_a[3]),
+     labels = "a", adj = c(0, 1), cex = 9/12, font = 2, col = "black")
+
+# Custom scale bar — Figure 1 design (inch-anchored)
+pin_a  <- par("pin")
+uin_xa <- (usr_a[2] - usr_a[1]) / pin_a[1]
+uin_ya <- (usr_a[4] - usr_a[3]) / pin_a[2]
+sb_h_a  <- 0.055 * uin_ya
+sb_x2_a <- usr_a[2] - 0.08 * uin_xa
+sb_x1_a <- sb_x2_a - 2000
+sb_xm_a <- sb_x1_a + 1000
+sb_y0_a <- usr_a[3] + 0.70 * uin_ya
+sb_y1_a <- sb_y0_a + sb_h_a
+rect(sb_x1_a, sb_y0_a, sb_xm_a, sb_y1_a, col = "black",  border = NA)
+rect(sb_xm_a, sb_y0_a, sb_x2_a, sb_y1_a, col = "grey88", border = NA)
+rect(sb_x1_a, sb_y0_a, sb_x2_a, sb_y1_a, col = NA, border = "black", lwd = 0.7)
+segments(c(sb_x1_a, sb_xm_a, sb_x2_a), rep(sb_y1_a, 3),
+         c(sb_x1_a, sb_xm_a, sb_x2_a), rep(sb_y1_a + sb_h_a, 3),
+         col = "black", lwd = 0.7)
+lbl_ya <- sb_y1_a + sb_h_a + 0.018 * uin_ya
+text(c(sb_x1_a, sb_xm_a, sb_x2_a), rep(lbl_ya, 3),
+     labels = c("0", "1", "2"), adj = c(0.5, 0), cex = 6/12, col = "black")
+text(sb_x2_a + 0.035 * uin_xa, lbl_ya,
+     labels = "km", adj = c(0, 0), cex = 5.5/12, col = "black")
+
+north(type = 2, cex = 7/12)
+
+# 8. SHARED LEGEND — Travel time categories
+legend(
+  x = "bottomleft", inset = c(0.20, 0.01),
+  legend = c("0-15 min", "15-30 min", "30-45 min", "45-60 min",
+             "60-90 min", "90-120 min", "120-180 min", ">180 min"),
+  fill    = colorRampPalette(turbo(8))(8),
+  bty     = "o", box.lwd = 0.5, box.col = "grey70",
+  bg      = adjustcolor("white", alpha.f = 0.85),
+  cex     = 7/12, x.intersp = 0.1, y.intersp = 0.6,
+  title   = "Travel Time Categories (walking)", ncol = 2
+)
+
+# 9. SHARED LEGEND — Map elements (facilities + parish boundaries)
+legend(
+  x = "bottomleft", inset = c(0.20, 0.17),
+  legend = c("Hospitals", "Health centres", "Parish boundaries"),
+  pch    = c(23,      21,      NA),
+  lty    = c(NA,      NA,       1),
+  lwd    = c(NA,      NA,     0.5),
+  col    = c("black", "black", "black"),
+  pt.bg  = c("blue",  "green",  NA),
+  pt.cex = 1,
+  title  = "Healthcare Facilities",
+  bty    = "o", box.lwd = 0.5, box.col = "grey70",
+  bg     = adjustcolor("white", alpha.f = 0.85),
+  cex    = 7/12, x.intersp = 0.5, y.intersp = 0.6
+)
+
+# ================================================================
+# PANEL b  —  Baseline travel time to HOSPITALS ONLY
+# No legend — shared legend is in panel a
+# ================================================================
+
+# 1. Semi-transparent landcover background (outside AOI)
+plot(landcover_complete,
+     col    = adjustcolor(filtered_landcover_colors, alpha.f = 0.15),
+     legend = FALSE, axes = FALSE, box = FALSE)
+
+# 2. Travel time raster (hospitals only)
+plot(base_tt_hosp,
+     col    = colorRampPalette(turbo(8))(8),
+     breaks = c(0, 15, 30, 45, 60, 90, 120, 180, Inf),
+     axes   = FALSE, box = TRUE, legend = FALSE, add = TRUE)
+
+# 3. Light reference grid
+grid(nx = NULL, ny = NULL, col = "lightgray", lty = "dashed", lwd = 0.5)
+
+# 4. Hospitals only
+points(hospitals_complete,
+       pch = 23, col = adjustcolor("black", alpha.f = 0.5),
+       bg  = adjustcolor("blue",  alpha.f = 0.4), cex = 1)
+points(hospitals, pch = 23, col = "black", bg = "blue", cex = 1)
+
+# 5. Parish / administrative boundaries
+plot(Adm_boundaries, add = TRUE, col = NA, border = "black", lwd = 0.5)
+
+# Panel label — inside frame, upper-left, bold
+usr_b <- par("usr")
+text(usr_b[1] + 0.03 * (usr_b[2] - usr_b[1]),
+     usr_b[4] - 0.04 * (usr_b[4] - usr_b[3]),
+     labels = "b", adj = c(0, 1), cex = 9/12, font = 2, col = "black")
+
+# Custom scale bar — Figure 1 design (inch-anchored)
+pin_b  <- par("pin")
+uin_xb <- (usr_b[2] - usr_b[1]) / pin_b[1]
+uin_yb <- (usr_b[4] - usr_b[3]) / pin_b[2]
+sb_h_b  <- 0.055 * uin_yb
+sb_x2_b <- usr_b[2] - 0.08 * uin_xb
+sb_x1_b <- sb_x2_b - 2000
+sb_xm_b <- sb_x1_b + 1000
+sb_y0_b <- usr_b[3] + 0.70 * uin_yb
+sb_y1_b <- sb_y0_b + sb_h_b
+rect(sb_x1_b, sb_y0_b, sb_xm_b, sb_y1_b, col = "black",  border = NA)
+rect(sb_xm_b, sb_y0_b, sb_x2_b, sb_y1_b, col = "grey88", border = NA)
+rect(sb_x1_b, sb_y0_b, sb_x2_b, sb_y1_b, col = NA, border = "black", lwd = 0.7)
+segments(c(sb_x1_b, sb_xm_b, sb_x2_b), rep(sb_y1_b, 3),
+         c(sb_x1_b, sb_xm_b, sb_x2_b), rep(sb_y1_b + sb_h_b, 3),
+         col = "black", lwd = 0.7)
+lbl_yb <- sb_y1_b + sb_h_b + 0.018 * uin_yb
+text(c(sb_x1_b, sb_xm_b, sb_x2_b), rep(lbl_yb, 3),
+     labels = c("0", "1", "2"), adj = c(0.5, 0), cex = 6/12, col = "black")
+text(sb_x2_b + 0.035 * uin_xb, lbl_yb,
+     labels = "km", adj = c(0, 0), cex = 5.5/12, col = "black")
+
+north(type = 2, cex = 7/12)
+
+# ----------------------------------------------------------------
+dev.off()
+```

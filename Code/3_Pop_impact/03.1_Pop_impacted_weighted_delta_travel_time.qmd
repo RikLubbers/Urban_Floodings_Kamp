@@ -245,14 +245,7 @@ for (scenario_col in scenario_columns_ordered_all) {
     }
 }
 
-# Print top 10 parishes for each scenario
-for (scenario in names(top_parishes_list_all)) {
-    cat("\n\n============================\n")
-    cat("Top 10 Parishes for Scenario:", format_scenario_title(scenario), "\n")
-    cat("============================\n\n")
-    print(top_parishes_list_all[[scenario]][, c("Parish_Name", "Travel_Time_Increase")])
-    cat("\n")
-}
+
 
 # Calculate frequency of parishes appearing in top 10 lists across all scenarios
 parish_frequency_all <- table(unlist(lapply(top_parishes_list_all, function(df) df$Parish_Name)))
@@ -262,8 +255,7 @@ parish_frequency_all_df$Frequency <- as.numeric(parish_frequency_all_df$Frequenc
 parish_frequency_all_df <- parish_frequency_all_df[order(-parish_frequency_all_df$Frequency), ]
 top_10_parish_frequency_all <- head(parish_frequency_all_df, 10)
 
-cat("\n\nTop 10 Parishes by Frequency in Top 10 Lists (All Facilities):\n")
-print(top_10_parish_frequency_all)
+
 
 # Add indicator to SpatVector for top 10 parishes by frequency
 parish_boundaries_all$Top_10 <- ifelse(parish_boundaries_all$PName2016 %in% top_10_parish_frequency_all$Parish_Name, "Top 10", "Not in Top 10")
@@ -577,14 +569,7 @@ ggsave(
 
 # Highlight parishes with the highest decrease in travel time for each scenario for all facilities
 ```{r}
-# Format scenario titles for display (e.g., "100_21600" → "100 mm x 6 hours")
-format_scenario_title <- function(scenario) {
-    numbers <- sub(".*_(\\d+)_(\\d+)$", "\\1 \\2", scenario)
-    numbers_split <- unlist(strsplit(numbers, " "))
-    hours <- as.numeric(numbers_split[2]) / 3600
-    formatted_title <- paste(numbers_split[1], "mm x", hours, "hours")
-    return(formatted_title)
-}
+
 
 # Convert hospital-only parish boundaries to data frame for analysis
 parish_boundaries_hosp_df <- as.data.frame(parish_boundaries_hosp)
@@ -612,15 +597,7 @@ for (i in seq_along(scenario_columns_ordered_hosp)) {
     }
 }
 
-# Print top 10 parishes for each hospital-only scenario
-for (scenario in names(top_parishes_list_hosp)) {
-    formatted_title <- format_scenario_title(scenario)
-    cat("\n\n============================\n")
-    cat("Top 10 Parishes for Scenario:", formatted_title, "\n")
-    cat("============================\n\n")
-    print(top_parishes_list_hosp[[scenario]][, c("Parish_Name", "Travel_Time_Increase")])
-    cat("\n")
-}
+
 
 # Calculate frequency of parishes appearing in top 10 lists across all hospital-only scenarios
 parish_frequency_hosp <- table(unlist(lapply(top_parishes_list_hosp, function(df) df$Parish_Name)))
@@ -630,8 +607,7 @@ parish_frequency_df_hosp$Frequency <- as.numeric(parish_frequency_df_hosp$Freque
 parish_frequency_df_hosp <- parish_frequency_df_hosp[order(-parish_frequency_df_hosp$Frequency), ]
 top_10_parish_frequency_hosp <- head(parish_frequency_df_hosp, 10)
 
-cat("\n\nTop 10 Parishes by Frequency in Top 10 Lists (Hospitals Only):\n")
-print(top_10_parish_frequency_hosp)
+
 
 # Add indicator to SpatVector for top 10 parishes by frequency (hospital-only)
 parish_boundaries_hosp$Top_10 <- ifelse(parish_boundaries_hosp$PName2016 %in% top_10_parish_frequency_hosp$Parish_Name, "Top 10", "Not in Top 10")
@@ -1041,4 +1017,281 @@ doc <- read_docx() %>%
     body_add_flextable(ft)
 
 print(doc, target = here::here("Manuscripts", "flood_summary_table.docx"))
+```
+
+# Helper functions for top-10, skewness, and narrative analysis
+```{r}
+# ── Helper functions ──────────────────────────────────────────────────────────
+
+#' Format a scenario column name to a human-readable label
+#' e.g. "Average_Weighted_Delta_TT_100_3600" → "100 mm, 1 hour"
+format_scenario <- function(col_name) {
+    parts     <- regmatches(col_name, regexpr("\\d+_\\d+$", col_name))
+    nums      <- as.numeric(unlist(strsplit(parts, "_")))
+    hours_map <- c("3600" = 1, "10800" = 3, "21600" = 6)
+    paste0(nums[1], " mm, ", hours_map[as.character(nums[2])], " hour")
+}
+
+#' Return Average_Weighted_Delta_TT_* columns sorted by intensity then duration
+get_scenario_cols <- function(df) {
+    cols      <- grep("^Average_Weighted_Delta_TT_", names(df), value = TRUE)
+    intensity <- as.numeric(sub(".*_(\\d+)_(\\d+)$", "\\1", cols))
+    duration  <- as.numeric(sub(".*_(\\d+)$", "\\1", cols))
+    cols[order(intensity, duration)]
+}
+
+#' Build a long top-n table from a parish data frame
+top_n_by_scenario <- function(df, cols, tier, n = 10) {
+    purrr::map_dfr(cols, function(col) {
+        df %>%
+            dplyr::transmute(
+                Scenario              = format_scenario(col),
+                Parish                = PName2016,
+                Population_Sum        = Population_Sum,
+                Avg_Weighted_Delta_TT = .data[[col]]
+            ) %>%
+            dplyr::arrange(dplyr::desc(Avg_Weighted_Delta_TT)) %>%
+            dplyr::slice_head(n = n) %>%
+            dplyr::mutate(Rank = dplyr::row_number(), Tier = tier)
+    })
+}
+
+#' Frequency table: how often each parish appears in the top-n across scenarios
+frequency_top_n <- function(long_tbl) {
+    long_tbl %>%
+        dplyr::group_by(Parish, Tier) %>%
+        dplyr::summarise(
+            Frequency     = dplyr::n(),
+            Median_Rank   = round(median(Rank), 1),
+            Mean_Increase = round(mean(Avg_Weighted_Delta_TT), 1),
+            .groups       = "drop"
+        ) %>%
+        dplyr::arrange(dplyr::desc(Frequency), Median_Rank)
+}
+```
+
+# Top-10 parishes by scenario and frequency tables
+```{r}
+# ── Build long top-10 tables ─────────────────────────────────────────────────
+top10_long_hosp <- top_n_by_scenario(
+    parish_boundaries_hosp_df,
+    get_scenario_cols(parish_boundaries_hosp_df),
+    tier = "Hospitals only"
+)
+
+top10_long_all <- top_n_by_scenario(
+    parish_boundaries_all_df,
+    get_scenario_cols(parish_boundaries_all_df),
+    tier = "All facilities"
+)
+
+# ── Render: Top 10 parishes by scenario, hospitals only ──────────────────────
+top10_long_hosp %>%
+    dplyr::select(Scenario, Rank, Parish, Avg_Weighted_Delta_TT, Population_Sum) %>%
+    kable(
+        format    = "html",
+        digits    = 1,
+        col.names = c("Scenario", "Rank", "Parish",
+                       "Avg Weighted \u0394 TT (min)", "Population"),
+        caption   = "Top 10 parishes by scenario \u2013 Hospitals only"
+    ) %>%
+    kable_styling(full_width = FALSE, position = "center", font_size = 13) %>%
+    collapse_rows(columns = 1, valign = "top")
+
+# ── Render: Top 10 parishes by scenario, all facilities ──────────────────────
+top10_long_all %>%
+    dplyr::select(Scenario, Rank, Parish, Avg_Weighted_Delta_TT, Population_Sum) %>%
+    kable(
+        format    = "html",
+        digits    = 1,
+        col.names = c("Scenario", "Rank", "Parish",
+                       "Avg Weighted \u0394 TT (min)", "Population"),
+        caption   = "Top 10 parishes by scenario \u2013 All facilities"
+    ) %>%
+    kable_styling(full_width = FALSE, position = "center", font_size = 13) %>%
+    collapse_rows(columns = 1, valign = "top")
+
+# ── Frequency tables ─────────────────────────────────────────────────────────
+freq_hosp <- frequency_top_n(top10_long_hosp)
+freq_all  <- frequency_top_n(top10_long_all)
+
+freq_hosp %>%
+    dplyr::select(-Tier) %>%
+    kable(
+        format    = "html",
+        digits    = 1,
+        col.names = c("Parish", "Frequency", "Median Rank",
+                       "Mean \u0394 TT (min)"),
+        caption   = "Parishes most frequently in top 10 across scenarios \u2013 Hospitals only"
+    ) %>%
+    kable_styling(full_width = FALSE, position = "center", font_size = 13)
+
+freq_all %>%
+    dplyr::select(-Tier) %>%
+    kable(
+        format    = "html",
+        digits    = 1,
+        col.names = c("Parish", "Frequency", "Median Rank",
+                       "Mean \u0394 TT (min)"),
+        caption   = "Parishes most frequently in top 10 across scenarios \u2013 All facilities"
+    ) %>%
+    kable_styling(full_width = FALSE, position = "center", font_size = 13)
+```
+
+# Skewness diagnostics and narrative inline objects
+```{r}
+# ── Parish-level distribution diagnostics (96 parishes) ─────────────────────
+compute_diagnostics <- function(df, cols, tier) {
+    purrr::map_dfr(cols, function(col) {
+        x <- df[[col]]
+        tibble::tibble(
+            Tier           = tier,
+            Scenario       = format_scenario(col),
+            Mean           = round(mean(x, na.rm = TRUE), 1),
+            Median         = round(median(x, na.rm = TRUE), 1),
+            IQR            = round(IQR(x, na.rm = TRUE), 1),
+            P90            = round(quantile(x, 0.90, na.rm = TRUE), 1),
+            P95            = round(quantile(x, 0.95, na.rm = TRUE), 1),
+            Max            = round(max(x, na.rm = TRUE), 1),
+            tail_ratio_95  = round(max(x, na.rm = TRUE) /
+                                   quantile(x, 0.95, na.rm = TRUE), 2),
+            tail_ratio_med = round(max(x, na.rm = TRUE) /
+                                   median(x, na.rm = TRUE), 2)
+        )
+    })
+}
+
+diag_hosp <- compute_diagnostics(
+    parish_boundaries_hosp_df,
+    get_scenario_cols(parish_boundaries_hosp_df),
+    "Hospitals only"
+)
+
+diag_all <- compute_diagnostics(
+    parish_boundaries_all_df,
+    get_scenario_cols(parish_boundaries_all_df),
+    "All facilities"
+)
+
+skewness_tbl <- dplyr::bind_rows(diag_hosp, diag_all)
+
+# ── Render diagnostics table ─────────────────────────────────────────────────
+skewness_tbl %>%
+    kable(
+        format  = "html",
+        digits  = 2,
+        caption = "Parish-level distribution diagnostics for population-weighted \u0394 travel time"
+    ) %>%
+    kable_styling(full_width = FALSE, position = "center", font_size = 13) %>%
+    pack_rows(index = c("Hospitals only" = nrow(diag_hosp),
+                         "All facilities" = nrow(diag_all)))
+
+# ── Narrative inline objects ─────────────────────────────────────────────────
+# Top 3 recurrent parishes (character vector: "Parish (freq)")
+top3_recurrent_hosp <- freq_hosp %>%
+    dplyr::slice_head(n = 3) %>%
+    dplyr::mutate(label = paste0(Parish, " (", Frequency, "\u00d7)")) %>%
+    dplyr::pull(label)
+
+top3_recurrent_all <- freq_all %>%
+    dplyr::slice_head(n = 3) %>%
+    dplyr::mutate(label = paste0(Parish, " (", Frequency, "\u00d7)")) %>%
+    dplyr::pull(label)
+
+# Narrative statements: one per scenario per tier
+make_narrative <- function(diag_tbl, tier_label) {
+    diag_tbl %>%
+        dplyr::mutate(label = paste0(
+            "In ", tier_label, ", the maximum parish increase is ",
+            Max, " min under ", Scenario,
+            ", compared with a median of ", Median,
+            " min and P95 of ", P95, " min."
+        )) %>%
+        dplyr::pull(label)
+}
+
+narrative_hosp <- make_narrative(diag_hosp, "hospitals only")
+narrative_all  <- make_narrative(diag_all,  "all facilities")
+
+narrative_all
+narrative_hosp
+```
+
+# Export Supplementary Tables S3, S4, S5 to Word
+```{r}
+# ── Prepare data for flextable ───────────────────────────────────────────────
+# S3: Top 10 parishes by scenario – Hospitals only
+s3_df <- top10_long_hosp %>%
+    dplyr::select(
+        Scenario, Rank, Parish,
+        Population = Population_Sum,
+        `Avg Pop-Weighted Δ TT (min)` = Avg_Weighted_Delta_TT
+    ) %>%
+    dplyr::mutate(`Avg Pop-Weighted Δ TT (min)` = round(`Avg Pop-Weighted Δ TT (min)`, 1),
+                  Population = round(Population, 0))
+
+# S4: Top 10 parishes by scenario – All Facilities
+s4_df <- top10_long_all %>%
+    dplyr::select(
+        Scenario, Rank, Parish,
+        Population = Population_Sum,
+        `Avg Pop-Weighted Δ TT (min)` = Avg_Weighted_Delta_TT
+    ) %>%
+    dplyr::mutate(`Avg Pop-Weighted Δ TT (min)` = round(`Avg Pop-Weighted Δ TT (min)`, 1),
+                  Population = round(Population, 0))
+
+# S5: Frequency across scenarios (both tiers)
+s5_df <- dplyr::bind_rows(freq_hosp, freq_all) %>%
+    dplyr::select(
+        Parish, Tier, Frequency,
+        `Median Rank`        = Median_Rank,
+        `Mean Δ TT (min)`    = Mean_Increase
+    ) %>%
+    dplyr::arrange(Tier, dplyr::desc(Frequency))
+
+# ── Build flextables ─────────────────────────────────────────────────────────
+style_ft <- function(ft) {
+    ft %>%
+        font(fontname = "Arial", part = "all") %>%
+        fontsize(size = 10, part = "all") %>%
+        bold(part = "header") %>%
+        align(align = "center", part = "all") %>%
+        align(j = "Parish", align = "left", part = "body") %>%
+        padding(padding = 4, part = "all") %>%
+        set_table_properties(layout = "autofit", width = 0.9) %>%
+        theme_box()
+}
+
+ft_s3 <- flextable(s3_df) %>%
+    merge_v(j = "Scenario") %>%
+    valign(j = "Scenario", valign = "top") %>%
+    style_ft()
+
+ft_s4 <- flextable(s4_df) %>%
+    merge_v(j = "Scenario") %>%
+    valign(j = "Scenario", valign = "top") %>%
+    style_ft()
+
+ft_s5 <- flextable(s5_df) %>%
+    style_ft() %>%
+    align(j = "Parish", align = "left", part = "body")
+
+# ── Assemble Word document ───────────────────────────────────────────────────
+doc_supp <- read_docx() %>%
+    body_add_par("Supplementary Table S3 \u2013 Top 10 Parishes by Scenario (Hospitals Only)",
+                 style = "heading 1") %>%
+    body_add_flextable(ft_s3) %>%
+    body_add_break(pos = "after") %>%
+
+    body_add_par("Supplementary Table S4 \u2013 Top 10 Parishes by Scenario (All Facilities)",
+                 style = "heading 1") %>%
+    body_add_flextable(ft_s4) %>%
+    body_add_break(pos = "after") %>%
+
+    body_add_par("Supplementary Table S5 \u2013 Parishes Most Frequently Appearing Among the Top 10 Across Scenarios",
+                 style = "heading 1") %>%
+    body_add_flextable(ft_s5)
+
+print(doc_supp, target = here::here("Manuscripts",
+                                     "Supplementary_Tables_Flood_Accessibility.docx"))
 ```

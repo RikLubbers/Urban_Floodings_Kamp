@@ -1,0 +1,115 @@
+# Population Distribution Across Baseline Travel-Time Bands (Figure 2)
+
+## Load libraries
+```{r}
+library(terra)
+library(here)
+```
+
+## Load population raster
+```{r}
+# Auto-detect population raster from the processed Worldpop folder
+pop_dir <- here("Data", "processed", "Worldpop_density")
+pop_files <- list.files(pop_dir, pattern = "\\.tif$", full.names = TRUE)
+
+# Prefer the file whose name contains "pop_total"; fall back to first .tif
+pop_file <- pop_files[grepl("pop_total", pop_files, ignore.case = TRUE)]
+if (length(pop_file) == 0) pop_file <- pop_files[1]
+
+pop_rast <- rast(pop_file)
+cat("Population raster loaded:", basename(pop_file), "\n")
+cat("  CRS :", crs(pop_rast, describe = TRUE)$name, "\n")
+cat("  Res :", res(pop_rast), "\n")
+```
+
+## Align population raster to travel-time grid
+```{r}
+# Project and resample population raster to match base_tt_all grid
+# (CRS, extent, and resolution). Uses bilinear interpolation for continuous
+# population counts.
+if (!compareGeom(pop_rast, base_tt_all, stopOnError = FALSE)) {
+  cat("Aligning population raster to travel-time grid...\n")
+  pop_aligned <- project(pop_rast, base_tt_all, method = "bilinear")
+} else {
+  cat("Population raster already aligned.\n")
+  pop_aligned <- pop_rast
+}
+
+# Mask population to the same valid-data extent as the travel-time raster
+pop_aligned <- mask(pop_aligned, base_tt_all)
+
+# Print total population in the study extent
+total_pop <- global(pop_aligned, fun = "sum", na.rm = TRUE)[[1]]
+cat("Total population in study extent:", format(round(total_pop), big.mark = ","), "\n")
+```
+
+## Define travel-time breaks (Figure 2)
+```{r}
+tt_breaks <- c(0, 15, 30, 45, 60, 90, 120, 180, Inf)
+
+# Human-readable band labels
+tt_labels <- c("0–15", "15–30", "30–45", "45–60",
+               "60–90", "90–120", "120–180", ">180")
+```
+
+## Helper function: population by travel-time band
+```{r}
+pop_by_tt_band <- function(tt_rast, pop_rast, breaks, labels) {
+  # Classify travel-time raster into integer band IDs (1, 2, …, n)
+  rcl <- cbind(breaks[-length(breaks)], breaks[-1], seq_along(labels))
+  tt_class <- classify(tt_rast, rcl, include.lowest = TRUE, right = FALSE)
+
+  # Zonal sum of population within each band
+  z <- zonal(pop_rast, tt_class, fun = "sum", na.rm = TRUE)
+
+  # Build tidy data frame
+  names(z) <- c("band_id", "pop_count")
+  z$band      <- labels[z$band_id]
+  z$pop_count <- round(z$pop_count)
+
+  total <- sum(z$pop_count, na.rm = TRUE)
+  z$pct <- round(z$pop_count / total * 100, 2)
+
+  # Return in band order
+ z <- z[order(z$band_id), c("band", "pop_count", "pct")]
+  rownames(z) <- NULL
+  z
+}
+```
+
+## Compute population distribution — All facilities
+```{r}
+tab_all <- pop_by_tt_band(base_tt_all, pop_aligned, tt_breaks, tt_labels)
+
+cat("\n=== Baseline travel time to ALL facilities ===\n")
+cat("Total population:", format(sum(tab_all$pop_count), big.mark = ","), "\n\n")
+print(tab_all)
+```
+
+## Compute population distribution — Hospitals only
+```{r}
+# Align population to base_tt_hosp grid (should be identical, but safe to check)
+if (!compareGeom(pop_aligned, base_tt_hosp, stopOnError = FALSE)) {
+  pop_aligned_hosp <- project(pop_aligned, base_tt_hosp, method = "bilinear")
+  pop_aligned_hosp <- mask(pop_aligned_hosp, base_tt_hosp)
+} else {
+  pop_aligned_hosp <- mask(pop_aligned, base_tt_hosp)
+}
+
+tab_hosp <- pop_by_tt_band(base_tt_hosp, pop_aligned_hosp, tt_breaks, tt_labels)
+
+cat("\n=== Baseline travel time to HOSPITALS only ===\n")
+cat("Total population:", format(sum(tab_hosp$pop_count), big.mark = ","), "\n\n")
+print(tab_hosp)
+```
+
+## Combined summary table
+```{r}
+tab_combined <- rbind(
+  cbind(scenario = "All facilities",  tab_all),
+  cbind(scenario = "Hospitals only",  tab_hosp)
+)
+
+cat("\n=== Combined summary ===\n")
+print(tab_combined)
+```

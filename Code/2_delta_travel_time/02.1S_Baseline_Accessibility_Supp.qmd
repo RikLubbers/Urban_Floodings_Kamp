@@ -1,0 +1,107 @@
+---
+title: "Baseline Accessibility — Supplementary Grids"
+format: html
+---
+
+# Quality Control / Repository-only travel time and delta travel time grids
+# for all 15 flood scenarios. Not for manuscript supplement.
+
+## Setup
+```{r}
+source(here::here("Code/utils/loading_utils.R"))
+source(here::here("Code/utils/impact_utils.R"))
+source(here::here("Code/00_scenario_definitions.R"))
+
+load_processed_data()
+```
+
+## 1. Travel Time Grids (All 15 scenarios)
+```{r}
+tt_colors_supp <- viridisLite::turbo(8)
+tt_breaks <- c(0, 15, 30, 45, 60, 90, 120, 180) 
+tt_labels <- c("0-15", "15-30", "30-45", "45-60", "60-90", "90-120", "120-180", ">180")
+
+flood_tt_all_stack <- load_flood_scenarios(type = "all")
+names(flood_tt_all_stack) <- scenarios_all$label_plot
+
+figS9_tt_grid <- ggplot() +
+  geom_spatraster(data = flood_tt_all_stack) +
+  facet_wrap(~lyr, ncol = 3) +
+  scale_fill_stepsn(
+    name = "Travel Time (min)",
+    colours = tt_colors_supp,
+    breaks = tt_breaks,
+    labels = tt_labels,
+    na.value = "transparent"
+  ) +
+  theme_minimal(base_size = 8) +
+  theme(
+    legend.position = "bottom",
+    axis.text = element_blank(),
+    panel.grid = element_blank(),
+    strip.text = element_text(face = "bold")
+  )
+
+save_manuscript_pdf(figS9_tt_grid, "travel_time_15scenarios_grid", subdir = "QC", width = 20, height = 30)
+```
+
+## 2. Delta Travel Time Grids (All 15 scenarios)
+```{r}
+delta_colors_supp <- colorRampPalette(viridisLite::turbo(9))(9)
+delta_breaks <- c(0, 0.01, 15, 30, 45, 60, 90, 120, 180)
+delta_labels <- c("0", "0.01-15", "15-30", "30-45", "45-60", "60-90", "90-120", "120-180", ">180")
+
+x_delta_all_supp <- calculate_delta_stack(flood_tt_all_stack, base_tt_all)
+names(x_delta_all_supp) <- scenarios_all$label_plot
+
+figS10_delta_all_grid <- ggplot() +
+  geom_spatraster(data = x_delta_all_supp) +
+  facet_wrap(~lyr, ncol = 3) +
+  scale_fill_stepsn(
+    name = "Δ Travel Time (min)",
+    colours = delta_colors_supp,
+    breaks = delta_breaks,
+    labels = delta_labels,
+    na.value = "transparent"
+  ) +
+  theme_minimal(base_size = 8) +
+  theme(
+    legend.position = "bottom",
+    axis.text = element_blank(),
+    panel.grid = element_blank(),
+    strip.text = element_text(face = "bold")
+  )
+
+save_manuscript_pdf(figS10_delta_all_grid, "delta_tt_15scenarios_all_facilities_grid", subdir = "QC", width = 20, height = 30)
+
+save_delta_rasters(x_delta_all_supp, "processed/delta_travel_all")
+```
+
+## 3. Hospital Delta Travel Time Grids
+```{r}
+flood_tt_hosp_stack <- load_flood_scenarios(type = "hosp")
+x_delta_hosp_supp <- calculate_delta_stack(flood_tt_hosp_stack, base_tt_hosp)
+names(x_delta_hosp_supp) <- scenarios_all$label_plot
+
+figS11_delta_hosp_grid <- ggplot() +
+  geom_spatraster(data = x_delta_hosp_supp) +
+  facet_wrap(~lyr, ncol = 3) +
+  scale_fill_stepsn(
+    name = "Δ Travel Time (min)",
+    colours = delta_colors_supp,
+    breaks = delta_breaks,
+    labels = delta_labels,
+    na.value = "transparent"
+  ) +
+  theme_minimal(base_size = 8) +
+  theme(
+    legend.position = "bottom",
+    axis.text = element_blank(),
+    panel.grid = element_blank(),
+    strip.text = element_text(face = "bold")
+  )
+
+save_manuscript_pdf(figS11_delta_hosp_grid, "delta_tt_15scenarios_hospitals_grid", subdir = "QC", width = 20, height = 30)
+
+save_delta_rasters(x_delta_hosp_supp, "processed/delta_travel_hosp")
+```

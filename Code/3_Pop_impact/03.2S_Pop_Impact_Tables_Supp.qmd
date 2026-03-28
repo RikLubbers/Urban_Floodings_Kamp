@@ -1,0 +1,67 @@
+---
+title: "Population Impact — Supplementary Ranking Tables (S5–S7)"
+format: html
+---
+
+# Parish-level ranking analysis identifying the most flood-impacted
+# administrative units across all 15 scenarios (Tables S5–S7).
+
+## Setup
+```{r}
+source(here::here("Code/utils/loading_utils.R"))
+source(here::here("Code/utils/impact_utils.R"))
+source(here::here("Code/utils/export_utils.R"))
+source(here::here("Code/00_scenario_definitions.R"))
+
+load_processed_data()
+```
+
+## 1. Parish Impact Aggregation (All 15 Scenarios)
+```{r}
+# Load flood scenarios and subtract baseline.
+x_delta_all_supp  <- load_flood_scenarios(type = "all") - base_tt_all
+x_delta_hosp_supp <- load_flood_scenarios(type = "hosp") - base_tt_hosp
+
+# Compute parish-level impact (population-weighted mean).
+df_impact_all  <- compute_parish_impact(x_delta_all_supp, Worldpop_density, Adm_boundaries)
+df_impact_hosp <- compute_parish_impact(x_delta_hosp_supp, Worldpop_density, Adm_boundaries)
+```
+
+## 2. Top 10 Parishes by Scenario (Tables S5 and S6)
+```{r}
+cols_all  <- grep("^Average_Weighted_Delta_TT_", names(df_impact_all), value = TRUE)
+cols_hosp <- grep("^Average_Weighted_Delta_TT_", names(df_impact_hosp), value = TRUE)
+
+top10_all  <- top_n_by_scenario(df_impact_all, cols_all, "All facilities", scenarios_all)
+top10_hosp <- top_n_by_scenario(df_impact_hosp, cols_hosp, "Hospitals only", scenarios_all)
+
+ft_s5 <- flextable(top10_all %>% dplyr::select(Scenario, Rank, Parish, Avg_Weighted_Delta_TT)) %>%
+  merge_v(j = "Scenario") %>% theme_vanilla() %>% autofit()
+
+ft_s6 <- flextable(top10_hosp %>% dplyr::select(Scenario, Rank, Parish, Avg_Weighted_Delta_TT)) %>%
+  merge_v(j = "Scenario") %>% theme_vanilla() %>% autofit()
+
+save_manuscript_table(ft_s5, "TableS5_parish_ranking_all_supp", subdir = "Supp", "Top 10 Affected Parishes (All Facilities)")
+save_manuscript_table(ft_s6, "TableS6_parish_ranking_hosp_supp", subdir = "Supp", "Top 10 Affected Parishes (Hospitals Only)")
+```
+
+## 3. Recurrent High-Impact Parishes (Table S7)
+```{r}
+# Frequency of appearance in the top 10 across all scenarios
+freq_all  <- top10_all  %>% 
+  st_drop_geometry() %>%
+  group_by(Parish) %>% 
+  summarise(Frequency = n(), Avg_Rank = mean(Rank)) %>% 
+  arrange(desc(Frequency), Avg_Rank)
+
+freq_hosp <- top10_hosp %>% 
+  st_drop_geometry() %>%
+  group_by(Parish) %>% 
+  summarise(Frequency = n(), Avg_Rank = mean(Rank)) %>% 
+  arrange(desc(Frequency), Avg_Rank)
+
+freq_combined <- left_join(freq_all, freq_hosp, by = "Parish", suffix = c("_All", "_Hosp"))
+
+ft_s7 <- flextable(freq_combined) %>% theme_vanilla() %>% autofit()
+save_manuscript_table(ft_s7, "TableS7_parish_frequency_supp", subdir = "Supp", "Parishes most frequently in Top 10 across scenarios")
+```

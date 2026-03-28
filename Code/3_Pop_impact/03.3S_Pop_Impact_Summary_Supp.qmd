@@ -1,0 +1,73 @@
+---
+title: "Population Impact — Narrative Diagnostics (03.3S)"
+format: html
+---
+
+# Statistical diagnostics and narrative text generation for parish-level
+# impact distributions (skewness, IQR, max-to-median ratios) across all
+# 15 flood scenarios.
+
+## Setup
+```{r}
+source(here::here("Code/utils/loading_utils.R"))
+source(here::here("Code/utils/impact_utils.R"))
+source(here::here("Code/utils/export_utils.R"))
+source(here::here("Code/00_scenario_definitions.R"))
+
+load_processed_data()
+```
+
+## 1. Parish Impact Aggregation (All 15 Scenarios)
+```{r}
+# Load flood scenarios and subtract baseline.
+x_delta_all_supp  <- load_flood_scenarios(type = "all") - base_tt_all
+x_delta_hosp_supp <- load_flood_scenarios(type = "hosp") - base_tt_hosp
+
+# Compute parish-level impact (population-weighted mean).
+df_impact_all  <- compute_parish_impact(x_delta_all_supp, Worldpop_density, Adm_boundaries)
+df_impact_hosp <- compute_parish_impact(x_delta_hosp_supp, Worldpop_density, Adm_boundaries)
+```
+
+## 2. Statistical Diagnostics
+```{r}
+# Computes distributional statistics across parishes for each scenario
+compute_diagnostics_local <- function(df, prefix) {
+  cols <- grep("^Average_Weighted_Delta_TT_", names(df), value = TRUE)
+  purrr::map_dfr(cols, function(col) {
+    x <- df[[col]]
+    tibble::tibble(
+      Scenario       = sub("Average_Weighted_Delta_TT_", "", col),
+      Mean           = mean(x, na.rm = TRUE),
+      Median         = median(x, na.rm = TRUE),
+      IQR            = IQR(x, na.rm = TRUE),
+      Max            = max(x, na.rm = TRUE),
+      Max_Med_Ratio  = max(x, na.rm = TRUE) / median(x, na.rm = TRUE)
+    )
+  }) %>% mutate(FacilityType = prefix)
+}
+
+diag_all  <- compute_diagnostics_local(df_impact_all, "All Facilities")
+diag_hosp <- compute_diagnostics_local(df_impact_hosp, "Hospitals")
+
+diag_combined <- bind_rows(diag_all, diag_hosp)
+
+knitr::kable(diag_combined, digits = 2, caption = "Scenario Diagnostics (96 Parishes)")
+```
+
+## 3. Narrative Generation
+```{r}
+# Generates human-readable summary statements per scenario × facility type
+make_narrative <- function(diag_df) {
+  diag_df %>%
+    dplyr::mutate(statement = paste0(
+      "In ", FacilityType, ", the maximum parish increase is ", round(Max, 1),
+      " min under ", Scenario, ", compared with a median of ", round(Median, 1), " min."
+    )) %>%
+    dplyr::pull(statement)
+}
+
+narratives <- make_narrative(diag_combined)
+cat(paste(narratives, collapse = "\n\n"))
+
+writeLines(narratives, here::here("Manuscripts", "narrative_segments.txt"))
+```

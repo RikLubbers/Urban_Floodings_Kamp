@@ -1,36 +1,15 @@
-# This file is responsible for pre-processing all input data.
-# The raw data is transformed into processed data, which is then saved for further use.
-# Specifically, the data is cropped to the Kampala extent and assigned the correct Coordinate Reference System (CRS).
+# Pre-processing of raw geospatial inputs for the Kampala study area.
+# Crops, reprojects, and cleans all spatial datasets to a common extent
+# and CRS defined by the Kampala parish boundaries.
 
-# Load the necessary libraries
 ```{r}
-# Set up renv for reproducible package management
-if (!requireNamespace("renv", quietly = TRUE)) {
-  install.packages("renv")
-} else {
-  message("renv is already installed.")
-}
+source(here::here("Code/utils/loading_utils.R"))
 
-# Load renv for environment management
-library(renv)
-
-# Activate renv if the environment is not yet synchronized
-if (!renv::status()$synchronized) {
-  renv::activate()
-}
-
-# Restore the environment from lockfile (for collaborators)
-renv::restore()
-
-# Load required libraries for spatial data processing
-library(terra)
-library(here)
 library(Spatial.align)
-library(tidyterra)
 ```
 
 ```{r}
-# Load raw spatial and raster data for Kampala study area
+# Load raw spatial datasets
 parishes <- vect(here("Data/raw/Adm_boundaries/PARISHES_2016_UTM_36N.shp"))
 dem30m <- rast(here("Data/raw/DEM/Uganda_SRTM30meters.tif"))
 facilities_all <- vect(here("Data/raw/Facilities/UG_HF_all.shp"))
@@ -39,33 +18,29 @@ landcover10m <- rast(here("Data/raw/Landcover/ESA_WorldCover_10m_2021_v200_N00E0
 osm_roads <- vect(here("Data/raw/OSM_roads/hotosm_uga_roads_lines.shp"))
 water_lines <- vect(here("Data/raw/Water_lines/Kamp_rivers_streams_canals.shp"))
 
-# Load and combine WorldPop population density rasters
+# Aggregate WorldPop age-sex population density layers into total population
 worldpop_density <- list.files(here("Data/raw/Worldpop_density"), pattern = "\\.tif$", full.names = TRUE) %>%
   lapply(rast) %>%
   {Reduce(`+`, .)}
 
-# Load WorldPop development indicator rasters (mean values only)
+# Load WorldPop development indicator rasters (mean aggregates only)
 worldpop_dev_indicators <- here("Data/raw/Worldpop_dev_indicators") %>%
   list.files(pattern = "MEAN\\.tif$", full.names = TRUE, recursive = TRUE) %>%
   lapply(rast)
 
-# Load malaria incidence raster and select the relevant layer
+# Load Plasmodium falciparum incidence rate raster (GBD 2023, reference year 2016)
 malaria <- rast(here("Data/raw/Worldpop_dev_indicators/Malaria/2024_GBD2023_Global_Pf_Incidence_Rate_2016.tif")) 
 malaria <- malaria[["Data"]]
 ```
 
-# Select only the parishes in Kampala as reference for cropping, crs and extent
+# Filter and export Kampala parish boundaries
 ```{r}
-# Filter parish boundaries to retain only those within Kampala District
 parishes_kamp <- parishes[parishes$DName2016 == "KAMPALA",]
-
-# Export the filtered Kampala parish boundaries to the processed data folder
 writeVector(parishes_kamp, here("Data/processed/Adm_boundaries/parishes_kampala.shp"), overwrite = TRUE)
 ```
 
-# Spatial align all the other data to the extent of the parishes in Kampala
+# Align all datasets to the Kampala parish extent and CRS
 ```{r}
-# Align all spatial and raster datasets to the extent and CRS of Kampala parishes
 dem30m <- align(dem30m, parishes_kamp, show_plots = TRUE)
 facilities_all <- align(facilities_all, parishes_kamp)
 facilities_hosp <- align(facilities_hosp, parishes_kamp)
@@ -77,10 +52,8 @@ worldpop_dev_indicators <- lapply(worldpop_dev_indicators, function(x) align(x, 
 malaria = align(malaria, parishes_kamp)
 ```
 
-# Clean the data 
-## Clean and prepare landcover data
+# Reclassify landcover to ESA WorldCover standard classes
 ```{r}
-# Reclassify Landcover
 reclass_matrix <- matrix(c(
   0, 19.999999, 10,
   20, 29.999999, 20,
@@ -95,13 +68,9 @@ reclass_matrix <- matrix(c(
   100, 999.999999, 100
 ), ncol = 3, byrow = TRUE)
 
-# Apply the reclassification to the landcover raster
 landcover10m <- classify(landcover10m, reclass_matrix)
-
-# Ensure the landcover is treated as categorical
 landcover10m <- as.factor(landcover10m)
 
-# Rename the landcover categories
 levels(landcover10m)[[1]]$ID <- c(
   "10" = "Tree cover",
   "20" = "Shrubland",
@@ -117,9 +86,8 @@ levels(landcover10m)[[1]]$ID <- c(
 )
 ```
 
-## Clean & Prepare the facility data
+# Standardise facility attribute names and assign ordered factor levels
 ```{r}	
-# Clean Health Facilities
 facilities_all <- facilities_all %>%
   rename_with(~ gsub(" ", "_", .))
 
@@ -148,30 +116,24 @@ facilities_hosp$Facility_t <- factor(
 )
 ```
 
-## Make selection of OSM roads
+# Retain major road classes and collapse link variants into parent types
 ```{r}
-# Select specific categories of highways from OSM roads
 osm_roads <- osm_roads[osm_roads$highway %in% c("motorway", "motorway_link", "primary", "primary_link", 
                                                 "secondary", "secondary_link", "tertiary", "tertiary_link", 
                                                 "trunk", "trunk_link"), ]
 
-# Refactor all links into their respective main road type (e.g., motorway_link -> motorway)
 osm_roads$highway <- factor(gsub("_link", "", osm_roads$highway))
 ```
 
-## Make selection of water lines
+# Retain rivers, streams, and canals from the hydrography dataset
 ```{r}
-# Select only the water lines that are rivers, streams or canals
 water_lines <- water_lines[water_lines$waterway %in% c("river", "stream", "canal"), ]
 ```
 
-# Save the processed data
+# Export all processed datasets
 ```{r}
-# Save the processed data
-# Define the base processed folder path
 processed_dir <- here("Data/processed")
 
-# Save the processed data in the respective subfolders
 writeRaster(dem30m, file.path(processed_dir, "DEM", "dem30m_kampala.tif"), overwrite = TRUE)
 writeVector(facilities_all, file.path(processed_dir, "Facilities", "facilities_all_kampala.shp"), overwrite = TRUE)
 writeVector(facilities_hosp, file.path(processed_dir, "Facilities", "facilities_hosp_kampala.shp"), overwrite = TRUE)
@@ -180,7 +142,6 @@ writeVector(osm_roads, file.path(processed_dir, "OSM_roads", "osm_roads_kampala.
 writeVector(water_lines, file.path(processed_dir, "Water_lines", "water_lines_kamp.shp"), overwrite = TRUE)
 writeRaster(worldpop_density, file.path(processed_dir, "Worldpop_density", "worldpop_density_kampala.tif"), overwrite = TRUE)
 
-# Save each Worldpop development indicator raster in the respective folder based on the name of the raster
 lapply(worldpop_dev_indicators, function(raster) {
     raster_name <- names(raster)
     writeRaster(raster, 

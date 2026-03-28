@@ -1,0 +1,154 @@
+---
+title: "Population Impact — Main Manuscript Figures 3, 4 and Table 2"
+format: html
+---
+
+# Population-weighted accessibility impact analysis for 6 main flood
+# scenarios. Generates bivariate choropleth maps (Figures 3, 4) and
+# summary statistics table (Table 2).
+
+## Setup
+```{r}
+source(here::here("Code/utils/loading_utils.R"))
+source(here::here("Code/utils/impact_utils.R"))
+source(here::here("Code/utils/export_utils.R"))
+source(here::here("Code/00_scenario_definitions.R"))
+
+load_processed_data()
+```
+
+## 1. Population-Weighted Delta Travel Time Calculation
+```{r}
+# 1.1 Compute delta travel time stacks for 6 main scenarios.
+# Note: To ensure absolute numerical parity with the Full (15-scenario) pipeline,
+# we use the same loading and subtraction methodology: subtract baseline from
+# the entire stack first, then subset to main scenarios.
+delta_full_all  <- load_flood_scenarios(type = "all") - base_tt_all
+delta_full_hosp <- load_flood_scenarios(type = "hosp") - base_tt_hosp
+
+delta_all_main  <- delta_full_all[[scenarios_main$label]]
+delta_hosp_main <- delta_full_hosp[[scenarios_main$label]]
+
+# 1.2 Parish-level aggregation: Population-weighted mean per scenario.
+# estimand: Parish-level population-weighted mean impact for spatial aggregation (Maps).
+df_impact_all_main <- compute_parish_impact(delta_all_main, Worldpop_density, Adm_boundaries)
+df_impact_hosp_main <- compute_parish_impact(delta_hosp_main, Worldpop_density, Adm_boundaries)
+
+# Classify total parish population into three tiers for bivariate mapping.
+df_impact_all_main <- df_impact_all_main %>%
+  mutate(Population_bin = factor(cut(Population_Sum, breaks = c(0, 10000, 30000, Inf), 
+                                     include.lowest = TRUE, labels = c("Low", "Medium", "High")),
+                                 levels = c("High", "Medium", "Low")))
+
+df_impact_hosp_main <- df_impact_hosp_main %>%
+  mutate(Population_bin = factor(cut(Population_Sum, breaks = c(0, 10000, 30000, Inf), 
+                                     include.lowest = TRUE, labels = c("Low", "Medium", "High")),
+                                 levels = c("High", "Medium", "Low")))
+```
+
+# 2. Bivariate Figure 3 (All Facilities)
+```{r}
+# Generates a single bivariate panel for a given scenario
+plot_bivariate_main <- function(df, sc_label, title_text) {
+  df$Weighted_bin <- factor(cut(df[[paste0("Average_Weighted_Delta_TT_", sc_label)]],
+                                breaks = c(0, 30, 60, Inf), include.lowest = TRUE,
+                                labels = c("0-30", "30-60", "60+")),
+                            levels = c("0-30", "30-60", "60+"))
+  
+  df_bi <- bi_class(df, x = "Weighted_bin", y = "Population_bin", dim = 3)
+  
+  ggplot() +
+    geom_sf(data = df_bi, aes(fill = bi_class), color = "white", size = 0.1) +
+    bi_scale_fill(pal = "DkViolet", dim = 3) +
+    labs(title = title_text) +
+    bi_theme() + theme(legend.position = "none", plot.title = element_text(size = 9, face = "bold", hjust = 0.5))
+}
+
+plots_all_main <- purrr::map(scenarios_main$label, ~plot_bivariate_main(df_impact_all_main, .x, scenarios_main$label_plot[scenarios_main$label == .x]))
+stopifnot(length(plots_all_main) == 6)
+
+legend_bi <- bi_legend(pal = "DkViolet", dim = 3, 
+                       xlab = "Δ Travel Time (min)", 
+                       ylab = "Population Sum", 
+                       size = 8,
+                       breaks = list(
+                         bi_x = c("0-30", "30-60", "60+"),
+                         bi_y = c(">30k", "10k-30k", "<10k")
+                       ))
+
+fig3_grid <- wrap_plots(plots_all_main, ncol = 2, nrow = 3)
+fig3_final <- (fig3_grid | legend_bi) + plot_layout(widths = c(2.5, 1))
+
+save_manuscript_pdf(fig3_final, "Fig3_absolute_6scenarios_all_facilities_main", subdir = "Main", width = 15, height = 25)
+```
+
+## 3. Bivariate Figure 4 (Hospitals)
+```{r}
+plots_hosp_main <- purrr::map(scenarios_main$label, ~plot_bivariate_main(df_impact_hosp_main, .x, scenarios_main$label_plot[scenarios_main$label == .x]))
+stopifnot(length(plots_hosp_main) == 6)
+
+fig4_grid <- wrap_plots(plots_hosp_main, ncol = 2, nrow = 3)
+fig4_final <- (fig4_grid | legend_bi) + plot_layout(widths = c(2.5, 1))
+
+save_manuscript_pdf(fig4_final, "Fig4_absolute_6scenarios_hospitals_main", subdir = "Main", width = 15, height = 25)
+```
+
+## 4. Table 2 Summary (Flextable)
+```{r}
+# Pixel-level extraction (population-weighted sample) for summary statistics.
+# Uses pixel-level sampled summaries for manuscript-level impact estimates.
+# To ensure absolute parity with Supp, we use identical sampling size (100k) 
+# and stable seeds (fixed in impact_utils.R).
+s_all_main <- sample_weighted_pixels_from_raster(delta_all_main, Worldpop_density, "All Facilities", 100000)
+s_hosp_main <- sample_weighted_pixels_from_raster(delta_hosp_main, Worldpop_density, "Hospitals", 100000)
+
+pixels_sampled_main <- bind_rows(s_all_main, s_hosp_main)
+
+# Free intermediate raster memory
+invisible(gc())
+
+summary_all_main  <- summarise_impact_metrics(
+  pixels_sampled_main %>% filter(FacilityType == "All Facilities"), 
+  c("Intensity", "Duration", "scenario"))
+summary_hosp_main <- summarise_impact_metrics(
+  pixels_sampled_main %>% filter(FacilityType == "Hospitals"), 
+  c("Intensity", "Duration", "scenario"))
+
+table_data_main <- summary_all_main %>%
+  left_join(summary_hosp_main, by = c("Intensity", "Duration", "scenario"), suffix = c("_All", "_Hosp")) %>%
+  arrange(Duration, Intensity) %>%
+  dplyr::select(Duration, Intensity, 
+                Mean_All, Min_All, Q25_All, Median_All, Q75_All, Max_All,
+                Mean_Hosp, Min_Hosp, Q25_Hosp, Median_Hosp, Q75_Hosp, Max_Hosp)
+
+ft2 <- flextable(table_data_main) %>%
+  add_header_row(values = c("", "", "All Facilities (min)", "Hospitals (min)"), colwidths = c(1, 1, 6, 6)) %>%
+  set_header_labels(Duration = "Duration (hr)", Intensity = "Rainfall (mm)",
+                    Mean_All = "Mean", Min_All = "Min", Q25_All = "Q25", Median_All = "Median", Q75_All = "Q75", Max_All = "Max",
+                    Mean_Hosp = "Mean", Min_Hosp = "Min", Q25_Hosp = "Q25", Median_Hosp = "Median", Q75_Hosp = "Q75", Max_Hosp = "Max") %>%
+  theme_vanilla() %>% autofit()
+
+save_manuscript_table(ft2, "Table2_scenario_summary_main", subdir = "Main", "Travel Time Increase Summary (Main Scenarios)")
+```
+
+## 5. Verification (Parity Check)
+```{r}
+# If Full Scenario outputs exist in the environment, verify that they 
+# exactly match the corresponding subset of this Main analysis.
+if (exists("pixels_sampled") & exists("pixels_sampled_main")) {
+  val_full <- pixels_sampled %>% 
+    filter(scenario %in% scenarios_main$label) %>%
+    summarise_impact_metrics(c("scenario")) %>%
+    arrange(scenario)
+  
+  val_main <- pixels_sampled_main %>%
+    summarise_impact_metrics(c("scenario")) %>%
+    arrange(scenario)
+  
+  if (isTRUE(all.equal(val_full$Mean, val_main$Mean))) {
+    message("PARITY CHECK PASSED: Main summary statistics match Full subset exactly.")
+  } else {
+    warning("PARITY CHECK FAILED: Discrepancy detected between Main and Full summary stats.")
+  }
+}
+```

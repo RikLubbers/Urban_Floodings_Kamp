@@ -1,0 +1,143 @@
+---
+title: "Master Analysis Runner"
+format: html
+---
+
+# Master Analysis Runner
+
+```{r setup, include=FALSE}
+library(knitr)
+library(here)
+
+# Execution log accumulator
+analysis_results <- data.frame(
+  File = character(),
+  Status = character(),
+  Duration = character(),
+  stringsAsFactors = FALSE
+)
+options(warn = -1)
+
+# Extracts R code from a QMD file via knitr::purl(), executes it with
+# suppressed console output, and records pass/fail status with elapsed time.
+run_qmd <- function(qmd_path, i, n) {
+  start_time <- Sys.time()
+  
+  cat(sprintf("  [%d/%d] %-60s ... ", i, n, basename(qmd_path)))
+  utils::flush.console()
+  
+  # Extract R code from QMD
+  temp_r <- tempfile(fileext = ".R")
+  purl_res <- try(knitr::purl(here(qmd_path), output = temp_r, quiet = TRUE, documentation = 0), silent = TRUE)
+  
+  if (inherits(purl_res, "try-error")) {
+    cat("PURL ERROR\n")
+    analysis_results <<- rbind(analysis_results, data.frame(
+      File = qmd_path, Status = "PURL ERROR", Duration = "0s"
+    ))
+    return(invisible(FALSE))
+  }
+  
+  # Execute with suppressed output
+  success <- TRUE
+  err_msg <- ""
+  
+  null_dev <- if (.Platform$OS.type == "windows") "NUL" else "/dev/null"
+  msg_con <- file(null_dev, open = "wt")
+  
+  on.exit({
+    try({
+      sink(type = "message")
+      if (isOpen(msg_con)) close(msg_con)
+      sink()
+    }, silent = TRUE)
+  }, add = TRUE)
+  
+  res <- try({
+    sink(null_dev)
+    sink(msg_con, type = "message")
+    source(temp_r, local = FALSE)
+  }, silent = TRUE)
+  
+  # Restore sinks immediately to allow progress reporting
+  try({
+    sink(type = "message")
+    if (isOpen(msg_con)) close(msg_con)
+    sink()
+  }, silent = TRUE)
+  on.exit(NULL)
+  
+  if (inherits(res, "try-error")) {
+    success <- FALSE
+    err_msg <- attr(res, "condition")$message
+  }
+  
+  if (file.exists(temp_r)) unlink(temp_r)
+  
+  end_time <- Sys.time()
+  duration <- round(as.numeric(difftime(end_time, start_time, units = "secs")), 1)
+  
+  if (success) {
+    status <- "PASS"
+    cat(sprintf("PASS (%s s)\n", duration))
+  } else {
+    status <- "FAIL"
+    cat("FAIL\n")
+    cat(paste0("         ! ERROR: ", trimws(err_msg), "\n"))
+  }
+  
+  analysis_results <<- rbind(analysis_results, data.frame(
+    File = qmd_path,
+    Status = status,
+    Duration = paste0(duration, "s")
+  ))
+}
+
+# Executes a named batch of QMD files and prints a section summary.
+run_section <- function(section_name, files) {
+  cat(paste0("\n=== ", toupper(section_name), " ===\n"))
+  n <- length(files)
+  for (i in seq_along(files)) {
+    run_qmd(files[i], i, n)
+  }
+  
+  cat("\nSection Summary:\n")
+  section_res <- tail(analysis_results, n)
+  print(section_res, row.names = FALSE)
+  cat(rep("-", 80), "\n", sep = "")
+  
+  invisible(NULL)
+}
+```
+
+## 2. Main Analysis (Manuscript Figures & Tables)
+```{r, results='asis'}
+#| eval: false
+main_analysis_files <- c(
+  "Code/1_Data_loading_baseline/02_Baseline_geography.qmd",
+  "Code/4_Vulnerability_index_impact/04.1_Index_equal_weight.qmd",
+  "Code/2_delta_travel_time/02.1_Baseline_Accessibility_Main.qmd",
+  "Code/3_Pop_impact/03.1_Pop_Impact_Main.qmd",
+  "Code/4_Vulnerability_index_impact/04.2_Vulnerability_Impact_Main.qmd"
+)
+
+run_section("Main Manuscript Analysis", main_analysis_files)
+```
+
+## 3. Supplementary Analysis
+```{r, results='asis'}
+#| eval: false
+supp_analysis_files <- c(
+  "Code/4_Vulnerability_index_impact/04.1B_PCA_and_Comparison.qmd",
+  "Code/2_delta_travel_time/02.1S_Baseline_Accessibility_Supp.qmd",
+  "Code/3_Pop_impact/03.1S_Pop_Impact_Supp.qmd",
+  "Code/3_Pop_impact/03.2S_Pop_Impact_Tables_Supp.qmd",
+  "Code/3_Pop_impact/03.3S_Pop_Impact_Summary_Supp.qmd",
+  "Code/4_Vulnerability_index_impact/04.2S_Vulnerability_Impact_Supp.qmd",
+  "Code/4_Vulnerability_index_impact/04.3S_Vulnerability_Gap_Analysis_Supp.qmd"
+)
+
+run_section("Supplementary Analysis", supp_analysis_files)
+
+options(warn = 0)
+```

@@ -1,0 +1,96 @@
+# Preparation of input datasets for AccessMod 5 travel time modelling.
+# Copies processed spatial data into the inAccessMod folder structure,
+# applies CRS projection, and processes vector/raster inputs.
+
+```{r}
+source(here::here("Code/utils/loading_utils.R"))
+
+library(inAccessMod)
+library(Spatial.align)
+```
+
+# Initialise the inAccessMod project structure
+```{r}
+mainPath <- here("AccessMod/InAccessMod")
+country <- "Uganda"
+```
+
+# Copy processed datasets into the AccessMod input directories
+## Administrative boundaries
+```{r}
+inputPath_adm <- here("Data/processed/Adm_boundaries")
+copy_input(mainPath, country, inputPath_adm)
+```
+
+## Population density
+```{r}
+inputPath_pop <- here("Data/processed/Worldpop_density/worldpop_density_kampala.tif")
+copy_input(mainPath, country, inputPath_pop)
+```
+
+## Digital Elevation Model
+```{r}
+inputPath_DEM <- here("Data/processed/DEM/dem30m_kampala.tif")
+copy_input(mainPath, country, inputPath_DEM)
+```
+
+## Landcover
+```{r}
+inputPath_LC <- here("Data/processed/Landcover/landcover10m_kampala.tif")
+copy_input(mainPath, country, inputPath_LC)
+```
+
+## Health facilities
+```{r}
+inputPath_HF <- here("Data/processed/Facilities")
+copy_input(mainPath, country, inputPath_HF)
+```
+
+## OSM road network
+```{r}
+inputPath_roads <- here("Data/processed/OSM_roads")
+copy_input(mainPath, country, inputPath_roads)
+```
+
+# Flood extent polygons
+```{r}
+inputPath_flood <- here("Data/processed/Flood_extents/Flood_extents_full")
+copy_input(mainPath, country, inputPath_flood)
+```
+
+# Hydrography
+```{r}
+inputPath_water <- here("Data/processed/Water_lines")
+copy_input(mainPath, country, inputPath_water)
+```
+
+# Set projected CRS for all vector inputs
+```{r}
+set_projection(mainPath, country, mostRecent = TRUE, alwaysSet = TRUE, bestCRS = TRUE)
+```
+
+# Process vector inputs; rasters are handled separately below
+```{r}
+process_inputs(mainPath, country, mostRecent = TRUE, alwaysProcess = FALSE)
+
+# Align DEM and landcover to the disaggregated population raster grid
+dem <- rast(here("Data/processed/DEM/dem30m_kampala.tif"))
+landcover <- rast(here("Data/processed/Landcover/landcover10m_kampala.tif"))
+
+crs(dem) <- crs(pop_total_10m)
+dem <- crop(dem, pop_total_10m)
+dem <- resample(dem, pop_total_10m, method = "bilinear")
+
+crs(landcover) <- crs(pop_total_10m)
+landcover <- crop(landcover, pop_total_10m)
+landcover <- resample(landcover, pop_total_10m, method = "near")
+```
+
+# Compile processed data and export rasters to AccessMod
+```{r}
+compile_processed_data(mainPath, country, mostRecent = FALSE)
+
+# NOTE: Hardcoded timestamp directory. Update if AccessMod project is reinitialised.
+writeRaster(dem, here("AccessMod/InAccessMod/Uganda/data/zToAccessMod/20250108115609/UG_DEM_kamp.tif"), overwrite = TRUE)
+writeRaster(landcover, here("AccessMod/InAccessMod/Uganda/data/zToAccessMod/20250108115609/UG_Landcover_kamp.tif"), overwrite = TRUE)
+```

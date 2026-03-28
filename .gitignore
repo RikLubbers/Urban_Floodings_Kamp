@@ -1,38 +1,42 @@
-# Ignore temporary and data files
+# R session files
 .Rhistory
 .RData
 .Rproj.user/
+
+# IDE and OS
 .DS_Store
-__pycache__/
+.vscode/
 
-# renv (R Dependency Management)
+# Agent / AI configuration (not part of the analysis)
+GEMINI.md
+CHANGELOG_UPDATES.md
+
+# renv (R dependency management)
+# NOTE: renv.lock is intentionally TRACKED for reproducibility.
 renv/
-renv.lock
-code/renv
 
-# Data Files
-data/
+# Data directories (raw and processed data not distributed via Git)
 Data/
-data/raw/
-Data/raw/
-data/processed/
-Data/processed/
 
-# AccessMod Outputs
-AccessMod/Output/
-AccessMod/InAccessMod/.tmp/
-AccessMod/AMRemote_multi_mergedLC/.tmp/
+# AccessMod project files and outputs
 AccessMod/
 
-# General Folders
+# Generated outputs (reproduced by running the analysis)
 Figures/
+Tables/
+
+# Manuscript and presentation files
 Manuscripts/
 Presentations/
 Submissions/
 
-# Temporary and Backup Files
+# Legacy / superseded code
+Code/legacy/
+
+# Temporary and backup files
 *.zip
 *.tmp
 *.log
 *.bak
 QGIS_project_urban_floods.qgz
+

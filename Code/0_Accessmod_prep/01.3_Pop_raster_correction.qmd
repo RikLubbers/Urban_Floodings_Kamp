@@ -1,0 +1,35 @@
+# Disaggregation of WorldPop population density to 10 m resolution.
+# The original ~100 m grid is disaggregated by a factor of 10 in each
+# dimension, with cell values divided by 100 to preserve total population.
+
+```{r}
+source(here::here("Code/utils/loading_utils.R"))
+```
+
+# Load population raster and study area boundary
+```{r}
+pop_raster_total <- rast(here("Data/processed/Worldpop_density/worldpop_density_kampala.tif"))
+study_area <- vect(here("Data/processed/Adm_boundaries/parishes_kampala.shp"))
+```
+
+# Reproject study area to match the population raster CRS
+```{r}
+study_area <- project(study_area, crs(pop_raster_total))
+```
+
+# Disaggregate to 10 × 10 m resolution and adjust values
+```{r}
+# Each original cell is split into 10 × 10 = 100 sub-cells
+pop_total_10m <- disagg(pop_raster_total, c(10, 10))
+
+# Divide by disaggregation factor to conserve total population count
+pop_total_10m <- pop_total_10m / 100
+```
+
+# Export disaggregated population raster
+```{r}
+# NOTE: Hardcoded timestamp directory. Update if AccessMod project is reinitialised.
+writeRaster(pop_total_10m, here("AccessMod/InAccessMod/Uganda/data/zToAccessMod/20250108115609/pop_total_10m.tif"), overwrite = TRUE)
+
+writeRaster(pop_total_10m, here("Data/processed/Worldpop_density/pop_total_10m.tif"), overwrite = TRUE)
+```

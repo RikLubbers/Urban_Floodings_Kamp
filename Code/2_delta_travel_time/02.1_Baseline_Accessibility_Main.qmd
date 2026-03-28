@@ -1,0 +1,187 @@
+---
+title: "Baseline Accessibility — Main Manuscript Figure 2"
+format: html
+---
+
+# Baseline accessibility and delta travel time maps (main manuscript).
+# Generates Figure 2: two-panel baseline travel time to (a) all
+# healthcare facilities and (b) hospitals only.
+
+## Setup
+```{r}
+source(here::here("Code/utils/loading_utils.R"))
+source(here::here("Code/utils/export_utils.R"))
+source(here::here("Code/00_scenario_definitions.R"))
+
+load_processed_data()
+filter_facilities()
+```
+
+## Figure 2 — Combined Baseline Map
+```{r}
+# Travel time colour ramp and bin breaks (minutes)
+tt_colors_main <- viridisLite::turbo(8)
+tt_breaks <- c(0, 15, 30, 45, 60, 90, 120, 180) 
+tt_labels <- c("0-15", "15-30", "30-45", "45-60", "60-90", "90-120", "120-180", ">180")
+
+# Replicate the coordinate-shift pipeline from 02_Baseline_geography.qmd
+# to derive a consistent plotting extent (geog_extent)
+lc_path <- here("Data", "raw", "Landcover", "ESA_WorldCover_10m_2021_v200_N00E030_Map.tif")
+landcover_complete <- rast(lc_path)
+landcover_complete <- project(landcover_complete, Landcover)
+landcover_complete <- crop(landcover_complete, Landcover)
+
+raw_fac_path <- here("Data", "raw", "Facilities", "suhsharan_health_facilities", "sub-saharan_health_facilities.shp")
+fac_complete_ref <- vect(raw_fac_path)
+fac_complete_ref <- project(fac_complete_ref, Landcover)
+fac_complete_ref <- crop(fac_complete_ref, Landcover)
+
+names(fac_complete_ref)[names(fac_complete_ref) %in% c("Facility.n", "Facility n")] <- "Facility_n"
+
+fac_processed <- if (inherits(Facilities, "list")) {
+  idx <- which(names(Facilities) == "facilities_all_kampala")
+  if (length(idx) > 0) Facilities[[idx]] else Facilities[[1]]
+} else {
+  Facilities
+}
+
+# Compute coordinate shift (dx, dy) from matched facility positions
+common_ids <- intersect(as.character(fac_complete_ref$Facility_n), as.character(fac_processed$Facility_n))
+idx_c <- match(common_ids, as.character(fac_complete_ref$Facility_n))
+idx_s <- match(common_ids, as.character(fac_processed$Facility_n))
+
+coords_c <- crds(fac_complete_ref)
+coords_s <- crds(fac_processed)
+
+dx <- mean(coords_s[idx_s, 1] - coords_c[idx_c, 1], na.rm = TRUE)
+dy <- mean(coords_s[idx_s, 2] - coords_c[idx_c, 2], na.rm = TRUE)
+
+landcover_complete <- shift(landcover_complete, dx, dy)
+geog_extent        <- ext(landcover_complete)
+
+# Build contextual facility layers (shifted reference data)
+names(fac_complete_ref)[names(fac_complete_ref) %in% c("Facility.t", "Facility t")] <- "Facility_t"
+names(fac_complete_ref)[names(fac_complete_ref) %in% c("LL.source", "LL source")]   <- "LL_source"
+
+facilities_complete_ctx <- shift(fac_complete_ref, dx, dy)
+
+hospitals_complete <- facilities_complete_ctx[facilities_complete_ctx$Facility_t %in% 
+                                                c("National Referral Hospital", "Hospital", "Regional Referral Hospital"), ]
+health_centers_complete <- facilities_complete_ctx[facilities_complete_ctx$Facility_t %in% 
+                                                   c("Health Centre III", "Health Centre II", "Health Centre IV"), ]
+
+message(paste0("Diagnostic: Rebuilt context with ", nrow(hospitals_complete), " hospitals and ", 
+               nrow(health_centers_complete), " health centres."))
+
+# --- Panel A: All Facilities ---
+p_a_main <- ggplot() +
+  geom_spatraster(data = base_tt_all) +
+  scale_fill_stepsn(
+    name = "Travel Time (min)",
+    colours = tt_colors_main,
+    breaks = tt_breaks,
+    labels = tt_labels,
+    limits = c(0, 180),
+    oob = scales::squish,
+    na.value = "transparent",
+    guide = guide_legend(
+      ncol = 2,
+      byrow = FALSE,
+      title.position = "top",
+      label.position = "right",
+      keywidth = unit(0.7, "cm"),
+      keyheight = unit(0.3, "cm"),
+      order = 1
+    )
+  ) +
+  ggnewscale::new_scale_fill() +
+  
+  geom_sf(data = sf::st_as_sf(Adm_boundaries), color = "gray20", fill = NA, linewidth = 0.2) +
+  
+  # Contextual facilities (semi-transparent, outside AOI)
+  geom_sf(data = sf::st_as_sf(hospitals_complete), shape = 23, fill = scales::alpha("blue", 0.4), color = scales::alpha("black", 0.5), size = 1.2) +
+  geom_sf(data = sf::st_as_sf(health_centers_complete), shape = 21, fill = scales::alpha("green", 0.4), color = scales::alpha("black", 0.5), size = 0.8) +
+
+  # Study area facilities (solid)
+  geom_sf(data = sf::st_as_sf(hospitals_main), aes(shape = "Hospitals"), fill = "blue", color = "black", size = 2) +
+  geom_sf(data = sf::st_as_sf(health_centres_main), aes(shape = "Health centres"), fill = "green", color = "black", size = 1.2) +
+  
+  scale_shape_manual(name = "Facilities", values = c("Health centres" = 21, "Hospitals" = 23)) +
+  guides(shape = guide_legend(
+    ncol = 1,
+    title.position = "top",
+    label.position = "right",
+    override.aes = list(
+      fill = c("green", "blue"),
+      color = "black", 
+      size = 3.5, 
+      alpha = 1
+    ),
+    order = 2
+  )) +
+  
+  coord_sf(xlim = c(geog_extent[1], geog_extent[2]), 
+           ylim = c(geog_extent[3], geog_extent[4]), expand = FALSE) +
+  
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.box = "horizontal",
+    legend.box.just = "top",
+    legend.spacing.x = unit(1, "cm"),
+    legend.title = element_text(face = "bold", size = 9),
+    legend.text = element_text(size = 8),
+    legend.margin = margin(t = 10, b = 5),
+    axis.text = element_blank(),
+    panel.grid = element_blank(),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 10)
+  ) +
+  labs(title = "Baseline Accessibility - All Facilities")
+
+# --- Panel B: Hospitals Only ---
+p_b_main <- ggplot() +
+  geom_spatraster(data = base_tt_hosp) +
+  scale_fill_stepsn(
+    colours = tt_colors_main, 
+    breaks = tt_breaks, 
+    limits = c(0, 180),
+    oob = scales::squish,
+    na.value = "transparent",
+    guide = "none"
+  ) +
+  
+  geom_sf(data = sf::st_as_sf(Adm_boundaries), color = "gray20", fill = NA, linewidth = 0.2) +
+  
+  geom_sf(data = sf::st_as_sf(hospitals_complete), shape = 23, fill = scales::alpha("blue", 0.4), color = scales::alpha("black", 0.5), size = 1.2) +
+  geom_sf(data = sf::st_as_sf(hospitals_main), shape = 23, fill = "blue", color = "black", size = 2) +
+  
+  coord_sf(xlim = c(geog_extent[1], geog_extent[2]), 
+           ylim = c(geog_extent[3], geog_extent[4]), expand = FALSE) +
+  
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.text = element_blank(),
+    panel.grid = element_blank(),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 10)
+  ) +
+  labs(title = "Baseline Accessibility - Hospitals Only")
+
+# Combine panels and export
+fig2_combined_main <- (p_a_main + p_b_main + plot_layout(guides = "collect")) & 
+  theme(
+    legend.position = "bottom",
+    legend.box = "horizontal",
+    legend.box.just = "top",
+    legend.spacing.x = unit(1, "cm"),
+    legend.title = element_text(face = "bold", size = 9),
+    legend.text = element_text(size = 8)
+  )
+
+fig2_combined_main <- patchwork::wrap_elements(full = fig2_combined_main) + 
+  theme(plot.background = element_rect(color = "black", fill = NA, linewidth = 1))
+
+save_manuscript_pdf(fig2_combined_main, "Fig2_baseline_accessibility", subdir = "Main", width = 25, height = 15)
+```

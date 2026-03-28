@@ -1,66 +1,35 @@
-# This CITATION.cff file was generated with cffinit.
-# Visit https://bit.ly/cffinit to generate yours today!
-
 cff-version: 1.2.0
 title: >-
-  PhD Project - The Climate of Care: Healthcare Access and
-  Healthcare Seeking Behavior for Undernutrition in Children
-  Under-5 in Uganda
+  Geospatial modelling of pluvial flood scenarios and their
+  effects on physical access to maternal and child healthcare
+  facilities
 message: >-
-  If you use this dataset, please cite it using the metadata
-  from this file.
-type: Github Repository
+  If you use this software or dataset, please cite it using
+  the metadata from this file.
+type: software
 authors:
   - given-names: Rik Ubbo
     family-names: Lubbers
     email: r.u.lubbers@rug.nl
-    affiliation: University of Groningen
+    affiliation: University of Groningen / University Medical Center Groningen
     orcid: 'https://orcid.org/0000-0002-2772-1524'
 abstract: >-
-  This repository serves as the central hub for my PhD
-  project, titled "The Climate of Care: Healthcare Access
-  and Healthcare Seeking Behavior for Undernutrition in
-  Children Under-5 in Uganda," conducted at the Global
-  Health Unit of the UMCG. Guided by the expertise of my
-  supervisors, Regien Biesma and Gerd Weitkamp, this project
-  intertwines global health research with spatial sciences,
-  focusing on the critical intersection of climate change,
-  healthcare accessibility, and childhood malnutrition in
-  Uganda.
-
-
-  In Uganda, undernutrition in children under the age of
-  five is a pressing issue, exacerbated by environmental
-  factors and healthcare accessibility challenges. This
-  research delves into these complexities through four
-  distinct but interconnected studies. Each study explores
-  different dimensions of the problem - from the physical
-  accessibility challenges in healthcare to the influence of
-  climate events like droughts and floods on healthcare
-  seeking behavior.
-
-
-  The repository is structured to provide comprehensive
-  insights into each study, containing detailed
-  documentation, data analyses, and code. It is a resource
-  for academics, policy makers, and anyone interested in the
-  nexus of climate change, healthcare, and nutrition. The
-  project underscores the importance of integrating climate
-  considerations into healthcare planning and offers
-  evidence-based recommendations for improving child health
-  outcomes in regions vulnerable to climate change.
-
-
-  By making this work publicly available, I aim to encourage
-  collaboration, discussion, and further research in this
-  vital area of global health. Your contributions and
-  insights are invaluable to enriching this research and
-  driving impactful policy changes.
+  Analytical codebase for a study examining how urban pluvial
+  floods alter walking access to healthcare facilities in
+  Kampala, Uganda. The pipeline estimates population-weighted
+  changes in travel time under 15 rainfall × duration
+  scenarios for public, private-not-for-profit, and hospital
+  facilities. Inequities are quantified by intersecting flood
+  impact with a composite vulnerability index derived from
+  socio-economic and health indicators.
 keywords:
-  - undernutrition
+  - pluvial flooding
+  - healthcare accessibility
+  - travel time modelling
+  - AccessMod
+  - Kampala
   - Uganda
-  - LMIC
-  - Climate change
-  - Healthcare
-  - Access
+  - vulnerability
+  - maternal and child health
+  - geospatial analysis
 license: CC-BY-SA-4.0

@@ -1,0 +1,1 @@
+library(terra); r <- rast('C:/Users/rikib/OneDrive/PhD_Undernutrition_Uganda_Physical_Accessbility/2_Study_2_Urban_floodings/AccessMod/Output/Base/raster_travel_time_Base_all/raster_travel_time_Base_all.img'); print(r)

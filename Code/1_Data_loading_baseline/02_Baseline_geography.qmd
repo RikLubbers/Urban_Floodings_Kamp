@@ -1,0 +1,288 @@
+# Baseline geography figure (Fig. 1): study area landcover, terrain,
+# healthcare facilities, and transport network for Kampala.
+
+## Setup & Data Loading
+```{r}
+source(here::here("Code/utils/loading_utils.R"))
+source(here::here("Code/utils/export_utils.R"))
+
+load_processed_data()
+filter_facilities()
+
+# Local aliases for backward compatibility with plotting code
+hospitals <- hospitals_main
+health_centres <- health_centres_main
+facilities <- if (inherits(Facilities, "list")) {
+  idx <- which(names(Facilities) == "facilities_all_kampala")
+  if (length(idx) > 0) Facilities[[idx]] else Facilities[[1]]
+} else {
+  Facilities
+}
+```
+
+## Visual parameters and reference dataset alignment
+```{r}
+# ESA WorldCover colour palette and class labels (study-area subset)
+landcover_colors <- c(
+  "10" = "#006400",  "20" = "#ffbb22",  "30" = "#ffff4c",
+  "40" = "#f096ff",  "50" = "#fa0000",  "60" = "#b4b4b4",
+  "70" = "#f0f0f0",  "80" = "#0064c8",  "90" = "#0096a0",
+  "95" = "#00cf75",  "100" = "#fae6a0", "0" = NA
+)
+
+landcover_classes <- c(
+  "10" = "Tree cover",       "20" = "Shrubland",
+  "30" = "Grassland",        "40" = "Cropland",
+  "50" = "Built-up",         "60" = "Bare/Sparse vegetation",
+  "70" = "Snow and Ice",     "80" = "Permanent water bodies",
+  "90" = "Herbaceous wetland","95" = "Mangroves",
+  "100" = "Moss and lichen", "0" = "No data"
+)
+
+# Restrict colour palette to classes present in the raster
+unique_classes <- sort(unlist(unique(Landcover)))
+unique_classes <- unique_classes[unique_classes != 70]  # Snow/ice absent in study area
+
+filtered_landcover_colors <- landcover_colors[names(landcover_colors) %in% unique_classes]
+filtered_landcover_classes <- landcover_classes[names(landcover_classes) %in% unique_classes]
+
+# Derive terrain visualisation layers from DEM
+slope <- terrain(DEM, "slope")
+aspect <- terrain(DEM, "aspect")
+hillshade <- shade(slope, aspect, angle = 45, direction = 315)
+
+par(oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0))
+
+# Load full-extent reference datasets for contextual mapping
+landcover_complete <- rast(here("Data", "raw", "Landcover", "ESA_WorldCover_10m_2021_v200_N00E030_Map.tif"))
+facilities_complete <- vect(here("Data", "raw", "Facilities", "suhsharan_health_facilities", "sub-saharan_health_facilities.shp"))
+
+# Align reference datasets to the study area CRS and extent
+landcover_complete <- project(landcover_complete, Landcover)
+landcover_complete <- crop(landcover_complete, Landcover)
+
+facilities_complete <- project(facilities_complete, facilities)
+facilities_complete <- crop(facilities_complete, Landcover)
+
+# Normalise column names (handle both "." and " " separators)
+for (col in c("Facility_n", "Facility_t", "LL_source")) {
+  old_dot <- sub("_", ".", col)
+  old_space <- sub("_", " ", col)
+  if (!(col %in% names(facilities_complete))) {
+    if (old_dot %in% names(facilities_complete)) names(facilities_complete)[names(facilities_complete) == old_dot] <- col
+    else if (old_space %in% names(facilities_complete)) names(facilities_complete)[names(facilities_complete) == old_space] <- col
+  }
+}
+
+# Compute and apply coordinate shift to align reference and study datasets
+# (systematic offset persists after reprojection; source of misalignment unknown)
+coords_c <- crds(facilities_complete)
+coords_s <- crds(facilities)
+
+ids_c <- facilities_complete$Facility_n
+ids_s <- facilities$Facility_n
+
+common_ids <- intersect(ids_c, ids_s)
+idx_c <- match(common_ids, ids_c)
+idx_s <- match(common_ids, ids_s)
+
+dx <- mean(coords_s[idx_s, 1] - coords_c[idx_c, 1], na.rm = TRUE)
+dy <- mean(coords_s[idx_s, 2] - coords_c[idx_c, 2], na.rm = TRUE)
+
+facilities_complete <- shift(facilities_complete, dx, dy)
+landcover_complete <- shift(landcover_complete, dx, dy)
+
+# Subset reference facilities by type for contextual plotting
+hospitals_complete <- facilities_complete[facilities_complete$`Facility_t` %in% c("National Referral Hospital", "Hospital", "Regional Referral Hospital"), ]
+health_centers_complete <- facilities_complete[facilities_complete$`Facility_t` %in% c("Health Centre III", "Health Centre II", "Health Centre IV"), ]
+
+# Synchronise raster names to prevent 'names do not match previous names' error in plot(..., add=TRUE)
+# All overlaid rasters must share the same name as the base layer.
+names(landcover_complete) <- "landcover"
+names(Landcover) <- "landcover"
+names(hillshade) <- "landcover"
+```
+
+```{r}
+# --- Render Fig. 1 to PDF ---
+w <- 79.6  / 25.4  # mm to inches
+h <- 123.1 / 25.4
+
+pdf(get_fig_path("Fig1_study_area_geography", subdir = "Main", ext = "pdf"),
+    width       = w, height = h,
+    version     = "1.4",
+    useDingbats = FALSE)
+
+par(mai = c(0, 0, 0, 0), xaxs = "i", yaxs = "i", cex = 8/12)
+
+# Reference landcover (low opacity, provides spatial context beyond AOI)
+plot(landcover_complete,
+     col    = adjustcolor(filtered_landcover_colors, alpha.f = 0.15),
+     legend = FALSE, axes = FALSE, box = FALSE)
+
+# Study area landcover (higher opacity)
+plot(Landcover,
+     col    = adjustcolor(filtered_landcover_colors, alpha.f = 0.7),
+     legend = FALSE, axes = FALSE, box = TRUE, add = TRUE)
+
+# Hillshade overlay
+plot(hillshade,
+     col    = gray.colors(100, start = 0.3, end = 1, alpha = 0.4),
+     legend = FALSE, add = TRUE)
+
+# Infrastructure overlays
+lines(OSM_roads,    col = "black", lwd = 0.7, lty = 1)
+lines(water_lines,  col = "#1a6db5",  lwd = 0.7, lty = 1)
+
+# Reference facilities (semi-transparent, outside AOI context)
+points(hospitals_complete,      pch = 23,
+       col = adjustcolor("black", alpha.f = 0.5),
+       bg  = adjustcolor("blue",  alpha.f = 0.4), cex = 1)
+
+points(health_centers_complete, pch = 21,
+       col = adjustcolor("black", alpha.f = 0.5),
+       bg  = adjustcolor("green", alpha.f = 0.4), cex = 1)
+
+# Study area facilities (solid)
+points(hospitals,      pch = 23, col = "black", bg = "blue",  cex = 1)
+points(health_centres, pch = 21, col = "black", bg = "green", cex = 1)
+
+# --- Two-column legend -------------------------------------------------------
+lc_labs <- unname(filtered_landcover_classes)
+lc_cols <- unname(filtered_landcover_colors)
+n_lc    <- length(lc_labs)
+
+cex_lgd   <- 6.5/12
+ysp       <- 0.75
+inner_pad <- 0
+
+# Left column: Healthcare facilities and transport infrastructure
+left_labs  <- c("", "  Hospitals", "  Health centres",
+                "", "  Major roads", "  Rivers / watercourses")
+n_left     <- length(left_labs)
+
+left_pch   <- c(NA, 23L, 21L, NA, NA, NA)
+left_col   <- c(NA, "black", "black", NA, "black", "#1a6db5")
+left_pt.bg <- c(NA, "blue", "green", NA, NA, NA)
+left_lty   <- c(NA, NA, NA, NA, 1L, 1L)
+left_lwd   <- c(NA, NA, NA, NA, 0.7, 0.7)
+
+# Right column: Landcover classes
+right_labs  <- c("", paste0("  ", lc_labs))
+n_right     <- length(right_labs)
+lc_rows_r   <- seq(2L, 1L + n_lc)
+
+right_pch   <- c(NA, rep(22L, n_lc))
+right_col   <- c(NA, lc_cols)
+right_pt.bg <- c(NA, lc_cols)
+right_lty   <- rep(NA_integer_, n_right)
+right_lwd   <- rep(NA_real_,    n_right)
+
+# Dry-run to compute bounding boxes
+lgd_L_dry <- legend(x = 0, y = 0,
+  legend    = right_labs, pch = right_pch,
+  col       = right_col,  pt.bg = right_pt.bg,
+  lty       = right_lty,  lwd = right_lwd,
+  pt.cex    = 0.85, cex = cex_lgd,
+  x.intersp = 0.20, y.intersp = ysp,
+  bty = "n", plot = FALSE)
+
+lgd_R_dry <- legend(x = 0, y = 0,
+  legend    = left_labs,  pch = left_pch,
+  col       = left_col,   pt.bg = left_pt.bg,
+  lty       = left_lty,   lwd = left_lwd,
+  pt.cex    = 0.85, cex = cex_lgd,
+  x.intersp = 0.25, y.intersp = ysp,
+  bty = "n", plot = FALSE)
+
+# Position legend at bottom-left of plot region
+usr     <- par("usr")
+pad_x   <- 0.010 * (usr[2] - usr[1])
+pad_y   <- 0.143 * (usr[4] - usr[3])
+gap_col <- 0.05 * lgd_L_dry$rect$w
+
+box_w <- lgd_L_dry$rect$w + gap_col + lgd_R_dry$rect$w
+box_h <- max(lgd_L_dry$rect$h, lgd_R_dry$rect$h)
+
+box_x0 <- usr[1] + pad_x
+box_y0 <- usr[3] + pad_y
+box_x1 <- box_x0 + box_w
+box_y1 <- box_y0 + box_h
+
+rect(box_x0, box_y0, box_x1, box_y1,
+     col = "white", border = "grey70", lwd = 0.5)
+
+x_L <- box_x0
+y_L <- box_y1
+
+x_R <- box_x0 + lgd_L_dry$rect$w + gap_col
+y_R <- box_y1
+
+# Render left column (landcover classes)
+lgd_L <- legend(x = x_L, y = y_L,
+  legend    = right_labs, pch = right_pch,
+  col       = right_col,  pt.bg = right_pt.bg,
+  lty       = right_lty,  lwd = right_lwd,
+  pt.cex    = 0.85, cex = cex_lgd,
+  x.intersp = 0.20, y.intersp = ysp,
+  bty = "n")
+
+text(x = lgd_L$text$x[1L], y = lgd_L$text$y[1L],
+     labels = "Land cover classes", adj = c(0, 0.5), cex = cex_lgd, font = 2)
+
+# Render right column (facilities and transport)
+lgd_R <- legend(x = x_R, y = y_R,
+  legend    = left_labs,  pch = left_pch,
+  col       = left_col,   pt.bg = left_pt.bg,
+  lty       = left_lty,   lwd = left_lwd,
+  pt.cex    = 0.85, cex = cex_lgd,
+  x.intersp = 0.25, y.intersp = ysp,
+  bty = "n")
+
+right_headers <- list(
+  list(row = 1L, label = "Healthcare facilities"),
+  list(row = 4L, label = "Transport & water")
+)
+for (h in right_headers) {
+  text(x = lgd_R$text$x[h$row], y = lgd_R$text$y[h$row],
+       labels = h$label, adj = c(0, 0.5), cex = cex_lgd, font = 2)
+}
+
+# --- Alternating scale bar (lower-right) ---
+usr   <- par("usr")
+pin   <- par("pin")
+uin_x <- (usr[2] - usr[1]) / pin[1]
+uin_y <- (usr[4] - usr[3]) / pin[2]
+
+sb_len   <- 2000                         # 2 km total
+sb_half  <- 1000                         # 1 km midpoint
+sb_h     <- 0.055 * uin_y
+gap_x_in <- 0.15
+gap_y_in <- 0.70
+
+sb_x2 <- usr[2] - gap_x_in * uin_x
+sb_x1 <- sb_x2 - sb_len
+sb_xm <- sb_x1 + sb_half
+sb_y0 <- usr[3] + gap_y_in * uin_y
+sb_y1 <- sb_y0 + sb_h
+
+rect(sb_x1, sb_y0, sb_xm, sb_y1, col = "black",  border = NA)
+rect(sb_xm, sb_y0, sb_x2, sb_y1, col = "grey88", border = NA)
+rect(sb_x1, sb_y0, sb_x2, sb_y1, col = NA, border = "black", lwd = 0.7)
+
+tick_x <- c(sb_x1, sb_xm, sb_x2)
+tick_h <- sb_h
+segments(tick_x, rep(sb_y1, 3), tick_x, rep(sb_y1 + tick_h, 3),
+         col = "black", lwd = 0.7)
+
+lbl_y <- sb_y1 + tick_h + 0.018 * uin_y
+text(tick_x, rep(lbl_y, 3), labels = c("0", "1", "2"),
+     adj = c(0.5, 0), cex = 6/12, col = "black")
+
+text(sb_x2 + 0.035 * uin_x, lbl_y,
+     labels = "km", adj = c(0, 0), cex = 5.5/12, col = "black")
+
+north(type = 2, cex = 8/12)
+
+dev.off()
+``` 

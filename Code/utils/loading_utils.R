@@ -40,7 +40,7 @@ library(viridis)
 load_processed_data <- function() {
   data_dir <- here("Data", "processed")
   
-  folders <- c("Adm_boundaries", "DEM", "Flood_extents", 
+  folders <- c("Parish_boundaries", "DEM", "Flood_extents", 
                "Landcover", "OSM_roads", "Rainfall_estimation", 
                "water_lines", "Worldpop_density", "Worldpop_dev_indicators")
   
@@ -206,11 +206,14 @@ landcover_classes_base <- c(
 # Travel time colour ramp (green → red → black)
 tt_colors <- c("#008000", "#ADFF2F", "#FFFF00", "#FFA500", "#FF4500", "#FF0000", "#8B0000", "#000000")
 
-# --- Raster Alignment -------------------------------------------------------
-
 # Reprojects and masks a population raster to match the geometry of a
 # travel time raster. If geometries already match, masking alone is applied.
 align_pop_to_tt <- function(pop_raster, tt_raster) {
+  if (inherits(pop_raster, "list")) {
+    idx <- which(names(pop_raster) == "pop_total_10m")
+    pop_raster <- if (length(idx) > 0) pop_raster[[idx]] else pop_raster[[1]]
+  }
+  
   if (!terra::compareGeom(pop_raster, tt_raster, stopOnError = FALSE)) {
     pop_aligned <- terra::project(pop_raster, tt_raster, method = "bilinear")
     pop_aligned <- terra::mask(pop_aligned, tt_raster)

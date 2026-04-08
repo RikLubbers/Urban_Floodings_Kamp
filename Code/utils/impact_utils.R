@@ -169,36 +169,6 @@ prepare_bivariate_data <- function(df, var1, var2, dim = 3) {
   return(df_bi)
 }
 
-# --- Parish Ranking ----------------------------------------------------------
-
-# Identifies the top-n parishes by population-weighted delta travel time
-# for each scenario column. Detects the parish name column dynamically,
-# preferring "PName2016".
-top_n_by_scenario <- function(df, cols, tier, scenarios_ref, n = 10) {
-  parish_col <- if ("PName2016" %in% names(df)) {
-    "PName2016"
-  } else {
-    chr_cols <- names(df)[sapply(df, is.character)]
-    if (length(chr_cols) > 0) chr_cols[1] else stop("No parish name column found in df")
-  }
-  
-  purrr::map_dfr(cols, function(col) {
-    s_label <- sub("Average_Weighted_Delta_TT_", "", col)
-    s_plot_match <- scenarios_ref$label_plot[scenarios_ref$label == s_label]
-    s_plot <- if (length(s_plot_match) > 0) s_plot_match[1] else s_label
-    
-    df %>%
-      dplyr::transmute(
-        Scenario = s_plot,
-        Parish = .data[[parish_col]],
-        Avg_Weighted_Delta_TT = .data[[col]]
-      ) %>%
-      dplyr::arrange(dplyr::desc(Avg_Weighted_Delta_TT)) %>%
-      dplyr::slice_head(n = n) %>%
-      dplyr::mutate(Rank = dplyr::row_number(), Tier = tier)
-  })
-}
-
 # --- Raster Data Loading & Delta Calculation ---------------------------------
 
 # Loads all flood-scenario travel time rasters from the AccessMod output

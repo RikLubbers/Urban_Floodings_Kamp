@@ -24,8 +24,8 @@ x_delta_all_supp  <- load_flood_scenarios(type = "all") - base_tt_all
 x_delta_hosp_supp <- load_flood_scenarios(type = "hosp") - base_tt_hosp
 
 # Compute parish-level impact (population-weighted mean).
-df_impact_all  <- compute_parish_impact(x_delta_all_supp, Worldpop_density, Adm_boundaries)
-df_impact_hosp <- compute_parish_impact(x_delta_hosp_supp, Worldpop_density, Adm_boundaries)
+df_impact_all  <- compute_parish_impact(x_delta_all_supp, Worldpop_density, Parish_boundaries)
+df_impact_hosp <- compute_parish_impact(x_delta_hosp_supp, Worldpop_density, Parish_boundaries)
 ```
 
 ## 2. Statistical Diagnostics

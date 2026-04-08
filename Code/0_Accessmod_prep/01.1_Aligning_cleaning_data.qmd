@@ -10,7 +10,7 @@ library(Spatial.align)
 
 ```{r}
 # Load raw spatial datasets
-parishes <- vect(here("Data/raw/Adm_boundaries/PARISHES_2016_UTM_36N.shp"))
+parishes <- vect(here("Data/raw/Parish_boundaries/PARISHES_2016_UTM_36N.shp"))
 dem30m <- rast(here("Data/raw/DEM/Uganda_SRTM30meters.tif"))
 facilities_all <- vect(here("Data/raw/Facilities/UG_HF_all.shp"))
 facilities_hosp <- vect(here("Data/raw/Facilities/UG_HF_hosp.shp"))
@@ -36,7 +36,7 @@ malaria <- malaria[["Data"]]
 # Filter and export Kampala parish boundaries
 ```{r}
 parishes_kamp <- parishes[parishes$DName2016 == "KAMPALA",]
-writeVector(parishes_kamp, here("Data/processed/Adm_boundaries/parishes_kampala.shp"), overwrite = TRUE)
+writeVector(parishes_kamp, here("Data/processed/Parish_boundaries/parishes_kampala.shp"), overwrite = TRUE)
 ```
 
 # Align all datasets to the Kampala parish extent and CRS

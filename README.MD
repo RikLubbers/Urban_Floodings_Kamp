@@ -26,18 +26,16 @@ Urban_Floodings_Kamp/
 │   │   └── 02_Baseline_geography.qmd
 │   ├── 2_delta_travel_time/               # Step 2: Baseline accessibility maps (Fig. 2)
 │   │   ├── 02.1_Baseline_Accessibility_Main.qmd
-│   │   └── 02.1S_Baseline_Accessibility_Supp.qmd
+│   │   └── 02.1S_Baseline_Accessibility_Supp.qmd # Internal raster generation (QC)
 │   ├── 3_Pop_impact/                      # Step 3: Population-weighted delta travel time
 │   │   ├── 03.1_Pop_Impact_Main.qmd       #   Fig. 3 & Table 1
 │   │   ├── 03.1S_Pop_Impact_Supp.qmd
-│   │   ├── 03.2S_Pop_Impact_Tables_Supp.qmd
 │   │   └── 03.3S_Pop_Impact_Summary_Supp.qmd
 │   └── 4_Vulnerability_index_impact/      # Step 4: Vulnerability overlays
 │       ├── 04.1_Index_equal_weight.qmd    #   Equal-weight vulnerability index
 │       ├── 04.1B_PCA_and_Comparison.qmd   #   PCA-based index & sensitivity analysis
 │       ├── 04.2_Vulnerability_Impact_Main.qmd   # Fig. 4 & Table 2
-│       ├── 04.2S_Vulnerability_Impact_Supp.qmd
-│       └── 04.3S_Vulnerability_Gap_Analysis_Supp.qmd
+│       └── 04.2S_Vulnerability_Impact_Supp.qmd
 ├── Data/                                  # Not distributed (see §4)
 ├── AccessMod/                             # AccessMod project files (not distributed)
 ├── Figures/                               # Generated outputs

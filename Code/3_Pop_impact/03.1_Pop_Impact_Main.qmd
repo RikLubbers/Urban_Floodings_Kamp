@@ -31,8 +31,8 @@ delta_hosp_main <- delta_full_hosp[[scenarios_main$label]]
 
 # 1.2 Parish-level aggregation: Population-weighted mean per scenario.
 # estimand: Parish-level population-weighted mean impact for spatial aggregation (Maps).
-df_impact_all_main <- compute_parish_impact(delta_all_main, Worldpop_density, Adm_boundaries)
-df_impact_hosp_main <- compute_parish_impact(delta_hosp_main, Worldpop_density, Adm_boundaries)
+df_impact_all_main <- compute_parish_impact(delta_all_main, Worldpop_density, Parish_boundaries)
+df_impact_hosp_main <- compute_parish_impact(delta_hosp_main, Worldpop_density, Parish_boundaries)
 
 # Classify total parish population into three tiers for bivariate mapping.
 df_impact_all_main <- df_impact_all_main %>%
@@ -61,7 +61,9 @@ plot_bivariate_main <- function(df, sc_label, title_text) {
     geom_sf(data = df_bi, aes(fill = bi_class), color = "white", size = 0.1) +
     bi_scale_fill(pal = "DkViolet", dim = 3) +
     labs(title = title_text) +
-    bi_theme() + theme(legend.position = "none", plot.title = element_text(size = 9, face = "bold", hjust = 0.5))
+    bi_theme() + 
+    theme(legend.position = "none",
+          plot.title = element_text(size = 8, face = "bold"))
 }
 
 plots_all_main <- purrr::map(scenarios_main$label, ~plot_bivariate_main(df_impact_all_main, .x, scenarios_main$label_plot[scenarios_main$label == .x]))
@@ -77,9 +79,12 @@ legend_bi <- bi_legend(pal = "DkViolet", dim = 3,
                        ))
 
 fig3_grid <- wrap_plots(plots_all_main, ncol = 2, nrow = 3)
-fig3_final <- (fig3_grid | legend_bi) + plot_layout(widths = c(2.5, 1))
+fig3_legend_row <- plot_spacer() + legend_bi + plot_spacer() + plot_layout(widths = c(1, 2, 1))
+fig3_final <- (fig3_grid / fig3_legend_row) + plot_layout(heights = c(6, 1))
 
-save_manuscript_pdf(fig3_final, "Fig3_absolute_6scenarios_all_facilities_main", subdir = "Main", width = 15, height = 25)
+# Title: Spatial distribution of flood-induced increases in travel time to all public and PNFP healthcare facilities.
+# Caption: Parish-level population-weighted mean increase in walking travel time, in minutes, relative to baseline for access to the nearest public or PNFP healthcare facility across six flood scenarios defined by rainfall intensity and duration. Colours represent the magnitude of the increase in travel time.
+save_manuscript_pdf(fig3_final, "Figure 3", subdir = "Main", width = 18, height = 24)
 ```
 
 ## 3. Bivariate Figure 4 (Hospitals)
@@ -88,9 +93,12 @@ plots_hosp_main <- purrr::map(scenarios_main$label, ~plot_bivariate_main(df_impa
 stopifnot(length(plots_hosp_main) == 6)
 
 fig4_grid <- wrap_plots(plots_hosp_main, ncol = 2, nrow = 3)
-fig4_final <- (fig4_grid | legend_bi) + plot_layout(widths = c(2.5, 1))
+fig4_legend_row <- plot_spacer() + legend_bi + plot_spacer() + plot_layout(widths = c(1, 2, 1))
+fig4_final <- (fig4_grid / fig4_legend_row) + plot_layout(heights = c(6, 1))
 
-save_manuscript_pdf(fig4_final, "Fig4_absolute_6scenarios_hospitals_main", subdir = "Main", width = 15, height = 25)
+# Title: Spatial distribution of flood-induced increases in travel time to public and PNFP hospitals.
+# Caption: Parish-level population-weighted mean increase in walking travel time, in minutes, relative to baseline for access to the nearest public or PNFP hospital across six flood scenarios defined by rainfall intensity and duration. Colours represent the magnitude of the increase in travel time.
+save_manuscript_pdf(fig4_final, "Figure 4", subdir = "Main", width = 18, height = 24)
 ```
 
 ## 4. Table 2 Summary (Flextable)
@@ -126,9 +134,25 @@ ft2 <- flextable(table_data_main) %>%
   set_header_labels(Duration = "Duration (hr)", Intensity = "Rainfall (mm)",
                     Mean_All = "Mean", Min_All = "Min", Q25_All = "Q25", Median_All = "Median", Q75_All = "Q75", Max_All = "Max",
                     Mean_Hosp = "Mean", Min_Hosp = "Min", Q25_Hosp = "Q25", Median_Hosp = "Median", Q75_Hosp = "Q75", Max_Hosp = "Max") %>%
-  theme_vanilla() %>% autofit()
+  theme_vanilla() %>%
+  bold(bold = FALSE, part = "all") %>%
+  autofit()
 
-save_manuscript_table(ft2, "Table2_scenario_summary_main", subdir = "Main", "Travel Time Increase Summary (Main Scenarios)")
+# Title: Impact of urban flooding on walking access to public and PNFP healthcare facilities and hospitals.
+# Caption: Population-weighted mean, median, interquartile range, and maximum increase in walking travel time, in minutes, relative to baseline for access to the nearest public or PNFP healthcare facility and hospital across six flood scenarios defined by rainfall intensity and duration.
+save_manuscript_table(ft2, "Table 2", subdir = "Main", title = "Table 2")
+
+# Note: Source Data exports for Figure 3 and 4
+source_data_3 <- df_impact_all_main %>% st_drop_geometry() %>% 
+  dplyr::select(PName2016, Population_Sum, starts_with("Average_Weighted_Delta_TT_"))
+source_data_4 <- df_impact_hosp_main %>% st_drop_geometry() %>%
+  dplyr::select(PName2016, Population_Sum, starts_with("Average_Weighted_Delta_TT_"))
+
+# These will be merged into a single Source_Data.xlsx workbook later or exported individually for now.
+# For simplicity, we'll keep the workbook structure in mind. 
+# We'll save these to a temp location and compile them, or just save them as parts.
+save_excel_data(source_data_3, "Source_Data_Figure3", subdir = "Source_Data")
+save_excel_data(source_data_4, "Source_Data_Figure4", subdir = "Source_Data")
 ```
 
 ## 5. Verification (Parity Check)

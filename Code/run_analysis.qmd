@@ -112,7 +112,7 @@ run_section <- function(section_name, files) {
 
 ## 2. Main Analysis (Manuscript Figures & Tables)
 ```{r, results='asis'}
-#| eval: false
+#| eval: true
 main_analysis_files <- c(
   "Code/1_Data_loading_baseline/02_Baseline_geography.qmd",
   "Code/4_Vulnerability_index_impact/04.1_Index_equal_weight.qmd",
@@ -126,18 +126,31 @@ run_section("Main Manuscript Analysis", main_analysis_files)
 
 ## 3. Supplementary Analysis
 ```{r, results='asis'}
-#| eval: false
+#| eval: true
 supp_analysis_files <- c(
   "Code/4_Vulnerability_index_impact/04.1B_PCA_and_Comparison.qmd",
   "Code/2_delta_travel_time/02.1S_Baseline_Accessibility_Supp.qmd",
   "Code/3_Pop_impact/03.1S_Pop_Impact_Supp.qmd",
-  "Code/3_Pop_impact/03.2S_Pop_Impact_Tables_Supp.qmd",
   "Code/3_Pop_impact/03.3S_Pop_Impact_Summary_Supp.qmd",
-  "Code/4_Vulnerability_index_impact/04.2S_Vulnerability_Impact_Supp.qmd",
-  "Code/4_Vulnerability_index_impact/04.3S_Vulnerability_Gap_Analysis_Supp.qmd"
+  "Code/4_Vulnerability_index_impact/04.2S_Vulnerability_Impact_Supp.qmd"
 )
 
 run_section("Supplementary Analysis", supp_analysis_files)
+```
+
+## 4. Post-Processing
+```{r}
+# --- Harvest Captions and Export to Word ---
+if (file.exists("Code/utils/98_Export_Manuscript_Captions.R")) {
+  message("\n--- Exporting Manuscript Captions to: Tables/Manuscript_Captions.docx ---")
+  source("Code/utils/98_Export_Manuscript_Captions.R")
+}
+
+# --- Consolidate Source Data into Master Excel ---
+if (file.exists("Code/utils/99_Consolidate_Source_Data.R")) {
+  message("\n--- Consolidating Source Data into: Tables/Source_Data.xlsx ---")
+  source("Code/utils/99_Consolidate_Source_Data.R")
+}
 
 options(warn = 0)
 ```

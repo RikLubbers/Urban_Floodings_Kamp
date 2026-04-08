@@ -18,7 +18,7 @@ country <- "Uganda"
 # Copy processed datasets into the AccessMod input directories
 ## Administrative boundaries
 ```{r}
-inputPath_adm <- here("Data/processed/Adm_boundaries")
+inputPath_adm <- here("Data/processed/Parish_boundaries")
 copy_input(mainPath, country, inputPath_adm)
 ```
 

@@ -108,7 +108,7 @@ names(hillshade) <- "landcover"
 w <- 79.6  / 25.4  # mm to inches
 h <- 123.1 / 25.4
 
-pdf(get_fig_path("Fig1_study_area_geography", subdir = "Main", ext = "pdf"),
+pdf(get_fig_path("Figure 1", subdir = "Main", ext = "pdf"),
     width       = w, height = h,
     version     = "1.4",
     useDingbats = FALSE)
@@ -133,6 +133,10 @@ plot(hillshade,
 # Infrastructure overlays
 lines(OSM_roads,    col = "black", lwd = 0.7, lty = 1)
 lines(water_lines,  col = "#1a6db5",  lwd = 0.7, lty = 1)
+
+# Title: Study area geography and healthcare network in Kampala.
+# Caption: Administrative boundaries of Kampala, Uganda, overlaid on ESA WorldCover (2021) land cover and the network of public and private-not-for-profit (PNFP) healthcare facilities through which maternal and child health services are delivered. Major roads and surface water features are included to provide spatial context. Data sources: Master Facility List (2019); ESA WorldCover 2021; SRTM 30 m DEM (2018); UBOS parish boundaries (2018); OpenStreetMap contributors (extract 8 January 2025, ODbL 1.0).
+# Note: Source Data for Figure 1 is not exported for publication as it contains third-party facility location data.
 
 # Reference facilities (semi-transparent, outside AOI context)
 points(hospitals_complete,      pch = 23,

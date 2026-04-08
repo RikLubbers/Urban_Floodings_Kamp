@@ -24,8 +24,8 @@ x_delta_all_supp  <- load_flood_scenarios(type = "all") - base_tt_all
 x_delta_hosp_supp <- load_flood_scenarios(type = "hosp") - base_tt_hosp
 
 # Parish-level aggregation: Population-weighted mean per scenario.
-df_impact_all_supp  <- compute_parish_impact(x_delta_all_supp, Worldpop_density, Adm_boundaries)
-df_impact_hosp_supp <- compute_parish_impact(x_delta_hosp_supp, Worldpop_density, Adm_boundaries)
+df_impact_all_supp  <- compute_parish_impact(x_delta_all_supp, Worldpop_density, Parish_boundaries)
+df_impact_hosp_supp <- compute_parish_impact(x_delta_hosp_supp, Worldpop_density, Parish_boundaries)
 
 # Classify total parish population into three tiers
 df_impact_all_supp <- df_impact_all_supp %>%
@@ -61,7 +61,9 @@ plot_bivariate_supp <- function(df, sc_label, title_text) {
     geom_sf(data = df_bi, aes(fill = bi_class), color = "white", size = 0.05) +
     bi_scale_fill(pal = "DkViolet", dim = 3) +
     labs(title = title_text) +
-    bi_theme() + theme(legend.position = "none", plot.title = element_text(size = 6, face = "bold", hjust = 0.5))
+    bi_theme() + 
+    theme(legend.position = "none",
+          plot.title = element_text(size = 7))
 }
 
 # Safe label lookup to prevent character(0) failures
@@ -86,7 +88,10 @@ legend_bi <- bi_legend(pal = "DkViolet", dim = 3,
 figS1_grid <- wrap_plots(plots_all_supp, ncol = 3, nrow = 5)
 figS1_final <- (figS1_grid | legend_bi) + plot_layout(widths = c(4, 1))
 
-save_manuscript_pdf(figS1_final, "FigS1_absolute_15scenarios_all_facilities_supp", subdir = "Supp", width = 20, height = 35)
+# Supplementary Figure 1
+# Title: Absolute travel time increase to all public and PNFP healthcare facilities, 15 scenarios.
+# Caption: Parish-level population-weighted mean increase in walking travel time, in minutes, relative to baseline for access to the nearest public or PNFP healthcare facility across 15 flood scenarios.
+save_manuscript_pdf(figS1_final, "Supplementary Figure 1", subdir = "Supp", width = 18, height = 26)
 
 # Figure S2: 15-panel grid (Hospitals)
 plots_hosp_supp <- purrr::map(scenarios_all$label, ~plot_bivariate_supp(df_impact_hosp_supp, .x, safe_label_plot(.x)))
@@ -95,7 +100,10 @@ stopifnot(length(plots_hosp_supp) == 15)
 figS2_grid <- wrap_plots(plots_hosp_supp, ncol = 3, nrow = 5)
 figS2_final <- (figS2_grid | legend_bi) + plot_layout(widths = c(4, 1))
 
-save_manuscript_pdf(figS2_final, "FigS2_absolute_15scenarios_hospitals_supp", subdir = "Supp", width = 20, height = 35)
+# Supplementary Figure 2
+# Title: Absolute travel time increase to public and PNFP hospitals, 15 scenarios.
+# Caption: Parish-level population-weighted mean increase in walking travel time, in minutes, relative to baseline for access to the nearest public or PNFP hospital across 15 flood scenarios.
+save_manuscript_pdf(figS2_final, "Supplementary Figure 2", subdir = "Supp", width = 18, height = 26)
 ```
 
 ## 3. Violin Plot (Figure S5)
@@ -150,26 +158,19 @@ figS5_violin <- ggplot(pixels_sampled, aes(x = Intensity, y = delta_tt, fill = F
     limits = c(0, 360),
     name = "Change in Travel Time (minutes)"
   ) +
-  labs(
-    x = "Precipitation Amount (mm)", 
-    caption = "Violin plots show sampled pixel-level distributions.\nRed diamonds indicate mean; blue crosses indicate median."
-  ) +
-  theme_minimal(base_size = 8) +
+  theme_minimal() +
   theme(
-    axis.text.x = element_text(size = 8),
-    axis.title.x = element_text(size = 8, face = "bold"),
-    axis.title.y = element_text(size = 8, face = "bold"),
-    plot.title = element_text(size = 8, face = "bold", hjust = 0.5),
-    plot.caption = element_text(size = 8),
-    strip.text = element_text(size = 8, face = "bold"),
-    panel.grid.major = element_line(color = "grey80"),
+    legend.position = "right",
+    panel.grid.major.y = element_line(color = "grey90"),
+    panel.grid.major.x = element_blank(),
     panel.grid.minor = element_blank(),
-    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
-    panel.background = element_rect(fill = "white", color = NA),
     plot.background = element_rect(fill = "white", color = NA)
   )
 
-save_manuscript_pdf(figS5_violin, "FigS5_violin_absolute_15scenarios_supp", subdir = "Supp", height = 20)
+# Supplementary Figure 5
+# Title: Distribution of flood-induced increases in travel time across fifteen scenarios.
+# Caption: Population-weighted distribution of increases in walking travel time, in minutes, relative to baseline for access to the nearest public or PNFP healthcare facility and hospital across 15 flood scenarios. Distributions are derived from sampled raster pixels. Red diamonds and blue crosses indicate the mean and median values, respectively.
+save_manuscript_pdf(figS5_violin, "Supplementary Figure 5", subdir = "Supp", width = 18, height = 12)
 ```
 
 ## 4. Full Table S3 (Flextable)
@@ -189,14 +190,10 @@ table_data_supp <- summary_all_supp %>%
                 Mean_All, Min_All, Q25_All, Median_All, Q75_All, Max_All,
                 Mean_Hosp, Min_Hosp, Q25_Hosp, Median_Hosp, Q75_Hosp, Max_Hosp)
 
-ft_supp <- flextable(table_data_supp) %>%
-  add_header_row(values = c("", "", "All Facilities (min)", "Hospitals (min)"), colwidths = c(1, 1, 6, 6)) %>%
-  set_header_labels(Duration = "Duration (hr)", Intensity = "Rainfall (mm)",
-                    Mean_All = "Mean", Min_All = "Min", Q25_All = "Q25", Median_All = "Median", Q75_All = "Q75", Max_All = "Max",
-                    Mean_Hosp = "Mean", Min_Hosp = "Min", Q25_Hosp = "Q25", Median_Hosp = "Median", Q75_Hosp = "Q75", Max_Hosp = "Max") %>%
-  theme_vanilla() %>% autofit()
-
-save_manuscript_table(ft_supp, "TableS3_absolute_full_supp", subdir = "Supp", "Full Scenario Summary")
+# Supplementary Data 1
+# Title: Distribution of flood-induced increases in travel time across fifteen scenarios.
+# Caption: Population-weighted distribution of increases in walking travel time, in minutes, relative to baseline for access to the nearest public or PNFP healthcare facility and hospital across 15 flood scenarios. Distributions are derived from sampled raster pixels. Red diamonds and blue crosses indicate the mean and median values, respectively.
+save_excel_data(table_data_supp, "Supplementary Data 1", subdir = "Supp_Data")
 ```
 
 ## 5. Verification (Parity Check)

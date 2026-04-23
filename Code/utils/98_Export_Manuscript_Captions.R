@@ -31,14 +31,14 @@ inventory <- list(
   list(file = "Code/2_delta_travel_time/02.1S_Baseline_Accessibility_Supp.qmd", label = "Supplementary Table 2"),
   list(file = "Code/3_Pop_impact/03.1S_Pop_Impact_Supp.qmd", label = "Supplementary Data 1"),
   list(file = "Code/4_Vulnerability_index_impact/04.2S_Vulnerability_Impact_Supp.qmd", label = "Supplementary Data 2"),
-  list(file = "Code/3_Pop_impact/03.1S_Pop_Impact_Supp.qmd", label = "Supplementary Figure 1"),
-  list(file = "Code/3_Pop_impact/03.1S_Pop_Impact_Supp.qmd", label = "Supplementary Figure 2"),
-  list(file = "Code/4_Vulnerability_index_impact/04.2S_Vulnerability_Impact_Supp.qmd", label = "Supplementary Figure 3"),
-  list(file = "Code/4_Vulnerability_index_impact/04.2S_Vulnerability_Impact_Supp.qmd", label = "Supplementary Figure 4"),
-  list(file = "Code/3_Pop_impact/03.1S_Pop_Impact_Supp.qmd", label = "Supplementary Figure 5"),
+  list(file = "Code/4_Vulnerability_index_impact/04.1_Index_equal_weight.qmd", label = "Supplementary Figure 1"),
+  list(file = "Code/4_Vulnerability_index_impact/04.1B_PCA_and_Comparison.qmd", label = "Supplementary Figure 2"),
+  list(file = "Code/3_Pop_impact/03.1S_Pop_Impact_Supp.qmd", label = "Supplementary Figure 3"),
+  list(file = "Code/3_Pop_impact/03.1S_Pop_Impact_Supp.qmd", label = "Supplementary Figure 4"),
+  list(file = "Code/4_Vulnerability_index_impact/04.2S_Vulnerability_Impact_Supp.qmd", label = "Supplementary Figure 5"),
   list(file = "Code/4_Vulnerability_index_impact/04.2S_Vulnerability_Impact_Supp.qmd", label = "Supplementary Figure 6"),
-  list(file = "Code/4_Vulnerability_index_impact/04.1_Index_equal_weight.qmd", label = "Supplementary Figure 7"),
-  list(file = "Code/4_Vulnerability_index_impact/04.1B_PCA_and_Comparison.qmd", label = "Supplementary Figure 8")
+  list(file = "Code/3_Pop_impact/03.1S_Pop_Impact_Supp.qmd", label = "Supplementary Figure 7"),
+  list(file = "Code/4_Vulnerability_index_impact/04.2S_Vulnerability_Impact_Supp.qmd", label = "Supplementary Figure 8")
 )
 
 # Initialize Word Document

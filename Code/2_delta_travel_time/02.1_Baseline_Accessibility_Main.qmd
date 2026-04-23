@@ -99,30 +99,33 @@ p_a_main <- ggplot() +
   geom_sf(data = sf::st_as_sf(Parish_boundaries), color = "gray20", fill = NA, linewidth = 0.2) +
   
   # Contextual facilities (semi-transparent, outside AOI)
-  geom_sf(data = sf::st_as_sf(hospitals_complete), shape = 23, fill = scales::alpha("blue", 0.4), color = scales::alpha("black", 0.5), size = 1.2) +
-  geom_sf(data = sf::st_as_sf(health_centers_complete), shape = 21, fill = scales::alpha("green", 0.4), color = scales::alpha("black", 0.5), size = 0.8) +
+  geom_sf(data = sf::st_as_sf(hospitals_complete), shape = 23, fill = scales::alpha("black", 0.4), color = scales::alpha("black", 0.5), size = 1.2) +
+  geom_sf(data = sf::st_as_sf(health_centers_complete), shape = 21, fill = scales::alpha("white", 0.4), color = scales::alpha("black", 0.5), size = 0.8) +
 
   # Study area facilities (solid)
-  geom_sf(data = sf::st_as_sf(hospitals_main), aes(shape = "Hospitals"), fill = "blue", color = "black", size = 2) +
-  geom_sf(data = sf::st_as_sf(health_centres_main), aes(shape = "Health centres"), fill = "green", color = "black", size = 1.2) +
-  
+  geom_sf(data = sf::st_as_sf(hospitals_main), aes(shape = "Hospitals"), fill = "black", color = "white", size = 2) +
+  geom_sf(data = sf::st_as_sf(health_centres_main), aes(shape = "Health centres"), fill = "white", color = "black", size = 1.2) +
+
   scale_shape_manual(name = "Facilities", values = c("Health centres" = 21, "Hospitals" = 23)) +
   guides(shape = guide_legend(
     ncol = 1,
     title.position = "top",
     label.position = "right",
     override.aes = list(
-      fill = c("green", "blue"),
-      color = "black", 
-      size = 3.5, 
+      fill = c("white", "black"),
+      color = "black",
+      size = 3.5,
       alpha = 1
     ),
     order = 2
   )) +
   
-  coord_sf(xlim = c(geog_extent[1], geog_extent[2]), 
+  ggspatial::annotation_scale(location = "bl", width_hint = 0.2, text_cex = 0.6,
+                              unit_category = "metric", style = "bar") +
+
+  coord_sf(xlim = c(geog_extent[1], geog_extent[2]),
            ylim = c(geog_extent[3], geog_extent[4]), expand = FALSE) +
-  
+
   theme_minimal() +
   theme(
     axis.text = element_blank(),
@@ -152,12 +155,15 @@ p_b_main <- ggplot() +
   
   geom_sf(data = sf::st_as_sf(Parish_boundaries), color = "gray20", fill = NA, linewidth = 0.2) +
   
-  geom_sf(data = sf::st_as_sf(hospitals_complete), shape = 23, fill = scales::alpha("blue", 0.4), color = scales::alpha("black", 0.5), size = 1.2) +
-  geom_sf(data = sf::st_as_sf(hospitals_main), shape = 23, fill = "blue", color = "black", size = 2) +
+  geom_sf(data = sf::st_as_sf(hospitals_complete), shape = 23, fill = scales::alpha("black", 0.4), color = scales::alpha("black", 0.5), size = 1.2) +
+  geom_sf(data = sf::st_as_sf(hospitals_main), shape = 23, fill = "black", color = "white", size = 2) +
   
-  coord_sf(xlim = c(geog_extent[1], geog_extent[2]), 
+  ggspatial::annotation_scale(location = "bl", width_hint = 0.2, text_cex = 0.6,
+                              unit_category = "metric", style = "bar") +
+
+  coord_sf(xlim = c(geog_extent[1], geog_extent[2]),
            ylim = c(geog_extent[3], geog_extent[4]), expand = FALSE) +
-  
+
   theme_minimal() +
   theme(
     legend.position = "none",

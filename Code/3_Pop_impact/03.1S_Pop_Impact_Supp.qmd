@@ -60,8 +60,9 @@ plot_bivariate_supp <- function(df, sc_label, title_text) {
   ggplot() +
     geom_sf(data = df_bi, aes(fill = bi_class), color = "white", size = 0.05) +
     bi_scale_fill(pal = "DkViolet", dim = 3) +
+    ggspatial::annotation_scale(location = "bl", width_hint = 0.2, text_cex = 0.6) +
     labs(title = title_text) +
-    bi_theme() + 
+    bi_theme() +
     theme(legend.position = "none",
           plot.title = element_text(size = 7))
 }
@@ -88,10 +89,10 @@ legend_bi <- bi_legend(pal = "DkViolet", dim = 3,
 figS1_grid <- wrap_plots(plots_all_supp, ncol = 3, nrow = 5)
 figS1_final <- (figS1_grid | legend_bi) + plot_layout(widths = c(4, 1))
 
-# Supplementary Figure 1
+# Supplementary Figure 3
 # Title: Absolute travel time increase to all public and PNFP healthcare facilities, 15 scenarios.
 # Caption: Parish-level population-weighted mean increase in walking travel time, in minutes, relative to baseline for access to the nearest public or PNFP healthcare facility across 15 flood scenarios.
-save_manuscript_pdf(figS1_final, "Supplementary Figure 1", subdir = "Supp", width = 18, height = 26)
+save_manuscript_pdf(figS1_final, "Supplementary Figure 3", subdir = "Supp", width = 18, height = 26)
 
 # Figure S2: 15-panel grid (Hospitals)
 plots_hosp_supp <- purrr::map(scenarios_all$label, ~plot_bivariate_supp(df_impact_hosp_supp, .x, safe_label_plot(.x)))
@@ -100,13 +101,13 @@ stopifnot(length(plots_hosp_supp) == 15)
 figS2_grid <- wrap_plots(plots_hosp_supp, ncol = 3, nrow = 5)
 figS2_final <- (figS2_grid | legend_bi) + plot_layout(widths = c(4, 1))
 
-# Supplementary Figure 2
+# Supplementary Figure 4
 # Title: Absolute travel time increase to public and PNFP hospitals, 15 scenarios.
 # Caption: Parish-level population-weighted mean increase in walking travel time, in minutes, relative to baseline for access to the nearest public or PNFP hospital across 15 flood scenarios.
-save_manuscript_pdf(figS2_final, "Supplementary Figure 2", subdir = "Supp", width = 18, height = 26)
+save_manuscript_pdf(figS2_final, "Supplementary Figure 4", subdir = "Supp", width = 18, height = 26)
 ```
 
-## 3. Violin Plot (Figure S5)
+## 3. Violin Plot (Figure S7)
 ```{r}
 # Population-weighted sampling (100k per scenario) to manage memory.
 # Sampling is used for both violin plots and summary tables; with 100k
@@ -167,10 +168,10 @@ figS5_violin <- ggplot(pixels_sampled, aes(x = Intensity, y = delta_tt, fill = F
     plot.background = element_rect(fill = "white", color = NA)
   )
 
-# Supplementary Figure 5
+# Supplementary Figure 7
 # Title: Distribution of flood-induced increases in travel time across fifteen scenarios.
 # Caption: Population-weighted distribution of increases in walking travel time, in minutes, relative to baseline for access to the nearest public or PNFP healthcare facility and hospital across 15 flood scenarios. Distributions are derived from sampled raster pixels. Red diamonds and blue crosses indicate the mean and median values, respectively.
-save_manuscript_pdf(figS5_violin, "Supplementary Figure 5", subdir = "Supp", width = 18, height = 12)
+save_manuscript_pdf(figS5_violin, "Supplementary Figure 7", subdir = "Supp", width = 18, height = 12)
 ```
 
 ## 4. Full Table S3 (Flextable)

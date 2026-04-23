@@ -60,8 +60,9 @@ plot_bivariate_main <- function(df, sc_label, title_text) {
   ggplot() +
     geom_sf(data = df_bi, aes(fill = bi_class), color = "white", size = 0.1) +
     bi_scale_fill(pal = "DkViolet", dim = 3) +
+    ggspatial::annotation_scale(location = "bl", width_hint = 0.2, text_cex = 0.6) +
     labs(title = title_text) +
-    bi_theme() + 
+    bi_theme() +
     theme(legend.position = "none",
           plot.title = element_text(size = 8, face = "bold"))
 }

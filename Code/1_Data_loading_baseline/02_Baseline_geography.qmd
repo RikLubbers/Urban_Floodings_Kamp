@@ -252,35 +252,37 @@ for (h in right_headers) {
        labels = h$label, adj = c(0, 0.5), cex = cex_lgd, font = 2)
 }
 
-# --- Alternating scale bar (lower-right) ---
+# --- Alternating scale bar (lower-right, 0–1–2–3 km) ---
 usr   <- par("usr")
 pin   <- par("pin")
 uin_x <- (usr[2] - usr[1]) / pin[1]
 uin_y <- (usr[4] - usr[3]) / pin[2]
 
-sb_len   <- 2000                         # 2 km total
-sb_half  <- 1000                         # 1 km midpoint
+sb_seg   <- 1000                         # 1 km per segment
+sb_len   <- 3000                         # 3 km total
 sb_h     <- 0.055 * uin_y
 gap_x_in <- 0.15
 gap_y_in <- 0.70
 
 sb_x2 <- usr[2] - gap_x_in * uin_x
 sb_x1 <- sb_x2 - sb_len
-sb_xm <- sb_x1 + sb_half
+sb_xm1 <- sb_x1 + sb_seg
+sb_xm2 <- sb_x1 + 2 * sb_seg
 sb_y0 <- usr[3] + gap_y_in * uin_y
 sb_y1 <- sb_y0 + sb_h
 
-rect(sb_x1, sb_y0, sb_xm, sb_y1, col = "black",  border = NA)
-rect(sb_xm, sb_y0, sb_x2, sb_y1, col = "grey88", border = NA)
-rect(sb_x1, sb_y0, sb_x2, sb_y1, col = NA, border = "black", lwd = 0.7)
+rect(sb_x1,  sb_y0, sb_xm1, sb_y1, col = "black",  border = NA)
+rect(sb_xm1, sb_y0, sb_xm2, sb_y1, col = "grey88", border = NA)
+rect(sb_xm2, sb_y0, sb_x2,  sb_y1, col = "black",  border = NA)
+rect(sb_x1,  sb_y0, sb_x2,  sb_y1, col = NA, border = "black", lwd = 0.7)
 
-tick_x <- c(sb_x1, sb_xm, sb_x2)
+tick_x <- c(sb_x1, sb_xm1, sb_xm2, sb_x2)
 tick_h <- sb_h
-segments(tick_x, rep(sb_y1, 3), tick_x, rep(sb_y1 + tick_h, 3),
+segments(tick_x, rep(sb_y1, 4), tick_x, rep(sb_y1 + tick_h, 4),
          col = "black", lwd = 0.7)
 
 lbl_y <- sb_y1 + tick_h + 0.018 * uin_y
-text(tick_x, rep(lbl_y, 3), labels = c("0", "1", "2"),
+text(tick_x, rep(lbl_y, 4), labels = c("0", "1", "2", "3"),
      adj = c(0.5, 0), cex = 6/12, col = "black")
 
 text(sb_x2 + 0.035 * uin_x, lbl_y,

@@ -4,6 +4,8 @@
 .Rproj.user/
 
 # IDE and OS
+.gitignore
+.claude/
 .DS_Store
 .vscode/
 

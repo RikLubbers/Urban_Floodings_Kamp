@@ -1,8 +1,8 @@
 cff-version: 1.2.0
 title: >-
-  Geospatial modelling of pluvial flood scenarios and their
-  effects on physical access to maternal and child healthcare
-  facilities
+  Geospatial modelling reveals flood-driven inequities in
+  healthcare accessibility among populations vulnerable to
+  undernutrition in Kampala, Uganda
 message: >-
   If you use this software or dataset, please cite it using
   the metadata from this file.
@@ -11,17 +11,57 @@ authors:
   - given-names: Rik Ubbo
     family-names: Lubbers
     email: r.u.lubbers@rug.nl
-    affiliation: University of Groningen / University Medical Center Groningen
+    affiliation: >-
+      Global Health Unit, Department of Health Sciences,
+      University Medical Centre Groningen; Department of
+      Cultural Geography, University of Groningen
     orcid: 'https://orcid.org/0000-0002-2772-1524'
+  - given-names: Gerd
+    family-names: Weitkamp
+    affiliation: >-
+      Department of Cultural Geography, Faculty of Spatial
+      Sciences, University of Groningen
+  - given-names: Fleur
+    family-names: Hierink
+    affiliation: >-
+      GeoHealth Group, Institute of Global Health, University
+      of Geneva; Institute for Environmental Sciences,
+      University of Geneva
+  - given-names: Nicolas
+    family-names: Ray
+    affiliation: >-
+      GeoHealth Group, Institute of Global Health, University
+      of Geneva; Institute for Environmental Sciences,
+      University of Geneva
+  - given-names: Frederick
+    family-names: Oporia
+    affiliation: >-
+      Department of Disease Control and Environmental Health,
+      Makerere University School of Public Health, Uganda
+  - given-names: Otto
+    family-names: Businge
+    affiliation: >-
+      Department of Disease Control and Environmental Health,
+      Makerere University School of Public Health, Uganda
+  - given-names: Regien
+    family-names: Biesma
+    affiliation: >-
+      Global Health Unit, Department of Health Sciences,
+      University Medical Centre Groningen; Department of
+      Global Public Health and Bioethics, Julius Center,
+      University Medical Center Utrecht
 abstract: >-
-  Analytical codebase for a study examining how urban pluvial
-  floods alter walking access to healthcare facilities in
+  Analytical codebase for a study quantifying how urban
+  pluvial floods alter walking access to public and
+  private not-for-profit (PNFP) healthcare facilities in
   Kampala, Uganda. The pipeline estimates population-weighted
   changes in travel time under 15 rainfall × duration
-  scenarios for public, private-not-for-profit, and hospital
-  facilities. Inequities are quantified by intersecting flood
-  impact with a composite vulnerability index derived from
-  socio-economic and health indicators.
+  scenarios for all facilities and hospitals separately.
+  Inequities are quantified by intersecting flood-induced
+  travel time losses with a nutrition-sensitive composite
+  vulnerability index derived from socio-demographic,
+  maternal and child health, and infectious disease
+  indicators.
 keywords:
   - pluvial flooding
   - healthcare accessibility
@@ -31,5 +71,11 @@ keywords:
   - Uganda
   - vulnerability
   - maternal and child health
+  - undernutrition
   - geospatial analysis
+repository-code: 'https://github.com/RikLubbers/Urban_Floodings_Kamp'
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.17531074
+    description: Minimum analysis-ready dataset on Zenodo
 license: CC-BY-SA-4.0

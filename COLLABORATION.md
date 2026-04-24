@@ -21,7 +21,7 @@ If you are interested in collaborating with us, here are the steps to get starte
 
 ## Guidelines for Contributors
 
-1. **Code of Conduct:** All contributors are expected to adhere to our [code of conduct](https://github.com/RikLubbers/PhD-Project---The-Climate-of-Care-Healthcare-Access-and-Healthcare-Seeking-Behavior-for-Undernutrit/blob/main/CODE_OF_CONDUCT.md), which emphasizes respect, inclusivity, and professionalism.
+1. **Code of Conduct:** All contributors are expected to adhere to our [code of conduct](CODE_OF_CONDUCT.md), which emphasizes respect, inclusivity, and professionalism.
 2. **Quality Assurance:** Contributions should maintain the integrity and quality of the project. This includes well-documented and tested code, thorough research, and respectful, constructive communication.
 3. **Data Privacy and Ethics:** Any handling of data must comply with ethical guidelines and respect data privacy, especially considering the sensitive nature of health-related data.
 

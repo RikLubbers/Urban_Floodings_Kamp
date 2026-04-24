@@ -7,10 +7,6 @@
 .DS_Store
 .vscode/
 
-# Agent / AI configuration (not part of the analysis)
-GEMINI.md
-CHANGELOG_UPDATES.md
-
 # renv (R dependency management)
 # NOTE: renv.lock is intentionally TRACKED for reproducibility.
 renv/

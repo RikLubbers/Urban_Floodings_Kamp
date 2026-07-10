@@ -52,8 +52,10 @@ Urban_Floodings_Kamp/
 │   └── 4_Vulnerability_index_impact/      # Step 4: Vulnerability overlays
 │       ├── 04.1_Index_equal_weight.qmd    #   Equal-weight vulnerability index
 │       ├── 04.1B_PCA_and_Comparison.qmd   #   PCA-based index & sensitivity analysis
+│       ├── 04.1C_RWI_Comparison.qmd       #   Comparison with Meta Relative Wealth Index (Supp. Fig. 10)
 │       ├── 04.2_Vulnerability_Impact_Main.qmd   # Table 3 & Figs. 5–6
-│       └── 04.2S_Vulnerability_Impact_Supp.qmd
+│       ├── 04.2S_Vulnerability_Impact_Supp.qmd
+│       └── 04.3_Spatial_association.qmd    #   Lee's L spatial association (Supp. Table 3 & Fig. 9)
 ├── Data/                                  # Not distributed (see §4)
 ├── AccessMod/                             # AccessMod project files (not distributed)
 ├── Figures/                               # Generated outputs
@@ -91,6 +93,8 @@ This project uses [`renv`](https://rstudio.github.io/renv/) for reproducible pac
 # 2. Restore the package library:
 renv::restore()
 ```
+
+Spatial analyses rely on [`terra`](https://rspatial.github.io/terra/) and [`sf`](https://r-spatial.github.io/sf/) for raster and vector processing, [`tidyterra`](https://dieghernan.github.io/tidyterra/) and [`biscale`](https://chris-prener.github.io/biscale/) for mapping, and [`spdep`](https://r-spatial.github.io/spdep/) for the spatial weights and Lee's *L* statistic used in the spatial-association analysis (`04.1C`, `04.3`). All are pinned in `renv.lock` and installed by `renv::restore()`.
 
 ### Running the analysis
 

@@ -424,3 +424,96 @@ compute_parish_vuln <- function(vuln_raster, parish_vect) {
   parish_vect$vulnerability <- vuln_vals[, 2]
   return(st_as_sf(parish_vect))
 }
+
+# --- Spatial association: Lee's L --------------------------------------------
+# Lee's L (Lee 2001, doi:10.1007/s101090100064) measures the bivariate spatial
+# association between two variables (here the flood-induced change in travel time
+# and the nutrition-sensitive vulnerability index): the degree to which they are
+# spatially co-patterned across neighbouring parishes. Requires the spdep package.
+
+# Builds a row-standardised spatial weights list (queen contiguity) from a
+# parish sf or SpatVector. zero.policy tolerates any parishes without neighbours.
+build_parish_listw <- function(parish_x, style = "W") {
+  parish_sf <- if (inherits(parish_x, "SpatVector")) sf::st_as_sf(parish_x) else parish_x
+  nb <- spdep::poly2nb(parish_sf, queen = TRUE)
+  spdep::nb2listw(nb, style = style, zero.policy = TRUE)
+}
+
+# Global Lee's L + Monte-Carlo significance for one x/y pair.
+# Returns a one-row tibble: L, p_value (permutation), n.
+lee_global <- function(x, y, listw, nsim = 9999) {
+  n  <- length(x)
+  L  <- spdep::lee(x, y, listw, n = n, zero.policy = TRUE)$L
+  mc <- spdep::lee.mc(x, y, listw, nsim = nsim, zero.policy = TRUE,
+                      alternative = "greater", na.action = na.omit)
+  tibble::tibble(L = as.numeric(L), p_value = mc$p.value, n = n)
+}
+
+# Global Lee's L for every scenario and facility tier.
+# df_list: named list of parish sf objects, each with a `vulnerability` column
+#          and Average_Weighted_Delta_TT_<label> columns, one entry per tier
+#          (e.g. list("All Facilities" = df_all, "Hospitals" = df_hosp)).
+compute_lee_table <- function(df_list, scenario_labels, listw, nsim = 9999) {
+  purrr::imap_dfr(df_list, function(df, tier) {
+    purrr::map_dfr(scenario_labels, function(lab) {
+      x <- df[[paste0("Average_Weighted_Delta_TT_", lab)]]
+      y <- df$vulnerability
+      res <- lee_global(x, y, listw, nsim = nsim)
+      # Non-spatial rank correlation between parish delay and vulnerability,
+      # reported alongside Lee's L. Lee's L folds in spatial smoothing via the
+      # weights; the plain Spearman is its aspatial counterpart and guards
+      # against reading the spatial association as tautological.
+      sp <- suppressWarnings(
+        stats::cor.test(x, y, method = "spearman", exact = FALSE))
+      dplyr::mutate(res,
+                    spearman_rho = as.numeric(sp$estimate),
+                    spearman_p   = sp$p.value,
+                    FacilityType = tier, scenario = lab, .before = 1)
+    })
+  })
+}
+
+# Local Lee's Li per parish for one scenario, attached to the parish geometry.
+# Adds a `localL` column used to draw the local Lee's map.
+compute_lee_local <- function(df, sc_label, listw) {
+  x <- df[[paste0("Average_Weighted_Delta_TT_", sc_label)]]
+  y <- df$vulnerability
+  lg <- spdep::lee(x, y, listw, n = length(x), zero.policy = TRUE)
+  df$localL <- as.numeric(lg$localL)
+  df
+}
+
+# --- Relative Wealth Index (parish aggregation) ------------------------------
+# Loads the Meta Relative Wealth Index point CSV (columns latitude, longitude,
+# rwi, error; EPSG:4326) and returns the mean RWI per parish. The RWI is provided
+# at ~2.4 km resolution, so parishes containing no point are filled from the
+# nearest parish centroid; this coarseness should be considered when interpreting
+# the parish-level values.
+compute_parish_rwi <- function(rwi_csv, parish_vect) {
+  rwi <- utils::read.csv(rwi_csv)
+  pts <- terra::vect(rwi, geom = c("longitude", "latitude"), crs = "EPSG:4326")
+  pts <- terra::project(pts, terra::crs(parish_vect))
+
+  parish_sf <- sf::st_as_sf(parish_vect)
+  parish_sf$.pid <- seq_len(nrow(parish_sf))
+  pts_sf <- sf::st_as_sf(pts)
+
+  # Point-in-polygon spatial join -> mean RWI of the points inside each parish
+  ptj <- sf::st_join(pts_sf, parish_sf[".pid"], join = sf::st_within)
+  agg <- stats::aggregate(rwi ~ .pid, data = sf::st_drop_geometry(ptj),
+                          FUN = mean, na.rm = TRUE)
+  parish_sf$rwi <- agg$rwi[match(parish_sf$.pid, agg$.pid)]
+
+  # Nearest-neighbour fill for parishes containing no RWI point (RWI is coarse)
+  if (any(is.na(parish_sf$rwi))) {
+    cent <- sf::st_centroid(sf::st_geometry(parish_sf))
+    miss <- which(is.na(parish_sf$rwi))
+    have <- which(!is.na(parish_sf$rwi))
+    for (i in miss) {
+      d <- sf::st_distance(cent[i], cent[have])
+      parish_sf$rwi[i] <- parish_sf$rwi[have[which.min(d)]]
+    }
+  }
+  parish_sf$.pid <- NULL
+  parish_sf
+}

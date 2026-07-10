@@ -43,23 +43,37 @@ save_manuscript_pdf <- function(plot, name, subdir = "Main", width = 18, height 
 }
 
 # Exports a flextable to a Word document (.docx) with a heading title.
-save_manuscript_table <- function(ft, name, subdir = "Main", title = "") {
+# When pdf = TRUE, additionally writes a PDF rendering of the table (matching
+# the .docx + .pdf pairing used for the other supplementary tables). The PDF is
+# produced from a grid grob, so no headless browser (webshot/chromote) is needed.
+save_manuscript_table <- function(ft, name, subdir = "Main", title = "", pdf = FALSE) {
   dest <- get_table_path(name, subdir, "docx")
   message("Exporting table: ", dest)
-  
+
   # Ensure title uses "Supplementary Table" if in Supp subdir
   if (subdir == "Supp" && !grepl("Supplementary Table", title) && nzchar(title)) {
     title <- gsub("Table S", "Supplementary Table ", title)
   }
-  
+
   doc <- read_docx()
   if (nzchar(title)) {
     doc <- doc %>% body_add_par(title, style = "heading 1")
   }
-  
+
   doc <- doc %>% body_add_flextable(ft)
-  
+
   print(doc, target = dest)
+
+  if (pdf) {
+    pdf_dest <- get_table_path(name, subdir, "pdf")
+    message("Exporting table (PDF): ", pdf_dest)
+    fdim <- flextable::flextable_dim(ft)   # total width/height in inches
+    grob <- flextable::gen_grob(ft, fit = "auto", just = "centre")
+    grDevices::cairo_pdf(pdf_dest, width = fdim$width + 0.2, height = fdim$height + 0.2)
+    grid::grid.newpage()
+    grid::grid.draw(grob)
+    grDevices::dev.off()
+  }
 }
 
 # Exports a dataframe or list of dataframes to an Excel file (.xlsx) 

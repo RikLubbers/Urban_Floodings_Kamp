@@ -10,8 +10,7 @@ library(here)
 # and export them to a formatted Word document.
 # ------------------------------------------------------------------------------
 
-# Define the inventory of files to scan
-# Ordered by manuscript appearance
+# Inventory, ordered by type and number to match the submitted caption list.
 inventory <- list(
   # Main Figures
   list(file = "Code/1_Data_loading_baseline/02_Baseline_geography.qmd", label = "Figure 1"),
@@ -20,17 +19,13 @@ inventory <- list(
   list(file = "Code/3_Pop_impact/03.1_Pop_Impact_Main.qmd", label = "Figure 4"),
   list(file = "Code/4_Vulnerability_index_impact/04.2_Vulnerability_Impact_Main.qmd", label = "Figure 5"),
   list(file = "Code/4_Vulnerability_index_impact/04.2_Vulnerability_Impact_Main.qmd", label = "Figure 6"),
-  
+
   # Main Tables
   list(file = NA, label = "Table 1"),
   list(file = "Code/3_Pop_impact/03.1_Pop_Impact_Main.qmd", label = "Table 2"),
   list(file = "Code/4_Vulnerability_index_impact/04.2_Vulnerability_Impact_Main.qmd", label = "Table 3"),
-  
-  # Supplementary Materials
-  list(file = NA, label = "Supplementary Table 1"),
-  list(file = "Code/2_delta_travel_time/02.1S_Baseline_Accessibility_Supp.qmd", label = "Supplementary Table 2"),
-  list(file = "Code/3_Pop_impact/03.1S_Pop_Impact_Supp.qmd", label = "Supplementary Data 1"),
-  list(file = "Code/4_Vulnerability_index_impact/04.2S_Vulnerability_Impact_Supp.qmd", label = "Supplementary Data 2"),
+
+  # Supplementary Figures
   list(file = "Code/4_Vulnerability_index_impact/04.1_Index_equal_weight.qmd", label = "Supplementary Figure 1"),
   list(file = "Code/4_Vulnerability_index_impact/04.1B_PCA_and_Comparison.qmd", label = "Supplementary Figure 2"),
   list(file = "Code/3_Pop_impact/03.1S_Pop_Impact_Supp.qmd", label = "Supplementary Figure 3"),
@@ -38,7 +33,19 @@ inventory <- list(
   list(file = "Code/4_Vulnerability_index_impact/04.2S_Vulnerability_Impact_Supp.qmd", label = "Supplementary Figure 5"),
   list(file = "Code/4_Vulnerability_index_impact/04.2S_Vulnerability_Impact_Supp.qmd", label = "Supplementary Figure 6"),
   list(file = "Code/3_Pop_impact/03.1S_Pop_Impact_Supp.qmd", label = "Supplementary Figure 7"),
-  list(file = "Code/4_Vulnerability_index_impact/04.2S_Vulnerability_Impact_Supp.qmd", label = "Supplementary Figure 8")
+  list(file = "Code/4_Vulnerability_index_impact/04.2S_Vulnerability_Impact_Supp.qmd", label = "Supplementary Figure 8"),
+  list(file = "Code/4_Vulnerability_index_impact/04.3_Spatial_association.qmd", label = "Supplementary Figure 9"),
+  list(file = "Code/4_Vulnerability_index_impact/04.3_Spatial_association.qmd", label = "Supplementary Figure 10"),
+  list(file = "Code/4_Vulnerability_index_impact/04.1C_RWI_Comparison.qmd", label = "Supplementary Figure 11"),
+
+  # Supplementary Tables
+  list(file = NA, label = "Supplementary Table 1"),
+  list(file = "Code/2_delta_travel_time/02.1S_Baseline_Accessibility_Supp.qmd", label = "Supplementary Table 2"),
+  list(file = "Code/4_Vulnerability_index_impact/04.3_Spatial_association.qmd", label = "Supplementary Table 3"),
+
+  # Supplementary Data
+  list(file = "Code/3_Pop_impact/03.1S_Pop_Impact_Supp.qmd", label = "Supplementary Data 1"),
+  list(file = "Code/4_Vulnerability_index_impact/04.2S_Vulnerability_Impact_Supp.qmd", label = "Supplementary Data 2")
 )
 
 # Initialize Word Document
@@ -47,34 +54,51 @@ doc <- read_docx() %>%
   body_add_par(paste("Generated on:", Sys.Date()), style = "Normal") %>%
   body_add_break()
 
-# Function to extract caption parts
+# Lines that export a labelled item; each acts as the anchor for that label.
+anchor_lines <- function(lines) {
+  which(str_detect(lines, '"(Figure|Table|Supplementary (Figure|Table|Data)) [0-9]+"'))
+}
+
+# Extracts the Title/Caption pair belonging to `label_tag`.
+#
+# Metadata sits directly above the export call in most files but below it in
+# 02_Baseline_geography.qmd, so the nearest pair in either direction is taken.
+# Pairs separated from the anchor by another label's export call belong to that
+# other item and are rejected, which is what previously caused Figure 6 and
+# Table 3 to inherit Figure 5's caption.
 extract_caption <- function(file_path, label_tag) {
   if (!file.exists(file_path)) return(list(title = "[File Not Found]", caption = "[N/A]"))
-  
+
   lines <- readLines(file_path, warn = FALSE)
-  
-  # Find the indices containing the label_tag (e.g., "Figure 1")
-  # We prioritise matches in comments to avoid finding the label in the code itself if possible
-  all_indices <- which(str_detect(lines, fixed(label_tag)))
-  if (length(all_indices) == 0) return(list(title = "[Tag Not Found]", caption = "[N/A]"))
-  
-  # Scan around each occurrence for Title/Caption
-  # If we find them near one occurrence, we take it
-  for (idx in all_indices) {
-    search_range <- max(1, idx - 25):min(length(lines), idx + 25)
-    block_lines <- lines[search_range]
-    
-    title_line <- block_lines[str_detect(block_lines, "#\\s*Title:")]
-    caption_line <- block_lines[str_detect(block_lines, "#\\s*Caption:")]
-    
-    if (length(title_line) > 0 || length(caption_line) > 0) {
-      title <- if (length(title_line) > 0) str_replace(title_line[1], ".*?#\\s*Title:\\s*", "") else "[Title Missing]"
-      caption <- if (length(caption_line) > 0) str_replace(caption_line[1], ".*?#\\s*Caption:\\s*", "") else "[Caption Missing]"
-      return(list(title = title, caption = caption))
-    }
+
+  anchor <- which(str_detect(lines, fixed(paste0('"', label_tag, '"'))))
+  if (length(anchor) == 0) return(list(title = "[Tag Not Found]", caption = "[N/A]"))
+  anchor <- anchor[1]
+
+  anchors <- setdiff(anchor_lines(lines), anchor)
+  titles <- which(str_detect(lines, "^\\s*#\\s*Title:"))
+  if (length(titles) == 0) return(list(title = "[Title Missing]", caption = "[Caption Missing]"))
+
+  # Reject any title block with another export call between it and our anchor
+  blocked <- vapply(titles, function(t) {
+    lo <- min(t, anchor); hi <- max(t, anchor)
+    any(anchors > lo & anchors < hi)
+  }, logical(1))
+  titles <- titles[!blocked]
+  if (length(titles) == 0) return(list(title = "[Title Missing]", caption = "[Caption Missing]"))
+
+  t_idx <- titles[which.min(abs(titles - anchor))]
+  title <- str_replace(lines[t_idx], ".*?#\\s*Title:\\s*", "")
+
+  # The caption is the first "# Caption:" line following its title
+  c_idx <- which(str_detect(lines, "^\\s*#\\s*Caption:") & seq_along(lines) > t_idx)
+  caption <- if (length(c_idx) > 0 && c_idx[1] - t_idx <= 3) {
+    str_replace(lines[c_idx[1]], ".*?#\\s*Caption:\\s*", "")
+  } else {
+    "[Caption Missing]"
   }
-  
-  return(list(title = "[Metadata Near Tag Missing]", caption = "[Metadata Near Tag Missing]"))
+
+  list(title = title, caption = caption)
 }
 
 # Process Inventory
@@ -82,7 +106,7 @@ for (item in inventory) {
   if (item$label == "Table 1") {
     info <- list(
       title = "Walking speeds by land cover and road class under baseline and flood conditions.",
-      caption = "Walking speeds, in km h\u207B\u00B9, assigned to land cover types and road classes under baseline and flood conditions. Flood-phase speeds reflect reduced mobility under inundation. \u2018Bare areas\u2019 correspond primarily to dry riverbeds or sandbanks identified in land cover data."
+      caption = "Walking speeds, in km h⁻¹, assigned to land cover types and road classes under baseline and flood conditions. Flood-phase speeds reflect reduced mobility under inundation. ‘Bare areas’ correspond primarily to dry riverbeds or sandbanks identified in land cover data."
     )
   } else if (item$label == "Supplementary Table 1") {
     info <- list(
@@ -92,7 +116,11 @@ for (item in inventory) {
   } else {
     info <- extract_caption(here(item$file), item$label)
   }
-  
+
+  if (str_detect(info$title, "^\\[") || str_detect(info$caption, "^\\[")) {
+    warning("Caption harvest incomplete for ", item$label, ": ", info$title, " / ", info$caption)
+  }
+
   doc <- doc %>%
     body_add_par(item$label, style = "Normal") %>%
     # Bold Title

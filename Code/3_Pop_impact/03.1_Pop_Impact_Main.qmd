@@ -38,12 +38,12 @@ df_impact_hosp_main <- compute_parish_impact(delta_hosp_main, Worldpop_density, 
 df_impact_all_main <- df_impact_all_main %>%
   mutate(Population_bin = factor(cut(Population_Sum, breaks = c(0, 10000, 30000, Inf), 
                                      include.lowest = TRUE, labels = c("Low", "Medium", "High")),
-                                 levels = c("High", "Medium", "Low")))
+                                 levels = c("Low", "Medium", "High")))
 
 df_impact_hosp_main <- df_impact_hosp_main %>%
   mutate(Population_bin = factor(cut(Population_Sum, breaks = c(0, 10000, 30000, Inf), 
                                      include.lowest = TRUE, labels = c("Low", "Medium", "High")),
-                                 levels = c("High", "Medium", "Low")))
+                                 levels = c("Low", "Medium", "High")))
 ```
 
 # 2. Bivariate Figure 3 (All Facilities)
@@ -59,7 +59,7 @@ plot_bivariate_main <- function(df, sc_label, title_text) {
   
   ggplot() +
     geom_sf(data = df_bi, aes(fill = bi_class), color = "white", size = 0.1) +
-    bi_scale_fill(pal = "DkViolet", dim = 3) +
+    bi_scale_fill(pal = bivar_pal_3, dim = 3) +
     ggspatial::annotation_scale(location = "bl", width_hint = 0.2, text_cex = 0.6) +
     labs(title = title_text) +
     bi_theme() +
@@ -70,13 +70,13 @@ plot_bivariate_main <- function(df, sc_label, title_text) {
 plots_all_main <- purrr::map(scenarios_main$label, ~plot_bivariate_main(df_impact_all_main, .x, scenarios_main$label_plot[scenarios_main$label == .x]))
 stopifnot(length(plots_all_main) == 6)
 
-legend_bi <- bi_legend(pal = "DkViolet", dim = 3, 
+legend_bi <- bi_legend(pal = bivar_pal_3, dim = 3, 
                        xlab = "Δ Travel Time (min)", 
                        ylab = "Population Sum", 
                        size = 8,
                        breaks = list(
                          bi_x = c("0-30", "30-60", "60+"),
-                         bi_y = c(">30k", "10k-30k", "<10k")
+                         bi_y = c("<10k", "10k-30k", ">30k")
                        ))
 
 fig3_grid <- wrap_plots(plots_all_main, ncol = 2, nrow = 3)
@@ -84,7 +84,7 @@ fig3_legend_row <- plot_spacer() + legend_bi + plot_spacer() + plot_layout(width
 fig3_final <- (fig3_grid / fig3_legend_row) + plot_layout(heights = c(6, 1))
 
 # Title: Spatial distribution of flood-induced increases in travel time to all public and PNFP healthcare facilities.
-# Caption: Parish-level population-weighted mean increase in walking travel time, in minutes, relative to baseline for access to the nearest public or PNFP healthcare facility across six flood scenarios defined by rainfall intensity and duration. Colours represent the magnitude of the increase in travel time.
+# Caption: Parish-level population-weighted mean increase in walking travel time, in minutes, relative to baseline for access to the nearest public or PNFP healthcare facility across six flood scenarios defined by rainfall intensity and duration. Colours represent the combination of the increase in travel time and total parish population, as shown in the bivariate legend.
 save_manuscript_pdf(fig3_final, "Figure 3", subdir = "Main", width = 18, height = 24)
 ```
 
@@ -98,7 +98,7 @@ fig4_legend_row <- plot_spacer() + legend_bi + plot_spacer() + plot_layout(width
 fig4_final <- (fig4_grid / fig4_legend_row) + plot_layout(heights = c(6, 1))
 
 # Title: Spatial distribution of flood-induced increases in travel time to public and PNFP hospitals.
-# Caption: Parish-level population-weighted mean increase in walking travel time, in minutes, relative to baseline for access to the nearest public or PNFP hospital across six flood scenarios defined by rainfall intensity and duration. Colours represent the magnitude of the increase in travel time.
+# Caption: Parish-level population-weighted mean increase in walking travel time, in minutes, relative to baseline for access to the nearest public or PNFP hospital across six flood scenarios defined by rainfall intensity and duration. Colours represent the combination of the increase in travel time and total parish population, as shown in the bivariate legend.
 save_manuscript_pdf(fig4_final, "Figure 4", subdir = "Main", width = 18, height = 24)
 ```
 

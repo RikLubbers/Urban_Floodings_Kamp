@@ -19,10 +19,9 @@ filter_facilities()
 
 ## Figure 2 — Combined Baseline Map
 ```{r}
-# Travel time colour ramp and bin breaks (minutes)
-tt_colors_main <- viridisLite::turbo(8)
-tt_breaks <- c(0, 15, 30, 45, 60, 90, 120, 180) 
-tt_labels <- c("0-15", "15-30", "30-45", "45-60", "60-90", "90-120", "120-180", ">180")
+# Travel time colour ramp and bin breaks (minutes); breaks are interior boundaries.
+tt_breaks <- c(15, 30, 45, 60, 90, 120)
+tt_colors_main <- viridisLite::turbo(length(tt_breaks) + 1)
 
 # Replicate the coordinate-shift pipeline from 02_Baseline_geography.qmd
 # to derive a consistent plotting extent (geog_extent)
@@ -80,17 +79,14 @@ p_a_main <- ggplot() +
     name = "Travel Time (min)",
     colours = tt_colors_main,
     breaks = tt_breaks,
-    labels = tt_labels,
     limits = c(0, 180),
     oob = scales::squish,
     na.value = "transparent",
-    guide = guide_legend(
-      ncol = 2,
-      byrow = FALSE,
+    guide = guide_coloursteps(
+      show.limits = TRUE,
       title.position = "top",
-      label.position = "right",
-      keywidth = unit(0.7, "cm"),
-      keyheight = unit(0.3, "cm"),
+      barwidth = unit(4.5, "cm"),
+      barheight = unit(0.35, "cm"),
       order = 1
     )
   ) +
@@ -99,23 +95,30 @@ p_a_main <- ggplot() +
   geom_sf(data = sf::st_as_sf(Parish_boundaries), color = "gray20", fill = NA, linewidth = 0.2) +
   
   # Contextual facilities (semi-transparent, outside AOI)
-  geom_sf(data = sf::st_as_sf(hospitals_complete), shape = 23, fill = scales::alpha("black", 0.4), color = scales::alpha("black", 0.5), size = 1.2) +
-  geom_sf(data = sf::st_as_sf(health_centers_complete), shape = 21, fill = scales::alpha("white", 0.4), color = scales::alpha("black", 0.5), size = 0.8) +
+  geom_sf(data = sf::st_as_sf(hospitals_complete), aes(shape = "Hospitals (outside study area)"), fill = scales::alpha("black", 0.4), color = scales::alpha("black", 0.5), size = 1.2) +
+  geom_sf(data = sf::st_as_sf(health_centers_complete), aes(shape = "Health centres (outside study area)"), fill = scales::alpha("white", 0.4), color = scales::alpha("black", 0.5), size = 0.8) +
 
   # Study area facilities (solid)
   geom_sf(data = sf::st_as_sf(hospitals_main), aes(shape = "Hospitals"), fill = "black", color = "white", size = 2) +
   geom_sf(data = sf::st_as_sf(health_centres_main), aes(shape = "Health centres"), fill = "white", color = "black", size = 1.2) +
 
-  scale_shape_manual(name = "Facilities", values = c("Health centres" = 21, "Hospitals" = 23)) +
+  # `limits` fixes legend order; the override.aes vectors below are positional.
+  scale_shape_manual(
+    name = "Facilities",
+    limits = c("Health centres", "Hospitals",
+               "Health centres (outside study area)", "Hospitals (outside study area)"),
+    values = c("Health centres" = 21, "Hospitals" = 23,
+               "Health centres (outside study area)" = 21, "Hospitals (outside study area)" = 23)
+  ) +
   guides(shape = guide_legend(
     ncol = 1,
     title.position = "top",
     label.position = "right",
     override.aes = list(
-      fill = c("white", "black"),
-      color = "black",
-      size = 3.5,
-      alpha = 1
+      fill  = c("white", "black", "white", "black"),
+      color = c("black", "black", "black", "black"),
+      size  = 3.5,
+      alpha = c(1, 1, 0.4, 0.4)
     ),
     order = 2
   )) +

@@ -31,12 +31,12 @@ df_impact_hosp_supp <- compute_parish_impact(x_delta_hosp_supp, Worldpop_density
 df_impact_all_supp <- df_impact_all_supp %>%
   mutate(Population_bin = factor(cut(Population_Sum, breaks = c(0, 10000, 30000, Inf), 
                                      include.lowest = TRUE, labels = c("Low", "Medium", "High")),
-                                 levels = c("High", "Medium", "Low")))
+                                 levels = c("Low", "Medium", "High")))
 
 df_impact_hosp_supp <- df_impact_hosp_supp %>%
   mutate(Population_bin = factor(cut(Population_Sum, breaks = c(0, 10000, 30000, Inf), 
                                      include.lowest = TRUE, labels = c("Low", "Medium", "High")),
-                                 levels = c("High", "Medium", "Low")))
+                                 levels = c("Low", "Medium", "High")))
 ```
 
 ## 2. Bivariate Grids (Figures S1 and S2)
@@ -59,7 +59,7 @@ plot_bivariate_supp <- function(df, sc_label, title_text) {
   
   ggplot() +
     geom_sf(data = df_bi, aes(fill = bi_class), color = "white", size = 0.05) +
-    bi_scale_fill(pal = "DkViolet", dim = 3) +
+    bi_scale_fill(pal = bivar_pal_3, dim = 3) +
     ggspatial::annotation_scale(location = "bl", width_hint = 0.2, text_cex = 0.6) +
     labs(title = title_text) +
     bi_theme() +
@@ -77,13 +77,13 @@ safe_label_plot <- function(sc_label) {
 plots_all_supp <- purrr::map(scenarios_all$label, ~plot_bivariate_supp(df_impact_all_supp, .x, safe_label_plot(.x)))
 stopifnot(length(plots_all_supp) == 15)
 
-legend_bi <- bi_legend(pal = "DkViolet", dim = 3, 
+legend_bi <- bi_legend(pal = bivar_pal_3, dim = 3, 
                        xlab = "Δ Travel Time (min)", 
                        ylab = "Population Sum", 
                        size = 8,
                        breaks = list(
                          bi_x = c("0-30", "30-60", "60+"),
-                         bi_y = c(">30k", "10k-30k", "<10k")
+                         bi_y = c("<10k", "10k-30k", ">30k")
                        ))
 
 figS1_grid <- wrap_plots(plots_all_supp, ncol = 3, nrow = 5)
@@ -155,13 +155,14 @@ figS5_violin <- ggplot(pixels_sampled, aes(x = Intensity, y = delta_tt, fill = F
     name = "Facility Type"
   ) +
   scale_y_continuous(
-    breaks = c(0, 15, 30, 45, 60, 90, 120, 180, 240, 300, 360),
+    breaks = c(0, 60, 120, 180, 240, 300, 360),
     limits = c(0, 360),
     name = "Change in Travel Time (minutes)"
   ) +
   theme_minimal() +
   theme(
     legend.position = "right",
+    axis.text.y = element_text(size = 6),
     panel.grid.major.y = element_line(color = "grey90"),
     panel.grid.major.x = element_blank(),
     panel.grid.minor = element_blank(),

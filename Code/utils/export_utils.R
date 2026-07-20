@@ -8,6 +8,29 @@ library(flextable)
 library(officer)
 library(writexl)
 
+# --- Bivariate Palettes ------------------------------------------------------
+
+# Custom bivariate palettes following the "corners model" of Strode et al.
+# (2020, Cartographic Perspectives 94): the high-high corner is the focal cell
+# and carries the message, so it is the most saturated colour in the grid.
+# Corner anchors: #F2F2F0 grey (both low), #EE9B00 amber (x high only),
+# #0A9396 teal (y high only), #9B2226 crimson (both high).
+# The amber x-axis is what keeps the grid readable under red-green deficiency.
+# Minimum pairwise Lab distance, 4x4: 13.0 normal, 12.5 deuteranopia,
+# 12.1 protanopia, 10.5 tritanopia (Nowosad safety threshold is 6).
+bivar_pal_3 <- c(
+  "1-1" = "#F2F2F0", "2-1" = "#F0C678", "3-1" = "#EE9B00",
+  "1-2" = "#7EC2C3", "2-2" = "#A1906B", "3-2" = "#C45E13",
+  "1-3" = "#0A9396", "2-3" = "#525A5E", "3-3" = "#9B2226"
+)
+
+bivar_pal_4 <- c(
+  "1-1" = "#F2F2F0", "2-1" = "#F0D5A0", "3-1" = "#EFB850", "4-1" = "#EE9B00",
+  "1-2" = "#A4D2D2", "2-2" = "#B3B290", "3-2" = "#C3924E", "4-2" = "#D2720C",
+  "1-3" = "#57B2B4", "2-3" = "#778F80", "3-3" = "#966D4C", "4-3" = "#B64A19",
+  "1-4" = "#0A9396", "2-4" = "#3A6D70", "3-4" = "#6A474B", "4-4" = "#9B2226"
+)
+
 # --- Filename Construction ---------------------------------------------------
 
 # Constructs the full path for a manuscript figure, creating the target

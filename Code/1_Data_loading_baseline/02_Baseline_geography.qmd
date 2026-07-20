@@ -288,7 +288,21 @@ text(tick_x, rep(lbl_y, 4), labels = c("0", "1", "2", "3"),
 text(sb_x2 + 0.035 * uin_x, lbl_y,
      labels = "km", adj = c(0, 0), cex = 5.5/12, col = "black")
 
-north(type = 2, cex = 8/12)
+# --- North arrow (above the scale bar) ---
+# Drawn with polygon() rather than terra::north(), whose glyph does not survive
+# the grDevices::pdf() device used for this figure. Anchored to the scale bar
+# rather than to usr[4], which does not correspond to the visible map edge.
+na_x  <- (sb_x1 + sb_x2) / 2
+na_y0 <- lbl_y + 0.18 * uin_y
+na_h  <- 0.26 * uin_y
+na_w  <- 0.075 * uin_x
+
+polygon(c(na_x, na_x - na_w, na_x,                na_x + na_w),
+        c(na_y0 + na_h, na_y0, na_y0 + 0.25 * na_h, na_y0),
+        col = "black", border = "black", lwd = 0.7)
+
+text(na_x, na_y0 + na_h + 0.02 * uin_y, labels = "N",
+     adj = c(0.5, 0), cex = 7/12, font = 2)
 
 dev.off()
 ``` 

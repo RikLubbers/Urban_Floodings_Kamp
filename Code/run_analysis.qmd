@@ -132,7 +132,9 @@ supp_analysis_files <- c(
   "Code/2_delta_travel_time/02.1S_Baseline_Accessibility_Supp.qmd",
   "Code/3_Pop_impact/03.1S_Pop_Impact_Supp.qmd",
   "Code/3_Pop_impact/03.3S_Pop_Impact_Summary_Supp.qmd",
-  "Code/4_Vulnerability_index_impact/04.2S_Vulnerability_Impact_Supp.qmd"
+  "Code/4_Vulnerability_index_impact/04.2S_Vulnerability_Impact_Supp.qmd",
+  "Code/4_Vulnerability_index_impact/04.1C_RWI_Comparison.qmd",
+  "Code/4_Vulnerability_index_impact/04.3_Spatial_association.qmd"
 )
 
 run_section("Supplementary Analysis", supp_analysis_files)

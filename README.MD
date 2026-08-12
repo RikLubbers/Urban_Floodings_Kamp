@@ -2,11 +2,13 @@
     <h1>Urban flooding widens inequalities in walking access to healthcare: geospatial modelling in Kampala, Uganda</h1>
 </div>
 
+[![DOI](https://zenodo.org/badge/773830578.svg)](https://doi.org/10.5281/zenodo.21901794)
+
 This repository contains the analytical codebase for a study quantifying how urban pluvial floods alter walking access to public and private not-for-profit (PNFP) healthcare facilities in Kampala, Uganda. The analysis estimates population-weighted changes in travel time across 15 rainfall × duration scenarios, separately for all public/PNFP facilities and for hospitals only, and examines how accessibility losses are distributed across a nutrition-sensitive composite vulnerability index. Under the most intense modelled storm (100 mm, 1 hr), population-weighted mean travel time increases from 11.5 to 19.3 minutes for all facilities and from 23.4 to 56.3 minutes for hospitals; in the highest vulnerability quartile, hospital delays reach a mean of 72.4 minutes.
 
 **Manuscript:** Lubbers R.U., Weitkamp G., Hierink F., Ray N., Oporia F., Businge O., Biesma R. *Urban flooding widens inequalities in walking access to healthcare: geospatial modelling in Kampala, Uganda.* *Communications Medicine* (COMMSMED-25-2757).
 
-**Cite this repository:** Lubbers R.U. *RikLubbers/Urban_Floodings_Kamp: analysis code for 'Urban flooding widens inequalities in walking access to healthcare'.* Zenodo https://doi.org/10.5281/zenodo.PLACEHOLDER (2026).
+**Cite this repository:** Lubbers R.U. *RikLubbers/Urban_Floodings_Kamp: analysis code for 'Urban flooding widens inequalities in walking access to healthcare'.* Zenodo https://doi.org/10.5281/zenodo.21901794 (2026).
 
 ---
 

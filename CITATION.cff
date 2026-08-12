@@ -77,7 +77,7 @@ version: 1.0.0
 date-released: '2026-08-12'
 identifiers:
   - type: doi
-    value: 10.5281/zenodo.PLACEHOLDER
+    value: 10.5281/zenodo.21901794
     description: Archived release of this analysis code on Zenodo
   - type: doi
     value: 10.5281/zenodo.17531074

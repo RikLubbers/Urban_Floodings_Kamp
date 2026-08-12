@@ -174,7 +174,8 @@ p_b_main <- ggplot() +
   )
 
 # Combine panels and export
-fig2_combined_main <- (p_a_main + p_b_main + plot_layout(guides = "collect")) & 
+fig2_combined_main <- (p_a_main + p_b_main + plot_layout(guides = "collect")) +
+  patchwork::plot_annotation(tag_levels = "a") &
   theme(
     axis.text = element_blank(),
     axis.title = element_blank(),
@@ -184,7 +185,9 @@ fig2_combined_main <- (p_a_main + p_b_main + plot_layout(guides = "collect")) &
     legend.box.just = "top",
     legend.spacing.x = unit(1, "cm"),
     legend.title = element_text(face = "bold", size = 9),
-    legend.text = element_text(size = 8)
+    legend.text = element_text(size = 8),
+    plot.tag = element_text(face = "bold", size = 11),
+    plot.tag.position = c(0.03, 0.97)
   )
 
 fig2_combined_main <- patchwork::wrap_elements(full = fig2_combined_main) + 

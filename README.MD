@@ -1,10 +1,12 @@
 <div align="center">
-    <h1>Geospatial modelling reveals flood-driven inequities in healthcare accessibility among populations vulnerable to undernutrition in Kampala, Uganda</h1>
+    <h1>Urban flooding widens inequalities in walking access to healthcare: geospatial modelling in Kampala, Uganda</h1>
 </div>
 
 This repository contains the analytical codebase for a study quantifying how urban pluvial floods alter walking access to public and private not-for-profit (PNFP) healthcare facilities in Kampala, Uganda. The analysis estimates population-weighted changes in travel time across 15 rainfall × duration scenarios, separately for all public/PNFP facilities and for hospitals only, and examines how accessibility losses are distributed across a nutrition-sensitive composite vulnerability index. Under the most intense modelled storm (100 mm, 1 hr), population-weighted mean travel time increases from 11.5 to 19.3 minutes for all facilities and from 23.4 to 56.3 minutes for hospitals; in the highest vulnerability quartile, hospital delays reach a mean of 72.4 minutes.
 
-**Manuscript:** Lubbers R.U., Weitkamp G., Hierink F., Ray N., Oporia F., Businge O., Biesma R. *Geospatial modelling reveals flood-driven inequities in healthcare accessibility among populations vulnerable to undernutrition in Kampala, Uganda.* Under review at *Communications Medicine* (COMMSMED-25-2757, Revision 1).
+**Manuscript:** Lubbers R.U., Weitkamp G., Hierink F., Ray N., Oporia F., Businge O., Biesma R. *Urban flooding widens inequalities in walking access to healthcare: geospatial modelling in Kampala, Uganda.* *Communications Medicine* (COMMSMED-25-2757).
+
+**Cite this repository:** Lubbers R.U. *RikLubbers/Urban_Floodings_Kamp: analysis code for 'Urban flooding widens inequalities in walking access to healthcare'.* Zenodo https://doi.org/10.5281/zenodo.PLACEHOLDER (2026).
 
 ---
 
@@ -52,10 +54,10 @@ Urban_Floodings_Kamp/
 │   └── 4_Vulnerability_index_impact/      # Step 4: Vulnerability overlays
 │       ├── 04.1_Index_equal_weight.qmd    #   Equal-weight vulnerability index
 │       ├── 04.1B_PCA_and_Comparison.qmd   #   PCA-based index & sensitivity analysis
-│       ├── 04.1C_RWI_Comparison.qmd       #   Comparison with Meta Relative Wealth Index (Supp. Fig. 10)
+│       ├── 04.1C_RWI_Comparison.qmd       #   Comparison with Meta Relative Wealth Index (Supp. Fig. 11)
 │       ├── 04.2_Vulnerability_Impact_Main.qmd   # Table 3 & Figs. 5–6
 │       ├── 04.2S_Vulnerability_Impact_Supp.qmd
-│       └── 04.3_Spatial_association.qmd    #   Lee's L spatial association (Supp. Table 3 & Fig. 9)
+│       └── 04.3_Spatial_association.qmd    #   Lee's L spatial association (Supp. Table 3 & Figs. 9-10)
 ├── Data/                                  # Not distributed (see §4)
 ├── AccessMod/                             # AccessMod project files (not distributed)
 ├── Figures/                               # Generated outputs
@@ -146,9 +148,9 @@ All input datasets are publicly available; sources and access links are describe
 
 A minimum analysis-ready dataset sufficient to reproduce the reported results — including derived model outputs and scenario-specific travel time surfaces — is publicly archived on Zenodo:
 
-> Lubbers R.U. et al. (2025). *Minimum dataset for "Geospatial modelling reveals flood-driven inequities in healthcare accessibility among populations vulnerable to undernutrition in Kampala, Uganda"*. Zenodo. https://doi.org/10.5281/zenodo.17531074
+> Lubbers R.U. (2025). *Kampala flood scenario travel time and accessibility model outputs (15 scenarios)*. Zenodo. https://doi.org/10.5281/zenodo.17531074
 
-Source data underlying all main figures are provided in `Source_Data.xlsx`. Full statistical summaries across all 15 modelled scenarios are provided in Supplementary Data files 1 and 2.
+Source data underlying Figures 3-6 are provided in Supplementary Data 3. Full statistical summaries across all 15 modelled scenarios are provided in Supplementary Data files 1 and 2.
 
 ---
 

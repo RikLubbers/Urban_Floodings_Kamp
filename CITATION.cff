@@ -1,8 +1,7 @@
 cff-version: 1.2.0
 title: >-
-  Geospatial modelling reveals flood-driven inequities in
-  healthcare accessibility among populations vulnerable to
-  undernutrition in Kampala, Uganda
+  Urban flooding widens inequalities in walking access to
+  healthcare: geospatial modelling in Kampala, Uganda
 message: >-
   If you use this software or dataset, please cite it using
   the metadata from this file.
@@ -74,8 +73,35 @@ keywords:
   - undernutrition
   - geospatial analysis
 repository-code: 'https://github.com/RikLubbers/Urban_Floodings_Kamp'
+version: 1.0.0
+date-released: '2026-08-12'
 identifiers:
+  - type: doi
+    value: 10.5281/zenodo.PLACEHOLDER
+    description: Archived release of this analysis code on Zenodo
   - type: doi
     value: 10.5281/zenodo.17531074
     description: Minimum analysis-ready dataset on Zenodo
 license: CC-BY-SA-4.0
+preferred-citation:
+  type: article
+  title: >-
+    Urban flooding widens inequalities in walking access to
+    healthcare: geospatial modelling in Kampala, Uganda
+  journal: Communications Medicine
+  authors:
+    - given-names: Rik Ubbo
+      family-names: Lubbers
+    - given-names: Gerd
+      family-names: Weitkamp
+    - given-names: Fleur
+      family-names: Hierink
+    - given-names: Nicolas
+      family-names: Ray
+    - given-names: Frederick
+      family-names: Oporia
+    - given-names: Otto
+      family-names: Businge
+    - given-names: Regien
+      family-names: Biesma
+
